@@ -1,4 +1,6 @@
-# Scrawl
+# Annotator
+
+Annotator is Codecaine's fork of [kitlangton/scrawl](https://github.com/kitlangton/scrawl), forked at v0.3.14. The app and CLI still use the Scrawl name until the rename lands.
 
 Show an agent a problem instead of describing it.
 
