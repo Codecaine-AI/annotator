@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Scrawl autocrop</title>
+<title>Annotator autocrop</title>
 <style>
   :root {
     --bg: #0e0e10; --panel: #161618; --panel2: #1c1c1f; --line: #2a2a2e; --text: #e8e8ea;
@@ -89,7 +89,7 @@
 </head>
 <body>
 <header>
-  <div class="brand">Scrawl <b>autocrop</b><span id="meta"></span></div>
+  <div class="brand">Annotator <b>autocrop</b><span id="meta"></span></div>
   <div class="presets" id="presets"></div>
   <div class="actions">
     <button id="copy" title="Copy the current settings as JSON"><kbd>C</kbd> Copy settings</button>
@@ -128,9 +128,9 @@
     <tr><td><kbd>R</kbd></td><td>Reset to the recommended preset</td></tr>
   </table>
   <p style="color:var(--dim)">The crop is computed here, in JS, from the bundle's activity
-    (ink, clicks, drags, laser, scrolls, cursor dwell, scene changes) and the window log Scrawl
+    (ink, clicks, drags, laser, scrolls, cursor dwell, scene changes) and the window log Annotator
     keeps in Screen mode. Settings persist in this browser. When you like a setup, copy the
-    settings: they get baked into Scrawl's Rust side.</p>
+    settings: they get baked into Annotator's Rust side.</p>
   <form method="dialog"><button style="background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:6px 12px">Close</button></form>
 </dialog>
 <dialog id="copied"><h3 style="margin-top:0">Settings</h3><pre id="copiedText"></pre>

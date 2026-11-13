@@ -127,7 +127,7 @@ struct SpeechStatus: Decodable, Equatable {
     // macOS 15: the error says what to turn on (Speech Recognition, or Dictation's model).
     case "needsPermission": return error ?? "Speech Recognition isn't allowed yet, so captures have no transcript."
     case "failed" where engine == "SFSpeechRecognizer" && error != nil: return error
-    case "failed": return "The speech model didn't download. Scrawl will try again."
+    case "failed": return "The speech model didn't download. Annotator will try again."
     default: return nil
     }
   }
@@ -496,11 +496,11 @@ struct PermissionRowView: View {
       if row.granted && row.reopening {
         HStack(spacing: 6) {
           Spinner()
-          Text("Reopening Scrawl")
+          Text("Reopening Annotator")
         }
         .transition(Motion.swap)
       } else if row.granted && row.relaunch {
-        RowButton(title: "Reopen Scrawl", prominent: true, action: grant)
+        RowButton(title: "Reopen Annotator", prominent: true, action: grant)
           .transition(Motion.swap)
       } else if row.granted {
         HStack(spacing: 5) {
@@ -569,9 +569,9 @@ struct OnboardingView: View {
   private var centered: some View {
     let s = model.shortcut
     let (title, body): (String, String) = switch state.step {
-    case "try-it": ("Make your first Scrawl", "Tap \(s) now. Talk, point at something, then tap \(s) again.")
-    case "done": ("It's on your clipboard", "Press ⌘V in your agent. Scrawl stays in the menu bar; tap \(s) whenever you want to show something.")
-    default: ("Welcome to Scrawl", "Record your screen and your voice, draw on what matters, and paste it all into your agent.")
+    case "try-it": ("Make your first Annotator", "Tap \(s) now. Talk, point at something, then tap \(s) again.")
+    case "done": ("It's on your clipboard", "Press ⌘V in your agent. Annotator stays in the menu bar; tap \(s) whenever you want to show something.")
+    default: ("Welcome to Annotator", "Record your screen and your voice, draw on what matters, and paste it all into your agent.")
     }
     return VStack(spacing: 0) {
       Spacer().frame(height: 34)
@@ -602,7 +602,7 @@ struct OnboardingView: View {
         }
         if state.speech?.notReady == true, let line = state.speech?.line {
           note((state.speech?.state == "downloading" || state.speech?.state == "checking") && state.speech?.engine != "SFSpeechRecognizer"
-            ? "The speech model is still downloading\(state.speech?.percentInParens ?? ""). If it isn't done when you finish, Scrawl adds the transcript to your capture afterwards."
+            ? "The speech model is still downloading\(state.speech?.percentInParens ?? ""). If it isn't done when you finish, Annotator adds the transcript to your capture afterwards."
             : line)
             .padding(.top, 12)
         }
@@ -642,7 +642,7 @@ struct OnboardingView: View {
 
   private var howItWorks: some View {
     VStack(spacing: 0) {
-      Text("How Scrawl works")
+      Text("How Annotator works")
         .font(.system(size: 22, weight: .semibold))
         .foregroundStyle(Palette.text)
         .padding(.top, 34)
@@ -654,13 +654,13 @@ struct OnboardingView: View {
   private var permissionsCopy: (title: String, body: String?) {
     let required = state.rows.filter(\.required).count
     if state.fix, state.rows.count == 1, state.rows.first?.permission == "camera" {
-      return ("Camera, for your iPhone", "macOS treats a cabled iPhone's screen as a camera, so Scrawl needs Camera access to show and record it. Pick iPhone again once it's on.")
+      return ("Camera, for your iPhone", "macOS treats a cabled iPhone's screen as a camera, so Annotator needs Camera access to show and record it. Pick iPhone again once it's on.")
     }
     if state.fix {
-      return ("Scrawl can't record yet", "Turn these on, then press \(model.shortcut) again.")
+      return ("Annotator can't record yet", "Turn these on, then press \(model.shortcut) again.")
     }
     let count = ["zero", "one", "two", "three", "four", "five"][min(required, 5)]
-    return ("Scrawl needs \(count) permissions", nil)
+    return ("Annotator needs \(count) permissions", nil)
   }
 
   private var permissions: some View {
@@ -695,7 +695,7 @@ struct OnboardingView: View {
   }
 
   private var pickerNoteText: String {
-    "macOS may also ask whether Scrawl can bypass its private window picker. Choose Allow, so Scrawl can record the screen you're showing."
+    "macOS may also ask whether Annotator can bypass its private window picker. Choose Allow, so Annotator can record the screen you're showing."
   }
 
   private func note(_ text: String) -> some View {
@@ -866,7 +866,7 @@ final class Onboarding: NSObject, NSApplicationDelegate, NSWindowDelegate {
     )
     window.titlebarAppearsTransparent = true
     window.titleVisibility = .hidden
-    window.title = "Welcome to Scrawl"
+    window.title = "Welcome to Annotator"
     window.isMovableByWindowBackground = true
     window.appearance = NSAppearance(named: .darkAqua)
     window.backgroundColor = NSColor(calibratedWhite: 0x16 / 255, alpha: 1)

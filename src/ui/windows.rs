@@ -540,7 +540,7 @@ pub(super) fn capture_own_window_screenshot(
     if let Some(parent) = out_path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let window = window.ok_or_else(|| anyhow::anyhow!("Could not find Scrawl's window"))?;
+    let window = window.ok_or_else(|| anyhow::anyhow!("Could not find Annotator's window"))?;
     let frame = win::overlay::capture_window(window)?;
     crate::render::save_png(&frame, out_path)
 }
@@ -658,7 +658,7 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
         true,
         None,
     ));
-    let _ = menu.append(&MenuItem::with_id(ID_QUIT, "Quit Scrawl", true, None));
+    let _ = menu.append(&MenuItem::with_id(ID_QUIT, "Quit Annotator", true, None));
 
     MenuEvent::set_event_handler(Some(move |event: MenuEvent| {
         if let Some(action) = menu_action(event.id()) {
@@ -677,7 +677,7 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
     }));
 
     let icon = TrayIconBuilder::new()
-        .with_tooltip("Scrawl")
+        .with_tooltip("Annotator")
         .with_icon(tray_icon_image()?)
         .with_menu(Box::new(menu.clone()))
         .with_menu_on_left_click(false)
@@ -773,10 +773,10 @@ pub(super) fn poll_status_bar() {
 
 fn update_tooltip(tray: &Tray) {
     let text = match (&tray.status, tray.inbox) {
-        (Some(status), _) => format!("Scrawl — {status}"),
-        (None, 0) => "Scrawl".to_owned(),
-        (None, 1) => "Scrawl — 1 capture from iPhone".to_owned(),
-        (None, n) => format!("Scrawl — {n} captures from iPhone"),
+        (Some(status), _) => format!("Annotator — {status}"),
+        (None, 0) => "Annotator".to_owned(),
+        (None, 1) => "Annotator — 1 capture from iPhone".to_owned(),
+        (None, n) => format!("Annotator — {n} captures from iPhone"),
     };
     let _ = tray.icon.set_tooltip(Some(text));
 }

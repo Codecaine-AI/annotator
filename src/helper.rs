@@ -26,7 +26,7 @@ pub fn path() -> Result<PathBuf> {
         .take(2)
         .map(|dir| dir.join("scrawl-helper"))
         .find(|path| path.is_file())
-        .context("scrawl-helper is missing; rebuild Scrawl")
+        .context("scrawl-helper is missing; rebuild Annotator")
 }
 
 /// Runs a helper command to completion and parses its JSON output.

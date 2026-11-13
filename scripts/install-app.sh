@@ -78,15 +78,15 @@ cat > "${CONTENTS_DIR}/Info.plist" <<PLIST
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSScreenCaptureUsageDescription</key>
-  <string>Scrawl captures your screen to build annotated agent bundles.</string>
+  <string>Annotator captures your screen to build annotated agent bundles.</string>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Scrawl records your voice to align transcripts with keyframes.</string>
+  <string>Annotator records your voice to align transcripts with keyframes.</string>
   <key>NSCameraUsageDescription</key>
-  <string>Scrawl mirrors and records a cabled iPhone's screen.</string>
+  <string>Annotator mirrors and records a cabled iPhone's screen.</string>
   <key>NSSpeechRecognitionUsageDescription</key>
-  <string>Scrawl transcribes your narration on this Mac.</string>
+  <string>Annotator transcribes your narration on this Mac.</string>
   <key>NSAppleEventsUsageDescription</key>
-  <string>Scrawl reads the address of the browser tab you captured, to send a capture of a dev site to its project's session.</string>
+  <string>Annotator reads the address of the browser tab you captured, to send a capture of a dev site to its project's session.</string>
 </dict>
 </plist>
 PLIST

@@ -762,7 +762,7 @@ mod tests {
             alpha: 1.0,
         };
         let windows = [
-            raw(1, 9, "Scrawl", "", [1000.0, 0.0, 300.0, 300.0], 0),
+            raw(1, 9, "Annotator", "", [1000.0, 0.0, 300.0, 300.0], 0),
             raw(
                 2,
                 10,
@@ -852,7 +852,7 @@ mod tests {
         assert!(macos_is_asking(&quit_and_reopen));
         // The same alert behind Scrawl's window.
         let behind = [
-            window(11, "Scrawl Helper", [650.0, 145.0, 620.0, 532.0], 0),
+            window(11, "Annotator Helper", [650.0, 145.0, 620.0, 532.0], 0),
             quit_and_reopen[0].clone(),
             settings[0].clone(),
         ];

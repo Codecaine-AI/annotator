@@ -4421,7 +4421,7 @@ impl Render for BundleReviewWindow {
                     div()
                         .text_size(px(16.0))
                         .font_weight(FontWeight::SEMIBOLD)
-                        .child("Scrawl"),
+                        .child("Annotator"),
                 )
                 .child(
                     div()
@@ -5244,7 +5244,7 @@ fn open_review_window(coord_entity: &Entity<ScrawlCoordinator>, cx: &mut App) {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             titlebar: Some(gpui::TitlebarOptions {
                 // The taskbar and Alt+Tab show it on Windows; macOS draws no title here.
-                title: cfg!(target_os = "windows").then(|| "Scrawl".into()),
+                title: cfg!(target_os = "windows").then(|| "Annotator".into()),
                 appears_transparent: true,
                 traffic_light_position: Some(point(px(16.0), px(16.0))),
             }),

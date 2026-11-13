@@ -1539,7 +1539,7 @@ pub fn send_bundle_to_session(bundle_dir: &Path, session: &str) -> Result<()> {
             "files": [{
                 "uri": file_uri(&contact_sheet),
                 "name": "contact-sheet.png",
-                "description": "Scrawl contact sheet: the capture's keyframes in order",
+                "description": "Annotator contact sheet: the capture's keyframes in order",
             }],
             "delivery": "queue",
         })),

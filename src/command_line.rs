@@ -136,10 +136,10 @@ pub fn install(places: &Places) -> Result<PathBuf> {
         State::Installed { link, .. } => return Ok(link),
         State::Missing { link } | State::Stale { link } => link,
         State::Taken { link } => bail!("{} is another program", tilde(&link)),
-        State::Unavailable => bail!("the command-line tool works in the installed Scrawl.app"),
-        State::Nowhere => bail!("there's no folder Scrawl can write to"),
+        State::Unavailable => bail!("the command-line tool works in the installed Annotator.app"),
+        State::Nowhere => bail!("there's no folder Annotator can write to"),
     };
-    let target = target.context("no Scrawl binary")?;
+    let target = target.context("no Annotator binary")?;
     let dir = link.parent().context("no folder")?;
     std::fs::create_dir_all(dir).with_context(|| format!("couldn't create {}", tilde(dir)))?;
     // Made beside it and renamed over, so a stale link is replaced in one step.
@@ -237,7 +237,7 @@ mod tests {
     #[test]
     fn installs_into_the_first_writable_folder_and_uninstalls() {
         let sb = Sandbox::new("install");
-        let target = sb.app("Scrawl.app");
+        let target = sb.app("Annotator.app");
         std::fs::create_dir_all(sb.0.join("brew/bin")).unwrap();
         // The first folder doesn't exist, so the second (which does) is used.
         let places = sb.places(&target, &["missing/bin", "brew/bin", "local/bin"]);
@@ -262,7 +262,7 @@ mod tests {
     #[test]
     fn the_last_folder_is_created_when_nothing_else_is_writable() {
         let sb = Sandbox::new("local");
-        let target = sb.app("Scrawl.app");
+        let target = sb.app("Annotator.app");
         let places = sb.places(&target, &["opt/bin", "local/bin"]);
         let link = sb.0.join("local/bin/scrawl");
         assert_eq!(state(&places), State::Missing { link: link.clone() });
@@ -277,7 +277,7 @@ mod tests {
     fn a_read_only_folder_is_skipped() {
         use std::os::unix::fs::PermissionsExt;
         let sb = Sandbox::new("readonly");
-        let target = sb.app("Scrawl.app");
+        let target = sb.app("Annotator.app");
         let locked = sb.0.join("locked/bin");
         std::fs::create_dir_all(&locked).unwrap();
         std::fs::set_permissions(&locked, std::fs::Permissions::from_mode(0o555)).unwrap();
@@ -290,7 +290,7 @@ mod tests {
     #[test]
     fn another_program_called_scrawl_is_left_alone() {
         let sb = Sandbox::new("taken");
-        let target = sb.app("Scrawl.app");
+        let target = sb.app("Annotator.app");
         let bin = sb.0.join("brew/bin");
         std::fs::create_dir_all(&bin).unwrap();
         std::fs::write(bin.join("scrawl"), "someone else's").unwrap();
@@ -316,8 +316,8 @@ mod tests {
     #[test]
     fn a_link_to_another_or_a_deleted_copy_is_replaced() {
         let sb = Sandbox::new("stale");
-        let target = sb.app("Scrawl.app");
-        let old = sb.app("Old/Scrawl.app");
+        let target = sb.app("Annotator.app");
+        let old = sb.app("Old/Annotator.app");
         let bin = sb.0.join("brew/bin");
         std::fs::create_dir_all(&bin).unwrap();
         std::os::unix::fs::symlink(&old, bin.join("scrawl")).unwrap();
@@ -345,12 +345,12 @@ mod tests {
     #[test]
     fn existing_links_in_home_bin_and_from_homebrew_count_as_installed() {
         let sb = Sandbox::new("found");
-        let target = sb.app("Scrawl.app");
+        let target = sb.app("Annotator.app");
         let home_bin = sb.0.join("home-bin");
         std::fs::create_dir_all(&home_bin).unwrap();
         // A link through a relative path still resolves to this binary.
         std::os::unix::fs::symlink(
-            "../Scrawl.app/Contents/MacOS/scrawl",
+            "../Annotator.app/Contents/MacOS/scrawl",
             home_bin.join("scrawl"),
         )
         .unwrap();

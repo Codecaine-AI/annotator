@@ -177,7 +177,7 @@ define_class!(
 
         #[unsafe(method_id(accessibilityLabel))]
         fn accessibility_label(&self) -> Retained<NSString> {
-            NSString::from_str("Scrawl Recording Controls")
+            NSString::from_str("Annotator Recording Controls")
         }
     }
 );

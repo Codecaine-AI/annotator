@@ -335,7 +335,7 @@ impl Client {
         )?;
         ensure!(
             response.status != 401,
-            "Hex rejected Scrawl's credentials (restart Hex?)"
+            "Hex rejected Annotator's credentials (restart Hex?)"
         );
         ensure!(
             response.status == 200,

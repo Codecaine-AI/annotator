@@ -278,7 +278,7 @@ impl Rejection {
                 "Hold Ctrl, Alt or Win with the key.".to_owned()
             }
             Self::NoModifier => "Hold ⌘, ⌥ or ⌃ with the key.".to_owned(),
-            Self::UnsupportedKey => "Scrawl can't use that key. Try a letter or number.".to_owned(),
+            Self::UnsupportedKey => "Annotator can't use that key. Try a letter or number.".to_owned(),
             Self::Reserved(label) if cfg!(target_os = "windows") => {
                 if label.starts_with("Ctrl+") && !label.contains("Alt+") && !label.contains("Win+")
                 {
@@ -536,7 +536,7 @@ mod login {
         use objc2::runtime::Bool;
         use objc2_foundation::NSError;
         let service =
-            main_app_service().ok_or_else(|| anyhow::anyhow!("not running from Scrawl.app"))?;
+            main_app_service().ok_or_else(|| anyhow::anyhow!("not running from Annotator.app"))?;
         let mut error: Option<objc2::rc::Retained<NSError>> = None;
         let ok: Bool = unsafe {
             if on {
@@ -692,7 +692,7 @@ impl CommandLineView {
             }
             State::Stale { link } => {
                 view.caption = format!(
-                    "{} points to another copy of Scrawl. Install links it to this one.",
+                    "{} points to another copy of Annotator. Install links it to this one.",
                     tilde(link)
                 );
             }
@@ -700,7 +700,7 @@ impl CommandLineView {
                 view.button = None;
                 view.error = true;
                 view.caption = format!(
-                    "{} is another program, so Scrawl leaves it alone.",
+                    "{} is another program, so Annotator leaves it alone.",
                     tilde(link)
                 );
             }
@@ -708,12 +708,12 @@ impl CommandLineView {
                 view.enabled = false;
                 view.error = true;
                 view.caption =
-                    "There's no folder on your PATH that Scrawl can write to.".to_owned();
+                    "There's no folder on your PATH that Annotator can write to.".to_owned();
             }
             State::Unavailable => {
                 view.enabled = false;
                 view.caption =
-                    "The command-line tool works in the installed Scrawl.app.".to_owned();
+                    "The command-line tool works in the installed Annotator.app.".to_owned();
             }
         }
         if let Some(error) = error {
@@ -2676,14 +2676,14 @@ mod tests {
         assert_eq!((row.button, row.enabled), (Some("install"), false));
         assert_eq!(
             row.caption,
-            "The command-line tool works in the installed Scrawl.app."
+            "The command-line tool works in the installed Annotator.app."
         );
         assert_eq!(
             panel.view(&host).skill_command,
             "bunx skills add kitlangton/scrawl"
         );
 
-        let macos = dir.0.join("Scrawl.app/Contents/MacOS");
+        let macos = dir.0.join("Annotator.app/Contents/MacOS");
         std::fs::create_dir_all(&macos).unwrap();
         std::fs::write(macos.join("scrawl"), "").unwrap();
         host.cli.target = Some(std::fs::canonicalize(macos.join("scrawl")).unwrap());
@@ -2721,7 +2721,7 @@ mod tests {
         assert_eq!((row.button, row.error), (None, true));
         assert!(
             row.caption
-                .ends_with("is another program, so Scrawl leaves it alone.")
+                .ends_with("is another program, so Annotator leaves it alone.")
         );
         panel.on(Action::InstallCli, &mut host);
         assert_eq!(std::fs::read_to_string(&link).unwrap(), "other");

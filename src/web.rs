@@ -133,7 +133,7 @@ pub fn fetch_registrations(port: u16) -> Result<Vec<Registration>> {
     let token = crate::handoff::ensure_ingest_token()?;
     let addr = SocketAddr::from(([127, 0, 0, 1], port));
     let mut stream = TcpStream::connect_timeout(&addr, Duration::from_millis(400))
-        .with_context(|| format!("Scrawl isn't listening on port {port}"))?;
+        .with_context(|| format!("Annotator isn't listening on port {port}"))?;
     stream.set_read_timeout(Some(Duration::from_secs(2)))?;
     write!(
         stream,
@@ -147,7 +147,7 @@ pub fn fetch_registrations(port: u16) -> Result<Vec<Registration>> {
         .context("Malformed response")?;
     anyhow::ensure!(
         head.starts_with("HTTP/1.1 200"),
-        "Scrawl answered {}",
+        "Annotator answered {}",
         head.lines().next().unwrap_or("")
     );
     let value: serde_json::Value = serde_json::from_str(body)?;

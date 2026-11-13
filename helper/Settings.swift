@@ -830,7 +830,7 @@ struct SettingsView: View {
         item(.permissions)
         item(.agents)
       }
-      section("Scrawl")
+      section("Annotator")
       item(.about)
       Spacer()
     }
@@ -931,9 +931,9 @@ struct SettingsView: View {
         }
       }
       if state.login.needsApproval {
-        SettingsCaption(text: "Allow Scrawl in System Settings › General › Login Items.")
+        SettingsCaption(text: "Allow Annotator in System Settings › General › Login Items.")
       } else if !state.login.available {
-        SettingsCaption(text: "Launch at login works in the installed Scrawl.app.")
+        SettingsCaption(text: "Launch at login works in the installed Annotator.app.")
       }
       ForEach(state.shortcuts) { shortcut in
         Color.clear.frame(height: 14)
@@ -1071,7 +1071,7 @@ struct SettingsView: View {
     let optional = state.permissions.filter { !$0.required }
     return VStack(spacing: 0) {
       SettingsGroup { permissionRows(required) }
-      SettingsCaption(text: "Scrawl needs these three to record.")
+      SettingsCaption(text: "Annotator needs these three to record.")
       SettingsHeader("When you use them")
       SettingsGroup { permissionRows(optional) }
     }
@@ -1127,7 +1127,7 @@ struct SettingsView: View {
             Image(nsImage: icon).resizable().interpolation(.high).frame(width: 40, height: 40)
           }
           VStack(alignment: .leading, spacing: 1) {
-            Text("Scrawl").font(.system(size: 14, weight: .semibold)).foregroundStyle(theme.text)
+            Text("Annotator").font(.system(size: 14, weight: .semibold)).foregroundStyle(theme.text)
             Text("Version \(state.version)").font(.system(size: 12).monospacedDigit()).foregroundStyle(theme.secondary)
           }
           Spacer()
@@ -1214,7 +1214,7 @@ struct PermissionLine: View {
       Spacer(minLength: 8)
       ZStack(alignment: .trailing) {
         if row.granted && row.relaunch {
-          SettingsButton(title: "Reopen Scrawl") { model.act("reopen") }
+          SettingsButton(title: "Reopen Annotator") { model.act("reopen") }
         } else if row.granted {
           HStack(spacing: 5) {
             Image(systemName: "checkmark.circle.fill").foregroundStyle(theme.positive)
@@ -1363,7 +1363,7 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
     window.toolbarStyle = .unified
     window.titlebarAppearsTransparent = true
     window.titleVisibility = .hidden
-    window.title = "Scrawl Settings"
+    window.title = "Annotator Settings"
     window.isMovableByWindowBackground = true
     window.isReleasedWhenClosed = false
     window.delegate = self
@@ -1630,7 +1630,7 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
     var noUpdates = base
     noUpdates.updates = false
     var storageCustom = base
-    storageCustom.capturesDir = SettingsCapturesDir(path: "~/Documents/Scrawl Captures", custom: true)
+    storageCustom.capturesDir = SettingsCapturesDir(path: "~/Documents/Annotator Captures", custom: true)
     var cliInstalled = base
     cliInstalled.commandLine = SettingsCommandLine(
       path: "/opt/homebrew/bin/scrawl", button: "uninstall",
@@ -1645,10 +1645,10 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
       caption: "Installed with Homebrew. Agents and your terminal can run scrawl to read captures, zoom into a moment and export video.")
     var cliTaken = base
     cliTaken.commandLine = SettingsCommandLine(
-      button: nil, caption: "/usr/local/bin/scrawl is another program, so Scrawl leaves it alone.", error: true)
+      button: nil, caption: "/usr/local/bin/scrawl is another program, so Annotator leaves it alone.", error: true)
     var cliDev = base
     cliDev.commandLine = SettingsCommandLine(
-      enabled: false, caption: "The command-line tool works in the installed Scrawl.app.")
+      enabled: false, caption: "The command-line tool works in the installed Annotator.app.")
     var micChosen = base
     micChosen.microphone = SettingsMicrophone(selected: devices[1].id, value: "Shure MV7", options: micOptions, note: nil, meter: devices[1].id)
     var micMissing = base

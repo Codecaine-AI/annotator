@@ -441,7 +441,7 @@ pub fn post_synthetic_cmd_v() {
         inputs.push(keyboard_input(VK_CONTROL.0, KEYEVENTF_KEYUP));
     }
     if !send(&inputs) {
-        scrawl_log("Ctrl+V was refused (an elevated app in front ignores Scrawl's input)");
+        scrawl_log("Ctrl+V was refused (an elevated app in front ignores Annotator's input)");
     }
 }
 

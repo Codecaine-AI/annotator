@@ -125,10 +125,10 @@ pub fn install(places: &Places) -> Result<PathBuf> {
         State::Installed { link, .. } => return Ok(link),
         State::Missing { link } | State::Stale { link } => link,
         State::Taken { link } => bail!("{} is another program", tilde(&link)),
-        State::Unavailable => bail!("there's no Scrawl executable to run"),
-        State::Nowhere => bail!("there's no folder Scrawl can write to"),
+        State::Unavailable => bail!("there's no Annotator executable to run"),
+        State::Nowhere => bail!("there's no folder Annotator can write to"),
     };
-    let target = places.target.as_ref().context("no Scrawl executable")?;
+    let target = places.target.as_ref().context("no Annotator executable")?;
     let dir = link.parent().context("no folder")?;
     std::fs::create_dir_all(dir).with_context(|| format!("couldn't create {}", tilde(dir)))?;
     std::fs::write(&link, shim(target))

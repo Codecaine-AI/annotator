@@ -580,7 +580,7 @@ fn window_changes(snapshots: &[WindowSnapshot]) -> Vec<(u64, String)> {
         snapshot
             .windows
             .iter()
-            .filter(|w| w.layer == 0 && w.regular && w.app != "Scrawl")
+            .filter(|w| w.layer == 0 && w.regular && w.app != "Annotator")
             .map(|w| (w.id, w.app.clone()))
             .collect()
     };

@@ -648,7 +648,7 @@ pub fn missing_media_reason(dir: &Path) -> Option<String> {
     Some(if days > 0 {
         format!(
             "The bundle's video was cleaned up after {days} days and is in the Trash \
-             (Scrawl menu › Keep Recordings sets how long video is kept)"
+             (Annotator menu › Keep Recordings sets how long video is kept)"
         )
     } else {
         "The bundle's video was cleaned up and is in the Trash".to_owned()
