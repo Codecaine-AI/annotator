@@ -850,6 +850,9 @@ pub struct SharedCaptureTelemetry {
     agent_context: AtomicBool,
     /// A ⇧-press inside the target: when, where (global points) and on which frame.
     shift_press: Mutex<Option<(u64, f64, f64, TargetFrame)>>,
+    /// A pin dropped in the ⇧ hold that is still down: ink drawn since is the way to the next
+    /// ⇧-click, not a drawing (`shift_up`).
+    pinned_in_hold: AtomicBool,
 }
 
 impl SharedCaptureTelemetry {
@@ -901,6 +904,7 @@ impl SharedCaptureTelemetry {
             drag_start: Mutex::new(None),
             agent_context: AtomicBool::new(false),
             shift_press: Mutex::new(None),
+            pinned_in_hold: AtomicBool::new(false),
         })
     }
 
@@ -1115,6 +1119,7 @@ impl SharedCaptureTelemetry {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clear();
         self.shift_held.store(false, Ordering::Release);
+        self.pinned_in_hold.store(false, Ordering::Release);
         self.window_log_request.store(false, Ordering::Release);
         let agent_context = crate::handoff::experiment(crate::handoff::AGENT_CONTEXT);
         self.agent_context.store(agent_context, Ordering::Release);
@@ -1266,6 +1271,8 @@ impl SharedCaptureTelemetry {
     /// The button of a ⇧-press came up (with or without ⇧ still held). A ⇧-click drops the next
     /// numbered pin where it went down, unless ink was already drawn in this ⇧ hold: a click in
     /// the middle of a drawing belongs to the drawing, so it neither pins nor counts as a click.
+    /// Once a hold has dropped a pin, its later ⇧-clicks each drop one too: the ink between two
+    /// pins is the pointer on its way, not a drawing.
     /// A ⇧-drag is left to the ink the poller is drawing. Returns whether a ⇧-press was waiting,
     /// so the release isn't also taken as a click's.
     fn shift_up(&self, t_ms: u64, screen_x: f64, screen_y: f64) -> bool {
@@ -1291,12 +1298,16 @@ impl SharedCaptureTelemetry {
                 .live_ink
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if live.as_ref().is_some_and(|ink| drew_before(ink, t0)) {
+            if !self.pinned_in_hold.load(Ordering::Acquire)
+                && live.as_ref().is_some_and(|ink| drew_before(ink, t0))
+            {
                 return true;
             }
-            // ⇧ draws as it's held, so the live ink is only the click's jitter; further ink
-            // starts a new stroke.
+            // ⇧ draws as it's held, so the live ink is only the click's jitter (or the way here
+            // from the hold's last pin); further ink starts a new stroke.
             *live = None;
+            self.pinned_in_hold
+                .store(self.shift_held.load(Ordering::Acquire), Ordering::Release);
         }
         let (nx, ny, fw, fh) = self.normalize_point(x0, y0);
         let mut strokes = self
@@ -1591,6 +1602,7 @@ fn track_shift_ink(
         }
     } else if !pure_shift && prev_shift_ink {
         telemetry.shift_held.store(false, Ordering::Release);
+        telemetry.pinned_in_hold.store(false, Ordering::Release);
         if let Some(stroke) = telemetry
             .live_ink
             .lock()
@@ -2216,6 +2228,58 @@ mod tests {
         assert!(events.is_empty(), "{events:?}");
         let kinds: Vec<_> = strokes.iter().map(|s| (s.pin, s.pts.len() / 3)).collect();
         assert_eq!(kinds, vec![(None, 3), (Some(1), 1)]);
+    }
+
+    /// Holding ⇧ and clicking three places drops three pins. The ink the poller draws on the way
+    /// from one pin to the next is not a drawing, so it neither blocks the next pin nor stays as
+    /// a stroke. Ink after the last pin is a drawing again, and so is the next hold.
+    #[test]
+    fn shift_clicks_in_one_hold_each_drop_a_pin() {
+        let telemetry = session(1000.0, 1000.0);
+        let hold = |from: f64, to: f64| {
+            let mut x = from;
+            while x <= to {
+                track_shift_ink(&telemetry, (x, 500.0), true, true);
+                x += 10.0;
+            }
+        };
+        let click = |x: f64| {
+            // Later than every point the poller has drawn so far.
+            let t = telemetry.elapsed_ms() + 1_000;
+            telemetry.shift_down(t, x, 500.0);
+            assert!(telemetry.shift_up(t + 60, x, 500.0));
+        };
+        hold(100.0, 100.0);
+        click(100.0);
+        hold(100.0, 300.0);
+        click(300.0);
+        hold(300.0, 500.0);
+        click(500.0);
+        // Still holding ⇧: a line after the last pin is kept.
+        hold(500.0, 700.0);
+        track_shift_ink(&telemetry, (700.0, 500.0), false, true);
+
+        // The next hold is a drawing from the start, so its click drops no pin.
+        hold(100.0, 300.0);
+        click(300.0);
+        track_shift_ink(&telemetry, (300.0, 500.0), false, true);
+
+        let (events, strokes) = telemetry.finish_session();
+        assert!(events.is_empty(), "{events:?}");
+        let kinds: Vec<_> = strokes
+            .iter()
+            .map(|s| (s.pin, s.normalized_points()[0][0]))
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![
+                (Some(1), 0.1),
+                (Some(2), 0.3),
+                (Some(3), 0.5),
+                (None, 0.5),
+                (None, 0.1)
+            ]
+        );
     }
 
     #[test]
