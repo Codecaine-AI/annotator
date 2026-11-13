@@ -5248,7 +5248,7 @@ fn open_review_window(coord_entity: &Entity<ScrawlCoordinator>, cx: &mut App) {
                 appears_transparent: true,
                 traffic_light_position: Some(point(px(16.0), px(16.0))),
             }),
-            app_id: Some("ai.codecaine.annotator".into()),
+            app_id: Some(crate::app_identity::Variant::current().bundle_id().into()),
             focus: true,
             show: true,
             kind: WindowKind::Normal,

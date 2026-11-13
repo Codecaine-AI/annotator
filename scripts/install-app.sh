@@ -4,14 +4,37 @@ set -euo pipefail
 export LC_ALL=C
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ $# -gt 1 || ( $# -eq 1 && "$1" != --dev ) ]]; then
+  echo "usage: scripts/install-app.sh [--dev]" >&2
+  exit 2
+fi
+# --dev installs Annotator Dev.app beside the live app. It has its own bundle id, so its own TCC
+# grants, and the app derives its own config, captures, logs, shortcuts and port from that id
+# (src/app_identity.rs). It never quits, replaces or relinks the live Annotator.app.
+if [[ "${1:-}" == --dev ]]; then
+  APP_NAME="Annotator Dev"
+  BUNDLE_ID="ai.codecaine.annotator.dev"
+  # Outside target/, which `hivemind clean` purges.
+  DEFAULT_APP_DIR="${HOME}/Applications/Annotator Dev.app"
+  CLI_LINKS=("${HOME}/bin/scrawl-dev")
+  # Only this app is quit. Annotator.app, Scrawl.app and their shortcuts are separate.
+  APP_BINARIES=("Annotator Dev.app/Contents/MacOS/scrawl")
+else
+  APP_NAME="Annotator"
+  BUNDLE_ID="ai.codecaine.annotator"
+  DEFAULT_APP_DIR="/Applications/Annotator.app"
+  CLI_LINKS=("${HOME}/bin/scrawl" /usr/local/bin/scrawl)
+  # The upstream Scrawl.app and Annotator.app share the shortcut and the captures folder, so only
+  # one may run. Scrawl.app itself stays installed.
+  APP_BINARIES=("Scrawl.app/Contents/MacOS/scrawl" "Annotator.app/Contents/MacOS/scrawl")
+fi
 # SCRAWL_APP_DIR builds the signed bundle somewhere else (staging for remote installs, see
-# install-app-remote.sh); SCRAWL_NO_LAUNCH=1 skips the ~/bin link and the restart.
-APP_DIR="${SCRAWL_APP_DIR:-/Applications/Annotator.app}"
+# install-app-remote.sh); SCRAWL_NO_LAUNCH=1 skips the CLI links and the restart.
+APP_DIR="${SCRAWL_APP_DIR:-${DEFAULT_APP_DIR}}"
 CONTENTS_DIR="${APP_DIR}/Contents"
 MACOS_DIR="${CONTENTS_DIR}/MacOS"
 RESOURCES_DIR="${CONTENTS_DIR}/Resources"
 FRAMEWORKS_DIR="${CONTENTS_DIR}/Frameworks"
-BUNDLE_ID="ai.codecaine.annotator"
 HELPER_ID="${BUNDLE_ID}.helper"
 # The pinned local identity from scripts/setup-local-signing.py. Signing with the same
 # certificate and an explicit designated requirement keeps TCC grants across rebuilds.
@@ -62,9 +85,9 @@ cat > "${CONTENTS_DIR}/Info.plist" <<PLIST
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>Annotator</string>
+  <string>${APP_NAME}</string>
   <key>CFBundleDisplayName</key>
-  <string>Annotator</string>
+  <string>${APP_NAME}</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
@@ -104,12 +127,9 @@ if [[ "${SCRAWL_NO_LAUNCH:-0}" == "1" ]]; then
   exit 0
 fi
 
-ln -sf "${MACOS_DIR}/scrawl" "${HOME}/bin/scrawl"
-ln -sf "${MACOS_DIR}/scrawl" /usr/local/bin/scrawl
-
-# The upstream Scrawl.app and Annotator.app share the shortcut and the captures folder, so only
-# one may run. Scrawl.app itself stays installed.
-APP_BINARIES=("Scrawl.app/Contents/MacOS/scrawl" "Annotator.app/Contents/MacOS/scrawl")
+for link in "${CLI_LINKS[@]}"; do
+  ln -sf "${MACOS_DIR}/scrawl" "${link}"
+done
 
 scrawl_running() {
   local binary status
@@ -142,4 +162,4 @@ if scrawl_running; then
 fi
 open -a "${APP_DIR}" || (sleep 0.3 && open -n -a "${APP_DIR}")
 sleep 0.3
-pgrep -fl "Annotator.app/Contents/MacOS/scrawl"
+pgrep -fl "${APP_NAME}.app/Contents/MacOS/scrawl"

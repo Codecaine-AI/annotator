@@ -120,7 +120,7 @@ pub fn lookup(url: &str) -> Option<Registration> {
     let port = std::env::var("SCRAWL_INGEST_PORT")
         .ok()
         .and_then(|p| p.parse().ok())
-        .unwrap_or(crate::phone::DEFAULT_INGEST_PORT);
+        .unwrap_or(crate::app_identity::Variant::current().ingest_port());
     let mut remote = Registry::default();
     for reg in fetch_registrations(port).ok()? {
         remote.entries.push(reg);

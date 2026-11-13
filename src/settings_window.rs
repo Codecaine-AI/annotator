@@ -337,7 +337,7 @@ fn open(request: Request, cx: &mut App) {
             is_resizable: false,
             is_minimizable: true,
             window_background: WindowBackgroundAppearance::Opaque,
-            app_id: Some("ai.codecaine.annotator".into()),
+            app_id: Some(crate::app_identity::Variant::current().bundle_id().into()),
             ..Default::default()
         },
         move |window, cx| {
