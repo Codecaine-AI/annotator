@@ -222,7 +222,7 @@ Preview every pane, dark and light, with the recorder listening and a combinatio
 - `⌥⇧V`: Paste both `contact-sheet.png` and `summary.md` into the active app or terminal (`⌃⌥⇧V` also works while it's the default)
 - **Normal pointer**: Clicks and scrolls pass straight through to the app underneath
 - **Hold `⇧` (Shift) + move**: Draw a persistent red marker stroke (`#ff3b30`) on screen that fades out after release
-- **`⇧`-click**: Drop a numbered pin where you click (a press that moves under 12 pt and lets go within 1 s; longer is ink). It shows as a brief red pulse, not a lasting dot, and lands on the keyframes. A click after you've drawn in the same `⇧` hold is part of the drawing and drops no pin. Keep `⇧` down and click more places to drop more pins: after a hold's first pin, each click in it drops the next one
+- **`⇧`-click**: Drop a numbered pin where you click (a press that moves under 12 pt and lets go within 1 s; longer is ink). It shows on screen as a red circle, 22 pt across, with the pin's number in white (1, 2, 3 in the order you drop them): whole for 2 s, then it fades out over 0.5 s (on Windows it is still a brief red pulse). The recorded video never shows it, and the same numbered circle lands on the keyframes, the contact sheet and exported videos. A click after you've drawn in the same `⇧` hold is part of the drawing and drops no pin. Keep `⇧` down and click more places to drop more pins: after a hold's first pin, each click in it drops the next one
 - **`⌘Z`**: Undo the last stroke
 - **`Esc`**: Cancel the active selection or capture
 

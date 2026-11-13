@@ -21,7 +21,10 @@ use objc2_foundation::{NSPoint, NSRect};
 use objc2_quartz_core::CALayer;
 
 use crate::capture::SharedCaptureTelemetry;
-use crate::sketch::{pin_pulse, slice_laser_window, smooth_ink_points, smooth_laser_points};
+use crate::sketch::{
+    PIN_BADGE_RADIUS_PT, pin_badge, pin_pulse, slice_laser_window, smooth_ink_points,
+    smooth_laser_points,
+};
 
 const TAIL_DURATION_SEC: f32 = 0.42;
 const MAX_SEGMENTS: usize = 16_384;
@@ -66,12 +69,99 @@ struct PathSegment {
     width: f32,
 }
 
+/// A pin on screen: its entrance ring (`radius`, `alpha`) and its numbered disc.
 #[repr(C)]
-#[derive(Clone, Copy, Default, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 struct PinMarker {
     pos: [f32; 2],
     radius: f32,
     alpha: f32,
+    badge_radius: f32,
+    badge_alpha: f32,
+    /// The number's cell in the label texture (`label_cell`), or -1 for a disc without one.
+    label: f32,
+    _pad: f32,
+}
+
+impl PinMarker {
+    /// Pin `number`, dropped `age_ms` ago at `pos`: the ring that pulses once and the numbered
+    /// disc that stays for a while (`pin_pulse`, `pin_badge`). `None` once both are gone.
+    fn aged(pos: [f32; 2], number: u32, age_ms: u64) -> Option<Self> {
+        let pulse = pin_pulse(age_ms);
+        let badge = pin_badge(age_ms);
+        if pulse.is_none() && badge.is_none() {
+            return None;
+        }
+        let (radius, alpha) = pulse.unwrap_or_default();
+        let (size, badge_alpha) = badge.unwrap_or_default();
+        Some(Self {
+            pos,
+            radius,
+            alpha,
+            badge_radius: PIN_BADGE_RADIUS_PT * size,
+            badge_alpha,
+            label: label_cell(number),
+            _pad: 0.0,
+        })
+    }
+}
+
+/// The label texture is a grid of `LABEL_GRID` × `LABEL_GRID` cells of `LABEL_CELL_PX` pixels:
+/// cell `n - 1` holds the number `n`, drawn for a disc of `LABEL_RADIUS_PX` at the cell's
+/// centre. `laser_overlay.metal` has the same grid and the same cell-to-radius ratio.
+const LABEL_GRID: u32 = 10;
+const LABEL_CELL_PX: u32 = 96;
+const LABEL_RADIUS_PX: f32 = 40.0;
+
+/// Where pin `number`'s label is in the label texture, or -1 when it has none (numbers past
+/// the grid show as a disc alone).
+fn label_cell(number: u32) -> f32 {
+    if (1..=LABEL_GRID * LABEL_GRID).contains(&number) {
+        (number - 1) as f32
+    } else {
+        -1.0
+    }
+}
+
+/// The pins' numbers as one coverage image, `LABEL_GRID * LABEL_CELL_PX` pixels square: the
+/// labels the keyframes draw (`render::pin_label_coverage`).
+fn pin_label_atlas() -> Vec<u8> {
+    let cell = LABEL_CELL_PX as usize;
+    let side = LABEL_GRID as usize * cell;
+    let mut atlas = vec![0u8; side * side];
+    for number in 1..=LABEL_GRID * LABEL_GRID {
+        let label = crate::render::pin_label_coverage(number, LABEL_RADIUS_PX, LABEL_CELL_PX);
+        let index = (number - 1) as usize;
+        let (col, row) = (index % LABEL_GRID as usize, index / LABEL_GRID as usize);
+        for (y, line) in label.chunks_exact(cell).enumerate() {
+            let start = (row * cell + y) * side + col * cell;
+            atlas[start..start + cell].copy_from_slice(line);
+        }
+    }
+    atlas
+}
+
+/// A square single-channel texture of `side` pixels for the shader to sample.
+fn coverage_texture(device: &metal::DeviceRef, side: u64, bytes: &[u8]) -> metal::Texture {
+    let descriptor = metal::TextureDescriptor::new();
+    descriptor.set_pixel_format(MTLPixelFormat::R8Unorm);
+    descriptor.set_width(side);
+    descriptor.set_height(side);
+    descriptor.set_usage(metal::MTLTextureUsage::ShaderRead);
+    let texture = device.new_texture(&descriptor);
+    texture.replace_region(
+        metal::MTLRegion::new_2d(0, 0, side, side),
+        0,
+        bytes.as_ptr().cast(),
+        side,
+    );
+    texture
+}
+
+/// The label texture with every number drawn.
+fn pin_label_texture(device: &metal::DeviceRef) -> metal::Texture {
+    let side = u64::from(LABEL_GRID * LABEL_CELL_PX);
+    coverage_texture(device, side, &pin_label_atlas())
 }
 
 /// The start glow, the longest timed effect of the recording frame, is over 1.1 s in; from then
@@ -281,6 +371,10 @@ struct MetalLaserRenderer {
     device: metal::Device,
     command_queue: metal::CommandQueue,
     pipelines: OverlayPipelines,
+    /// The pins' numbers (`pin_label_texture`), drawn when the first pin drops: until then one
+    /// clear texel, so a recording without pins never pays for them.
+    labels: metal::Texture,
+    labels_drawn: bool,
     /// What the frame on screen was drawn from. The layer keeps showing it, so a frame drawn
     /// from the same inputs is skipped.
     shown: Option<ShownFrame>,
@@ -318,6 +412,8 @@ impl SharedMetalOverlay {
             telemetry,
             renderer: Mutex::new(MetalLaserRenderer {
                 command_queue: device.new_command_queue(),
+                labels: coverage_texture(&device, 1, &[0]),
+                labels_drawn: false,
                 device,
                 layer,
                 pipelines,
@@ -457,16 +553,13 @@ impl SharedMetalOverlay {
         let mut pins = Vec::new();
 
         for (stroke, is_live) in &strokes {
-            if stroke.pin.is_some() {
+            if let Some(number) = stroke.pin {
                 if let Some([nx, ny]) = stroke.normalized_points().first().copied()
-                    && let Some((radius, alpha)) = pin_pulse(now_ms.saturating_sub(stroke.t1))
+                    && let Some(pin) =
+                        PinMarker::aged(to_screen(nx, ny), number, now_ms.saturating_sub(stroke.t1))
                     && pins.len() < MAX_PINS
                 {
-                    pins.push(PinMarker {
-                        pos: to_screen(nx, ny),
-                        radius,
-                        alpha,
-                    });
+                    pins.push(pin);
                 }
                 continue;
             }
@@ -541,6 +634,7 @@ impl SharedMetalOverlay {
         if segments.is_empty() {
             segments.push(PathSegment::default());
         }
+        let pin_count = if is_active { pins.len() } else { 0 };
         if pins.is_empty() {
             pins.push(PinMarker::default());
         }
@@ -549,6 +643,10 @@ impl SharedMetalOverlay {
             .renderer
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if pin_count > 0 && !renderer.labels_drawn {
+            renderer.labels = pin_label_texture(&renderer.device);
+            renderer.labels_drawn = true;
+        }
         let tile_cols = (renderer.width / TILE_PT).ceil().max(1.0) as u32;
         let tile_rows = (renderer.height / TILE_PT).ceil().max(1.0) as u32;
         let shown = objc2::rc::autoreleasepool(|_| {
@@ -568,11 +666,7 @@ impl SharedMetalOverlay {
                 tip_active: if is_active && shift_held { 1.0 } else { 0.0 },
                 tip_pos: pointer,
                 segment_count: segment_count as u32,
-                pin_count: if !is_active || (pins.len() == 1 && pins[0].radius == 0.0) {
-                    0
-                } else {
-                    pins.len().min(MAX_PINS) as u32
-                },
+                pin_count: pin_count as u32,
                 constrain_rect: if is_constrained { 1.0 } else { 0.0 },
                 _pad1: mode_code,
                 target_rect: [tx, ty, tw, th],
@@ -611,6 +705,7 @@ impl SharedMetalOverlay {
                 &uniforms,
                 &segments,
                 &pins,
+                &renderer.labels,
             );
             cmd.present_drawable(drawable);
             cmd.commit();
@@ -791,6 +886,7 @@ fn encode_overlay(
     uniforms: &LaserUniforms,
     segments: &[PathSegment],
     pins: &[PinMarker],
+    labels: &metal::TextureRef,
 ) {
     let enc = cmd.new_render_command_encoder(pass);
     enc.set_render_pipeline_state(pipeline);
@@ -825,6 +921,7 @@ fn encode_overlay(
         MTLResourceOptions::StorageModeShared,
     );
     enc.set_fragment_buffer(3, Some(&tile_buffer), 0);
+    enc.set_fragment_texture(0, Some(labels));
     enc.draw_primitives(MTLPrimitiveType::Triangle, 0, 3);
     enc.end_encoding();
 }
@@ -886,7 +983,10 @@ mod tests {
         attachment.set_store_action(MTLStoreAction::Store);
         let queue = device.new_command_queue();
         let cmd = queue.new_command_buffer();
-        encode_overlay(cmd, pass, &device, pipeline, uniforms, segments, pins);
+        let labels = pin_label_texture(&device);
+        encode_overlay(
+            cmd, pass, &device, pipeline, uniforms, segments, pins, &labels,
+        );
         cmd.commit();
         cmd.wait_until_completed();
         let mut pixels = vec![0u8; (w * h * 4) as usize];
@@ -964,6 +1064,7 @@ mod tests {
                 pos: [centre, centre],
                 radius,
                 alpha,
+                ..Default::default()
             });
             let uniforms = LaserUniforms {
                 resolution: [size as f32, size as f32],
@@ -997,6 +1098,128 @@ mod tests {
                 }
             }
         }
+    }
+
+    /// One pin alone on a clear `size`-pixel square at 2x, `age_ms` after it dropped, through
+    /// the real shader: its BGRA pixels, or `None` without a Metal device.
+    fn render_pin(size: u64, number: u32, age_ms: u64) -> Option<Vec<u8>> {
+        let scale = 2.0_f32;
+        let points = size as f32 / scale;
+        let pin = PinMarker::aged([points / 2.0, points / 2.0], number, age_ms);
+        let uniforms = LaserUniforms {
+            resolution: [size as f32, size as f32],
+            scale,
+            now_sec: 5.0,
+            tail_duration: 1.0,
+            pin_count: u32::from(pin.is_some()),
+            target_rect: [0.0, 0.0, points, points],
+            tile_cols: 1,
+            tile_rows: 1,
+            tile_size: TILE_PT,
+            ..Default::default()
+        };
+        render_offscreen(
+            Shader::Picked,
+            &uniforms,
+            &[PathSegment::default()],
+            &[pin.unwrap_or_default()],
+        )
+    }
+
+    /// A dropped pin shows as the keyframes' pin: a red disc 22 pt across in a white ring, with
+    /// its number in white. It is whole for 2 s, fades over 0.5 s, and then nothing is left.
+    #[test]
+    fn a_dropped_pin_shows_its_number_in_a_red_disc_for_two_seconds() {
+        let size = 80_u64;
+        let Some(whole) = render_pin(size, 2, 1_000) else {
+            return;
+        };
+        // Premultiplied BGRA at a pixel offset from the pin, which is at the centre.
+        let at = |pixels: &[u8], dx: i64, dy: i64| {
+            let i = (((size as i64 / 2 + dy) * size as i64 + size as i64 / 2 + dx) * 4) as usize;
+            [pixels[i], pixels[i + 1], pixels[i + 2], pixels[i + 3]]
+        };
+        let is_red = |[b, g, r, a]: [u8; 4]| r > 240 && g < 80 && b < 70 && a == 255;
+        let is_white = |[b, g, r, a]: [u8; 4]| r > 240 && g > 240 && b > 240 && a == 255;
+        // 11 pt is 22 px here: red just inside it, the white ring just outside, then nothing.
+        for (dx, dy) in [(19, 0), (-19, 0), (0, 19), (0, -19)] {
+            assert!(is_red(at(&whole, dx, dy)), "disc at {dx},{dy}");
+        }
+        for (dx, dy) in [(24, 0), (-24, 0), (0, 24), (0, -24)] {
+            assert!(is_white(at(&whole, dx, dy)), "ring at {dx},{dy}");
+        }
+        for (dx, dy) in [(30, 0), (-30, 0), (0, 30), (0, -30), (22, 22)] {
+            assert_eq!(at(&whole, dx, dy), [0; 4], "clear at {dx},{dy}");
+        }
+        // The number: white pixels inside the red disc, a different shape for each number,
+        // none for a number the label texture doesn't hold.
+        let number = |pixels: &[u8]| -> Vec<bool> {
+            (-14..=14)
+                .flat_map(|dy| (-14..=14).map(move |dx| (dx, dy)))
+                .map(|(dx, dy)| is_white(at(pixels, dx, dy)))
+                .collect()
+        };
+        let two = number(&whole);
+        let inked = two.iter().filter(|&&w| w).count();
+        assert!((40..400).contains(&inked), "{inked} white pixels for a 2");
+        let one = number(&render_pin(size, 1, 1_000).unwrap());
+        let twelve = number(&render_pin(size, 12, 1_000).unwrap());
+        assert!(one.iter().any(|&w| w) && one != two && twelve != two && twelve != one);
+        let unnumbered = number(&render_pin(size, LABEL_GRID * LABEL_GRID + 1, 1_000).unwrap());
+        assert!(unnumbered.iter().all(|&w| !w), "a number past the grid");
+        assert!(is_red(at(
+            &render_pin(size, LABEL_GRID * LABEL_GRID + 1, 1_000).unwrap(),
+            0,
+            0
+        )));
+
+        // Whole from the end of the pop to 2 s: the same pixels, so those frames are skipped.
+        let hold = crate::sketch::PIN_BADGE_HOLD_MS;
+        let fade = crate::sketch::PIN_BADGE_FADE_MS;
+        assert!(render_pin(size, 2, crate::sketch::PIN_PULSE_MS).unwrap() == whole);
+        assert!(render_pin(size, 2, hold).unwrap() == whole);
+        assert_eq!(
+            PinMarker::aged([40.0, 40.0], 2, crate::sketch::PIN_PULSE_MS),
+            PinMarker::aged([40.0, 40.0], 2, hold)
+        );
+        // Half way through the fade it is half there, in the same colours.
+        let half = render_pin(size, 2, hold + fade / 2).unwrap();
+        let [b, g, r, a] = at(&half, 19, 0);
+        assert!((126..=129).contains(&a) && (126..=129).contains(&r) && g < 40 && b < 35);
+        let [b, g, r, a] = at(&half, 24, 0);
+        assert!([b, g, r, a].iter().all(|v| (126..=129).contains(v)));
+        // Then it is gone.
+        assert_eq!(PinMarker::aged([40.0, 40.0], 2, hold + fade), None);
+        let gone = render_pin(size, 2, hold + fade).unwrap();
+        assert!(gone.iter().all(|&v| v == 0));
+    }
+
+    /// The label texture holds every number from 1 to 100, each inside its own cell.
+    #[test]
+    fn the_label_texture_holds_each_number_in_its_own_cell() {
+        let cell = LABEL_CELL_PX as usize;
+        let side = LABEL_GRID as usize * cell;
+        let atlas = pin_label_atlas();
+        assert_eq!(atlas.len(), side * side);
+        for number in [1_u32, 9, 10, 57, 100] {
+            assert_eq!(label_cell(number), (number - 1) as f32);
+            let index = (number - 1) as usize;
+            let (col, row) = (index % LABEL_GRID as usize, index / LABEL_GRID as usize);
+            let px = |x: usize, y: usize| atlas[(row * cell + y) * side + col * cell + x];
+            let inked = (0..cell)
+                .flat_map(|y| (0..cell).map(move |x| (x, y)))
+                .filter(|&(x, y)| px(x, y) > 128)
+                .collect::<Vec<_>>();
+            assert!(inked.len() > 100, "{number}: {} pixels", inked.len());
+            // Inside the disc the shader draws it on (40 px of the 48 px half cell), so
+            // neighbouring cells never bleed into each other.
+            for (x, y) in inked {
+                let d = (x as f32 + 0.5 - 48.0).hypot(y as f32 + 0.5 - 48.0);
+                assert!(d < LABEL_RADIUS_PX, "{number}: ink at {x},{y}");
+            }
+        }
+        assert_eq!(label_cell(0), -1.0);
+        assert_eq!(label_cell(101), -1.0);
     }
 
     /// Tiles only skip work: the frame matches one where every pixel runs every segment, as
@@ -1116,6 +1339,7 @@ mod tests {
             })
             .collect();
         let queue = device.new_command_queue();
+        let labels = pin_label_texture(&device);
         for samples in [big_loop, scribble] {
             let smoothed = smooth_ink_points(&samples);
             let segments: Vec<PathSegment> = smoothed
@@ -1160,6 +1384,7 @@ mod tests {
                     &uniforms,
                     &segments,
                     &[PinMarker::default()],
+                    &labels,
                 );
                 cmd.commit();
                 cmd.wait_until_completed();
@@ -1260,12 +1485,9 @@ mod tests {
             height * 0.15,
             1.05,
         );
-        let (radius, alpha) = pin_pulse(40).expect("pulse showing");
-        let pin = vec![PinMarker {
-            pos: [width * 0.7, height * 0.3],
-            radius,
-            alpha,
-        }];
+        // 40 ms in, both its entrance ring and its numbered disc show.
+        let pin = vec![PinMarker::aged([width * 0.7, height * 0.3], 3, 40).expect("pin showing")];
+        assert!(pin[0].radius > 0.0 && pin[0].badge_alpha > 0.0);
         let none = vec![PathSegment::default()];
         let no_pin = vec![PinMarker::default()];
         let with =
@@ -1439,6 +1661,7 @@ mod tests {
                 pos: [128.0, 96.0],
                 radius,
                 alpha,
+                ..Default::default()
             });
             let uniforms = LaserUniforms {
                 pin_count: u32::from(pin.is_some()),
@@ -1507,6 +1730,7 @@ mod tests {
         descriptor.set_storage_mode(metal::MTLStorageMode::Private);
         let texture = device.new_texture(&descriptor);
         let queue = device.new_command_queue();
+        let labels = pin_label_texture(&device);
         let gpu_ms = |cmd: &metal::CommandBufferRef| {
             use metal::foreign_types::ForeignTypeRef;
             let cmd = unsafe { &*cmd.as_ptr().cast::<objc2::runtime::AnyObject>() };
@@ -1532,7 +1756,9 @@ mod tests {
                     attachment.set_store_action(MTLStoreAction::Store);
                     let pipeline = if which == 0 { &general } else { specialised };
                     let cmd = queue.new_command_buffer();
-                    encode_overlay(cmd, pass, &device, pipeline, &uniforms, &segments, &pins);
+                    encode_overlay(
+                        cmd, pass, &device, pipeline, &uniforms, &segments, &pins, &labels,
+                    );
                     cmd.commit();
                     cmd.wait_until_completed();
                     if round >= 2 {

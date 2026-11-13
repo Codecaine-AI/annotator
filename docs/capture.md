@@ -16,6 +16,19 @@ Undo, cancel and draw are matched only in the key tap (Windows: the keyboard hoo
 
 The sampler keeps only small candidates (480 px long edge, in a `CandidateBuffer` capped at 384 MB that thins evenly and halves its sampling rate when full, never dropping the start or click/stroke frames). At finish the chosen keyframes are decoded from `recording.mp4` at native size (2560 px Screen, 1280 px Window/Region, never above the display's own scale, so a 1x 1920 pt display records 1920 px), shifted by `videoOffsetMs` (when the movie started on the capture clock); if decoding fails the candidates are used. macOS prompts over a Screen or Area capture (`windows::system_prompts_over`: UserNotificationCenter, SecurityAgent; ScreenCaptureKit's "bypass the system private window picker" alert comes back every 30 days) are left out of the recording through the content filter when ScreenCaptureKit lists them, frames that may show one are dropped from the candidates (`CandidateBuffer::drop_since`), and clicks on them aren't recorded. `scrawl capture-sim` drives this headless for memory and timing checks.
 
+## ⇧ ink and pins (`track_shift_ink`, `shift_down`, `shift_up` in `src/capture.rs`, `src/laser_overlay.rs`)
+
+Annotator only watches input: the app under the pointer still gets every key and click. The 120 Hz poller (`run_global_hid_poller`) reads the modifier flags, and ⇧ counts only when it is down alone and is not left over from a chord such as `⌥⇧S`.
+
+- **Ink:** while ⇧ is down and the pointer moves inside the capture target, `track_shift_ink` draws one stroke, with or without a mouse button down. Letting go of ⇧ commits it when it spans 6 pt or more. A pointer on another display draws nothing: a capture belongs to one display.
+- **Pin:** a left press that goes down while ⇧ is already down, moves under 12 pt and comes up within 1 s (`is_pin_click`). Pins are numbered 1, 2, 3 in the order they drop in the recording (`Stroke.pin`).
+- **A click in a drawing is no pin:** when the hold has already drawn ink before the press (`drew_before`), the click belongs to the drawing. So ⇧ first, then a move to the target, then a click, gives a line and no pin. Put the pointer on the target before you press ⇧.
+- **More pins in one hold:** once a hold has dropped a pin, each later ⇧-click in it drops the next one, and the ink between two pins is discarded (`pinned_in_hold`). Ink after the last pin is a drawing again.
+- **Nothing by design:** ⇧ pressed after the button is already down, with the pointer still, records neither ink nor a pin.
+- **Live:** a dropped pin pulses once (`sketch::pin_pulse`, 350 ms) and shows as a red disc 22 pt across in a white ring with its number in white, whole for 2 s, then fading over 0.5 s (`sketch::pin_badge`). The shader takes the numbers from a coverage texture made when the first pin drops (`pin_label_texture`). The overlay window is left out of the recording, so the video never shows ink or pins; keyframes and exports draw them again from `scrawl.json`. The Windows overlay still shows the pulse only.
+
+`cargo test shift_click` and `cargo test pin` cover the rules, the timing and the pixels. `scripts/shift-ink-harness.swift` proves them end to end in Annotator Dev.app: it starts a recording with `⌃⌥S`, posts ⇧, moves, drags and clicks at the HID event tap inside a window of its own, and counts the strokes and pins in the new bundle (`--scenario all|move|drag|click|pins|held-pins|button-first|late-shift`, `--screenshot <png>` for the live pins). It moves the real pointer for about 5 s a run.
+
 ## Live audio and live words while recording (`src/live_audio.rs`, `src/audio.rs`)
 
 Two settings in Settings › Recording control what the capsule shows while a recording runs. Both are read once per recording (`live_audio::wanted`, `live_audio::captions_possible`).

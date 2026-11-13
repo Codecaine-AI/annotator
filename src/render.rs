@@ -544,12 +544,23 @@ const CHIP_RING: Color = [16, 17, 20, 230];
 const CHIP_FILL: Color = [250, 250, 252, 255];
 const CHIP_INK: Color = [16, 17, 20, 255];
 
+/// A pin's white ring, as a fraction of its red disc's radius.
+pub(crate) const PIN_RING: f32 = 2.5 / 13.0;
+
+/// A numbered pin: a red disc in a white ring with its number in white. The live overlay
+/// (`laser_overlay`) and exported videos (`helper/Export.swift`) draw the same one.
 fn draw_pin(frame: &mut RgbaFrame, point: [f32; 2], number: u32, scale: f32) {
-    let label = number.to_string();
     let radius = 13.0 * scale;
-    circle(frame, point, radius + 2.5 * scale, WHITE);
+    circle(frame, point, radius * (1.0 + PIN_RING), WHITE);
     circle(frame, point, radius, RED);
-    let mut size = 16.0 * scale;
+    draw_pin_label(frame, point, number, radius);
+}
+
+/// A pin's number, bold and white, centred on `point` and sized for a disc of `radius`: 16/13
+/// of it, less when the number is too wide.
+fn draw_pin_label(frame: &mut RgbaFrame, point: [f32; 2], number: u32, radius: f32) {
+    let label = number.to_string();
+    let mut size = radius * 16.0 / 13.0;
     let width = text_width(&label, size, true);
     if width > radius * 1.65 {
         size *= radius * 1.65 / width;
@@ -564,6 +575,17 @@ fn draw_pin(frame: &mut RgbaFrame, point: [f32; 2], number: u32, scale: f32) {
         WHITE,
         true,
     );
+}
+
+/// How much of each pixel a pin's number covers (0–255), in a square of `side` pixels centred
+/// on the pin, for a disc of `radius` pixels: the label `draw_pin` puts on a keyframe, for the
+/// live overlay to show the same one.
+#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+pub(crate) fn pin_label_coverage(number: u32, radius: f32, side: u32) -> Vec<u8> {
+    let mut frame = solid(side, side, [0, 0, 0, 255]);
+    let centre = side as f32 / 2.0;
+    draw_pin_label(&mut frame, [centre, centre], number, radius);
+    frame.rgba.chunks_exact(4).map(|p| p[0]).collect()
 }
 
 fn draw_laser(frame: &mut RgbaFrame, stroke: &Stroke, time: u64) {
@@ -1954,6 +1976,55 @@ mod tests {
         let result = render_annotated_keyframe(&base, &key(1), &[future], &[], &[]);
         assert_eq!(&result.rgba[100 * 320 * 4..], &base.rgba[100 * 320 * 4..]);
         assert!(base.rgba.chunks_exact(4).all(|p| p == [20, 20, 20, 255]));
+    }
+
+    /// Pins are the one mark the images number: each is a red disc in a white ring with its own
+    /// number in white, where it was dropped.
+    #[test]
+    fn pins_are_numbered_red_discs_on_the_keyframe() {
+        let base = solid(1280, 800, [20, 20, 20, 255]);
+        let pin = |number: u32, x: i32| Stroke {
+            t0: 3_000,
+            t1: 3_060,
+            fw: 1280,
+            fh: 800,
+            on: None,
+            pin: Some(number),
+            laser: false,
+            pts: vec![x, 5_000, 0],
+        };
+        // At 25%, 50% and 75% of the width, half way down: (320, 400), (640, 400), (960, 400).
+        let pins = [pin(1, 2_500), pin(2, 5_000), pin(12, 7_500)];
+        let frame = render_annotated_keyframe(&base, &key(1), &pins, &[], &[]);
+        let at = |x: usize, y: usize| -> [u8; 4] {
+            frame.rgba[(y * 1280 + x) * 4..][..4].try_into().unwrap()
+        };
+        let mut numbers = Vec::new();
+        for cx in [320_usize, 640, 960] {
+            // A 13 px disc at this size, a 2.5 px ring, then the screen.
+            assert_eq!(at(cx + 11, 400), RED, "disc of the pin at {cx}");
+            assert_eq!(at(cx, 400 - 11), RED);
+            assert_eq!(at(cx + 14, 400), WHITE, "ring of the pin at {cx}");
+            assert_eq!(at(cx + 18, 400), [20, 20, 20, 255], "past the pin at {cx}");
+            // The 17 px square inside the disc.
+            let number: Vec<bool> = (392..409)
+                .flat_map(|y| (cx - 8..cx + 9).map(move |x| (x, y)))
+                .map(|(x, y)| at(x, y)[1] > 200)
+                .collect();
+            let inked = number.iter().filter(|&&w| w).count();
+            assert!((12..200).contains(&inked), "{inked} white pixels at {cx}");
+            numbers.push(number);
+        }
+        // 1, 2 and 12 are different shapes.
+        assert!(numbers[0] != numbers[1] && numbers[1] != numbers[2] && numbers[0] != numbers[2]);
+        // The live overlay's label is this same one: the 2, pixel for pixel (a pixel of the
+        // label over 72% covered is one the frame shows as white).
+        let label = pin_label_coverage(2, 13.0, 40);
+        let live: Vec<bool> = (12..29)
+            .flat_map(|y| (12..29).map(move |x| (x, y)))
+            .map(|(x, y)| label[y * 40 + x] >= 185)
+            .collect();
+        assert!(live == numbers[1], "the live label is not the keyframe's");
     }
 
     #[test]

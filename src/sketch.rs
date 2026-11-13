@@ -937,9 +937,30 @@ pub fn summary_markdown_with(
     out
 }
 
-/// A ⇧-click pin shows live only as a brief ring at the click, gone in this long; the pin itself
-/// stays data (keyframes, summary). Ordinary clicks draw nothing live.
+/// A ⇧-click pin's live entrance: a brief ring at the click, gone in this long. Its numbered
+/// disc (`pin_badge`) stays longer. Ordinary clicks draw nothing live.
 pub const PIN_PULSE_MS: u64 = 350;
+
+/// A dropped pin's live numbered disc: its radius in points (22 pt across), how long it stays
+/// whole, and how long its fade then takes.
+pub const PIN_BADGE_RADIUS_PT: f32 = 11.0;
+pub const PIN_BADGE_HOLD_MS: u64 = 2_000;
+pub const PIN_BADGE_FADE_MS: u64 = 500;
+/// The disc pops in over this long, as it does in an exported video (`helper/Export.swift`).
+const PIN_BADGE_POP_MS: u64 = 160;
+
+/// The live numbered disc of a pin dropped `age_ms` ago: its size (1 is full) and opacity. It
+/// pops in (ease-out cubic), stays whole until `PIN_BADGE_HOLD_MS`, then fades evenly to nothing
+/// over `PIN_BADGE_FADE_MS`, so the screen is clear again soon after.
+pub fn pin_badge(age_ms: u64) -> Option<(f32, f32)> {
+    if age_ms >= PIN_BADGE_HOLD_MS + PIN_BADGE_FADE_MS {
+        return None;
+    }
+    let pop = (age_ms as f32 / PIN_BADGE_POP_MS as f32).min(1.0);
+    let grow = 1.0 - (1.0 - pop).powi(3);
+    let fade = 1.0 - age_ms.saturating_sub(PIN_BADGE_HOLD_MS) as f32 / PIN_BADGE_FADE_MS as f32;
+    Some((0.6 + 0.4 * grow, grow * fade))
+}
 
 /// The live pulse for a pin dropped `age_ms` ago: a thin ring's radius (points) and opacity. It
 /// grows out fast and slows (ease-out cubic) while it fades to nothing.
@@ -1448,7 +1469,34 @@ fn smooth_closed_polygon(poly: &[[f32; 2]]) -> Vec<[f32; 2]> {
 mod tests {
     use super::*;
 
-    /// A pin pulses once and is gone: nothing click-related stays on screen while recording.
+    /// A pin's numbered disc pops in, is whole for 2 s, fades evenly over the next 0.5 s and is
+    /// gone, so nothing stays on screen for the rest of the recording.
+    #[test]
+    fn a_pin_badge_pops_in_holds_for_two_seconds_then_fades() {
+        let (s0, a0) = pin_badge(0).unwrap();
+        assert!((s0 - 0.6).abs() < 1e-6 && a0 == 0.0, "{s0} {a0}");
+        let (s1, a1) = pin_badge(80).unwrap();
+        assert!(s1 > s0 && s1 < 1.0 && a1 > 0.8 && a1 < 1.0, "{s1} {a1}");
+        for age in [160, 500, 1_999, PIN_BADGE_HOLD_MS] {
+            assert_eq!(pin_badge(age), Some((1.0, 1.0)), "whole at {age} ms");
+        }
+        let fading: Vec<f32> = [2_100, 2_250, 2_400, 2_499]
+            .iter()
+            .map(|&age| {
+                let (size, alpha) = pin_badge(age).unwrap();
+                assert_eq!(size, 1.0, "the fade doesn't shrink it");
+                alpha
+            })
+            .collect();
+        assert!((fading[0] - 0.8).abs() < 1e-6 && (fading[1] - 0.5).abs() < 1e-6);
+        assert!(fading.windows(2).all(|w| w[0] > w[1]) && fading[3] > 0.0);
+        assert_eq!(pin_badge(PIN_BADGE_HOLD_MS + PIN_BADGE_FADE_MS), None);
+        assert_eq!(pin_badge(60_000), None);
+        // The entrance ring is over long before the disc goes.
+        assert!(PIN_PULSE_MS < PIN_BADGE_HOLD_MS);
+    }
+
+    /// A pin's entrance ring pulses once and is gone.
     #[test]
     fn a_pin_pulse_grows_fades_and_ends() {
         let (r0, a0) = pin_pulse(0).unwrap();

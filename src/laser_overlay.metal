@@ -33,12 +33,26 @@ struct PathSegment {
     float width;
 };
 
-// A pin's brief live pulse: a thin ring at `radius`, `alpha` opaque.
+// A pin: its entrance pulse, a thin ring at `radius`, `alpha` opaque, and its numbered disc of
+// `badge_radius`, `badge_alpha` opaque. `label` is its number's cell in the label texture, or
+// -1 for none.
 struct PinMarker {
     float2 pos;
     float radius;
     float alpha;
+    float badge_radius;
+    float badge_alpha;
+    float label;
+    float _pad;
 };
+
+// The label texture: `LABEL_GRID` cells a side, each `LABEL_SPAN` disc radii wide with the
+// number at its centre (`pin_label_atlas`: 96 px cells for a 40 px radius).
+constant float LABEL_GRID = 10.0;
+constant float LABEL_SPAN = 2.4;
+// A pin's white ring, as a fraction of its disc's radius (`render::PIN_RING`).
+constant float PIN_RING = 2.5 / 13.0;
+constexpr sampler label_sampler(filter::linear, address::clamp_to_edge);
 
 struct VertexOutput {
     float4 position [[position]];
@@ -70,7 +84,9 @@ fragment float4 laser_fragment(
     const device PathSegment *segments [[buffer(1)]],
     const device PinMarker *pins [[buffer(2)]],
     // `tile_cols * tile_rows + 1` offsets, then each tile's segment indices (`bin_segments`).
-    const device uint *tiles [[buffer(3)]]
+    const device uint *tiles [[buffer(3)]],
+    // The pins' numbers, as coverage (`pin_label_texture`).
+    texture2d<float> labels [[texture(0)]]
 ) {
     // Pixel position in logical screen points (top-left origin).
     float2 p = (in.uv * u.resolution) / max(u.scale, 1.0);
@@ -127,14 +143,32 @@ fragment float4 laser_fragment(
         }
     }
 
-    // Pin pulses: a 1.5 pt ring, no fill, so nothing under it is hidden.
+    // Pins. The entrance pulse is a 1.5 pt ring, no fill. The numbered disc is the keyframes'
+    // pin: a red disc in a white ring with its number in white, later pins over earlier ones.
+    float4 badge = float4(0.0);
     uint pcount = min(u.pin_count, 64u);
     for (uint i = 0; i < pcount; ++i) {
         PinMarker pin = pins[i];
-        float off = abs(length(p - pin.pos) - pin.radius);
+        float d_pin = length(p - pin.pos);
+        float off = abs(d_pin - pin.radius);
         if (off < 2.0) {
             float ring = smoothstep(1.25, 0.25, off) * pin.alpha;
             ink_red_cov = max(ink_red_cov, ring);
+        }
+        float outer = pin.badge_radius * (1.0 + PIN_RING);
+        if (pin.badge_alpha > 0.001 && d_pin < outer + 1.0) {
+            float ring_cov = smoothstep(outer + 0.5, outer - 0.5, d_pin);
+            float disc_cov = smoothstep(pin.badge_radius + 0.5, pin.badge_radius - 0.5, d_pin);
+            float text_cov = 0.0;
+            float2 local = (p - pin.pos) / (pin.badge_radius * LABEL_SPAN) + 0.5;
+            if (pin.label >= 0.0 && all(local > 0.0) && all(local < 1.0)) {
+                float2 label_cell = float2(fmod(pin.label, LABEL_GRID), floor(pin.label / LABEL_GRID));
+                text_cov = labels.sample(label_sampler, (label_cell + local) / LABEL_GRID).r;
+            }
+            float3 rgb = mix(float3(1.0), float3(1.0, 0.23, 0.19), disc_cov);
+            rgb = mix(rgb, float3(1.0), text_cov * disc_cov);
+            float a = ring_cov * pin.badge_alpha;
+            badge = float4(rgb * a, a) + badge * (1.0 - a);
         }
     }
 
@@ -237,5 +271,7 @@ fragment float4 laser_fragment(
         out.a = laser_alpha + out.a * (1.0 - laser_alpha);
     }
 
-    return float4(out.rgb * out.a, out.a);
+    // 3. The pins' numbered discs, over everything.
+    float4 shown = float4(out.rgb * out.a, out.a);
+    return badge + shown * (1.0 - badge.a);
 }
