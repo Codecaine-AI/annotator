@@ -3,7 +3,8 @@
 //! console errors and failed requests to `/web/context`. The app keeps the last few minutes per
 //! tab; when a capture finishes, `apply` names its clicks and strokes from them and adds the rest
 //! as app events. Pages never send request bodies, headers, cookies, query strings or what was
-//! typed into a field; every string is cut short again here.
+//! typed into a field; every string is cut short again here and loses any URL's query and
+//! fragment (`crate::privacy`).
 
 use std::collections::VecDeque;
 use std::sync::Mutex;
@@ -95,17 +96,9 @@ pub struct Post {
     pub events: Vec<Event>,
 }
 
+/// One line of at most `max` characters, URLs in it without their query (`privacy::clip`).
 fn clip(raw: &str, max: usize) -> Option<String> {
-    let compact = raw.split_whitespace().collect::<Vec<_>>().join(" ");
-    if compact.is_empty() {
-        return None;
-    }
-    Some(if compact.chars().count() <= max {
-        compact
-    } else {
-        let cut: String = compact.chars().take(max - 1).collect();
-        format!("{}…", cut.trim_end())
-    })
+    crate::privacy::clip(raw, max)
 }
 
 fn clip_opt(value: Option<String>, max: usize) -> Option<String> {
@@ -425,6 +418,50 @@ mod tests {
             component: Some("BrowserHeader".into()),
             source: Some("src/BrowserHeader.tsx:88".into()),
         }
+    }
+
+    #[test]
+    fn privacy_page_events_keep_no_url_query() {
+        let now = 1_000_000;
+        let marked = |text: &str| Some(format!("{text} http://localhost:3000/x?token=SECRET-MARKER-URL#SECRET-MARKER"));
+        let kept = sanitize(
+            Event {
+                message: marked("Failed to load"),
+                source: marked("at"),
+                path: Some("/api/reset?token=SECRET-MARKER-URL".into()),
+                target: Some(Target {
+                    text: marked("Open"),
+                    source: marked("src/App.tsx:4"),
+                    id: marked("id"),
+                    cls: marked("cls"),
+                    component: marked("App"),
+                    ..button()
+                }),
+                media: Some(Media {
+                    src: "clip.mp4?sig=SECRET-MARKER-URL".into(),
+                    ..Media::default()
+                }),
+                event: Some("play".into()),
+                ..event(now, "media")
+            },
+            now,
+        )
+        .unwrap();
+        let stored = format!("{kept:?}");
+        assert!(!stored.contains("SECRET-MARKER"), "{stored}");
+        assert_eq!(
+            kept.message.as_deref(),
+            Some("Failed to load http://localhost:3000/x")
+        );
+        assert_eq!(kept.source.as_deref(), Some("at http://localhost:3000/x"));
+        let target = kept.target.unwrap();
+        assert_eq!(target.text.as_deref(), Some("Open http://localhost:3000/x"));
+        assert_eq!(
+            target.source.as_deref(),
+            Some("src/App.tsx:4 http://localhost:3000/x")
+        );
+        assert_eq!(kept.media.unwrap().src, "clip.mp4");
+        assert_eq!(kept.path.as_deref(), Some("/api/reset"));
     }
 
     #[test]

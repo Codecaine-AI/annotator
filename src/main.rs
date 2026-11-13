@@ -42,6 +42,7 @@ mod phone;
 // Lowers the output volume while recording on macOS; elsewhere a no-op.
 #[cfg_attr(not(target_os = "macos"), path = "win/playback.rs")]
 mod playback;
+mod privacy;
 mod recover;
 mod render;
 mod retention;
@@ -893,6 +894,9 @@ pub fn finalize_capture_bundle(
     note: Option<String>,
     activity: windows::ActivityLog,
 ) -> Result<(PathBuf, ScrawlBundle, String)> {
+    // Before anything is written (`recover.json` holds the target too).
+    let mut target = target;
+    privacy::target(&mut target);
     let started_at = activity
         .stop_started
         .unwrap_or_else(std::time::Instant::now);
@@ -1116,6 +1120,9 @@ pub fn build_bundle_from_parts(
     note: Option<String>,
     extras: SourceExtras,
 ) -> Result<(PathBuf, ScrawlBundle, String)> {
+    // Every bundle's target goes through the privacy policy, a rebuilt older one included.
+    let mut target = target;
+    privacy::target(&mut target);
     let total_started = extras
         .timings
         .started_at

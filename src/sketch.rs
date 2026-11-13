@@ -737,11 +737,12 @@ pub fn summary_markdown_with(
         .app
         .clone()
         .unwrap_or_else(|| "Display".into());
-    if let Some(title) = &bundle.target.window_title
-        && !title.is_empty()
-        && Some(title.as_str()) != bundle.target.app.as_deref()
-    {
-        target.push_str(&format!(" “{title}”"));
+    // The title goes through the privacy policy here too, for a bundle built before it did.
+    if let Some(title) = &bundle.target.window_title {
+        let title = crate::privacy::window_title(bundle.target.bundle_id.as_deref(), title);
+        if !title.is_empty() && Some(title.as_str()) != bundle.target.app.as_deref() {
+            target.push_str(&format!(" “{title}”"));
+        }
     }
     if let Some(device) = &bundle.device {
         target = device.name.clone();
@@ -2078,6 +2079,36 @@ mod tests {
         let stationary_ink = [[120.0, 240.0], [120.0, 240.0], [120.0, 240.0]];
         let smoothed_ink = smooth_ink_points(&stationary_ink);
         assert_eq!(smoothed_ink.len(), 1);
+    }
+
+    #[test]
+    fn privacy_the_summary_prints_no_url_query_from_the_window_title() {
+        let bundle = |bundle_id: &str| -> ScrawlBundle {
+            serde_json::from_value(serde_json::json!({
+                "version": 1, "id": "scrawl-1-test", "createdAtMs": 0, "durationMs": 14000,
+                "target": {
+                    "mode": "window", "app": "Safari", "bundleId": bundle_id,
+                    "windowTitle": "Fixture file:///f/appshot-secret.html?token=SECRET-MARKER-URL",
+                    "displayId": 1,
+                    "frame": {"x": 0.0, "y": 0.0, "width": 1000.0, "height": 1000.0, "scale": 1.0}
+                },
+                "transcript": {"source": "test", "text": "", "segments": []},
+                "strokes": [], "marks": [], "events": [], "keyframes": [],
+                "contactSheet": "contact-sheet.png"
+            }))
+            .unwrap()
+        };
+        let dir = std::path::Path::new("/recordings/test");
+        let summary = summary_markdown(&bundle("com.apple.Safari"), dir);
+        assert!(
+            summary.starts_with(
+                "[scrawl 0:14 · Safari “Fixture file:///f/appshot-secret.html” · /recordings/test]"
+            ),
+            "{summary}"
+        );
+        assert!(!summary.contains("SECRET-MARKER"), "{summary}");
+        let vault = summary_markdown(&bundle("com.1password.1password"), dir);
+        assert!(vault.starts_with("[scrawl 0:14 · Safari · /recordings/test]"), "{vault}");
     }
 
     #[test]

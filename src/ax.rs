@@ -1,7 +1,9 @@
-//! What's under a click or a mark, from the Accessibility tree (the `agentContext` experiment):
+//! What's under a click or a mark, from the Accessibility tree (app state, `handoff::app_state`):
 //! the element's role, label, identifier and the document its window shows. Lookups run on one
-//! background thread with a short messaging timeout, so a hung app never holds up input. Secure
-//! text fields are never read, input fields' values are never read, and text is cut short.
+//! background thread with a short messaging timeout, so a hung app never holds up input. What
+//! may be read and kept is `crate::privacy`'s to say: a value only for static text, an input's
+//! name and never its value or anything under it, nothing but the role in a password manager,
+//! and every string short and without a URL's query.
 
 #[cfg(target_os = "macos")]
 use core_foundation::base::{CFType, CFTypeRef, TCFType};
@@ -14,26 +16,28 @@ use std::sync::atomic::{AtomicU64, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
+use crate::privacy::Tree;
+
 #[cfg(target_os = "macos")]
-type AxElement = *const c_void;
+pub(crate) type AxElement = *const c_void;
 
 #[cfg(target_os = "macos")]
 #[link(name = "ApplicationServices", kind = "framework")]
 unsafe extern "C" {
     fn AXUIElementCreateSystemWide() -> AxElement;
-    fn AXUIElementCreateApplication(pid: i32) -> AxElement;
+    pub(crate) fn AXUIElementCreateApplication(pid: i32) -> AxElement;
     fn AXUIElementCopyElementAtPosition(
         element: AxElement,
         x: f32,
         y: f32,
         out: *mut AxElement,
     ) -> i32;
-    fn AXUIElementCopyAttributeValue(
+    pub(crate) fn AXUIElementCopyAttributeValue(
         element: AxElement,
         attribute: CFStringRef,
         out: *mut CFTypeRef,
     ) -> i32;
-    fn AXUIElementSetMessagingTimeout(element: AxElement, seconds: f32) -> i32;
+    pub(crate) fn AXUIElementSetMessagingTimeout(element: AxElement, seconds: f32) -> i32;
     fn AXUIElementGetPid(element: AxElement, pid: *mut i32) -> i32;
     fn AXUIElementGetTypeID() -> usize;
 }
@@ -86,37 +90,22 @@ impl Hit {
     }
 }
 
-/// One line, at most `MAX_CHARS`.
+/// One line, at most `MAX_CHARS`, URLs in it without their query (`privacy::clip`).
 pub fn clip(raw: &str) -> Option<String> {
-    let compact = raw.split_whitespace().collect::<Vec<_>>().join(" ");
-    if compact.is_empty() {
-        return None;
-    }
-    Some(if compact.chars().count() <= MAX_CHARS {
-        compact
-    } else {
-        let cut: String = compact.chars().take(MAX_CHARS - 1).collect();
-        format!("{}…", cut.trim_end())
-    })
+    crate::privacy::clip(raw, MAX_CHARS)
 }
 
-/// Roles whose value is what the user typed; their value is never read.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
-fn is_input(role: &str, subrole: &str) -> bool {
-    subrole == "AXSecureTextField"
-        || matches!(
-            role,
-            "AXSecureTextField" | "AXTextField" | "AXTextArea" | "AXComboBox" | "AXSearchField"
-        )
-}
+/// How many ancestors a lookup follows to reach the element's window.
+#[cfg_attr(not(any(target_os = "macos", test)), allow(dead_code))]
+const MAX_ANCESTORS: usize = 64;
 
 /// Roles that are usually a piece of a control (its text or icon), so the control names it.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "macos", test)), allow(dead_code))]
 fn is_part(role: &str) -> bool {
     matches!(role, "AXStaticText" | "AXImage" | "AXGroup" | "AXUnknown")
 }
 
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+#[cfg_attr(not(any(target_os = "macos", test)), allow(dead_code))]
 fn is_control(role: &str) -> bool {
     matches!(
         role,
@@ -138,7 +127,17 @@ fn is_control(role: &str) -> bool {
 
 /// Owns a CoreFoundation value returned under the create rule.
 #[cfg(target_os = "macos")]
-struct Owned(CFTypeRef);
+pub(crate) struct Owned(pub(crate) CFTypeRef);
+
+#[cfg(target_os = "macos")]
+impl Clone for Owned {
+    fn clone(&self) -> Self {
+        if !self.0.is_null() {
+            unsafe { core_foundation::base::CFRetain(self.0) };
+        }
+        Self(self.0)
+    }
+}
 
 #[cfg(target_os = "macos")]
 impl Drop for Owned {
@@ -150,7 +149,7 @@ impl Drop for Owned {
 }
 
 #[cfg(target_os = "macos")]
-fn attribute(element: AxElement, name: &'static str) -> Option<Owned> {
+pub(crate) fn attribute(element: AxElement, name: &'static str) -> Option<Owned> {
     let key = CFString::from_static_string(name);
     let mut out: CFTypeRef = std::ptr::null();
     let status =
@@ -176,8 +175,75 @@ fn element_attribute(element: AxElement, name: &'static str) -> Option<Owned> {
     is_element.then_some(value)
 }
 
+/// The real Accessibility tree. Every element it hands out gives up on a message after
+/// `timeout_s`, so an app that hangs costs one timeout per read, never the caller's thread.
 #[cfg(target_os = "macos")]
-fn pid_of(element: AxElement) -> Option<i32> {
+pub(crate) struct MacTree {
+    pub timeout_s: f32,
+}
+
+#[cfg(target_os = "macos")]
+impl MacTree {
+    /// `element` with this tree's timeout set, ready to be asked.
+    pub(crate) fn adopt(&self, element: Owned) -> Owned {
+        unsafe { AXUIElementSetMessagingTimeout(element.0, self.timeout_s) };
+        element
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl Tree for MacTree {
+    type Element = Owned;
+
+    fn string(&self, element: &Owned, attribute: &'static str) -> Option<String> {
+        string_attribute(element.0, attribute)
+    }
+
+    fn url(&self, element: &Owned, name: &'static str) -> Option<String> {
+        use core_foundation::url::CFURL;
+        let value = attribute(element.0, name)?;
+        let value = unsafe { CFType::wrap_under_get_rule(value.0) };
+        if let Some(url) = value.downcast::<CFURL>() {
+            return Some(url.get_string().to_string()).filter(|s| !s.trim().is_empty());
+        }
+        value
+            .downcast::<CFString>()
+            .map(|s| s.to_string())
+            .filter(|s| !s.trim().is_empty())
+    }
+
+    fn element(&self, element: &Owned, attribute: &'static str) -> Option<Owned> {
+        element_attribute(element.0, attribute).map(|found| self.adopt(found))
+    }
+
+    fn children(&self, element: &Owned) -> Vec<Owned> {
+        use core_foundation::array::{CFArray, CFArrayRef};
+        let Some(value) = attribute(element.0, "AXChildren") else {
+            return Vec::new();
+        };
+        if unsafe { core_foundation::base::CFGetTypeID(value.0) } != CFArray::<CFType>::type_id() {
+            return Vec::new();
+        }
+        let array: CFArray<CFType> = unsafe { CFArray::wrap_under_get_rule(value.0 as CFArrayRef) };
+        let element_type = unsafe { AXUIElementGetTypeID() };
+        array
+            .iter()
+            .filter(|child| child.type_of() == element_type)
+            .map(|child| {
+                let child = child.as_CFTypeRef();
+                unsafe { core_foundation::base::CFRetain(child) };
+                self.adopt(Owned(child))
+            })
+            .collect()
+    }
+
+    fn key(&self, element: &Owned) -> u64 {
+        unsafe { core_foundation::base::CFHash(element.0) as u64 }
+    }
+}
+
+#[cfg(target_os = "macos")]
+pub(crate) fn pid_of(element: AxElement) -> Option<i32> {
     let mut pid = 0;
     (unsafe { AXUIElementGetPid(element, &raw mut pid) } == 0).then_some(pid)
 }
@@ -211,55 +277,119 @@ pub fn hit_test(x: f64, y: f64) -> Option<Hit> {
         unsafe { AXUIElementSetMessagingTimeout(app.0, MESSAGE_TIMEOUT_S) };
         element = element_at(app.0, x, y)?;
     }
-    let over = || started.elapsed() > LOOKUP_BUDGET;
-
-    let mut role = string_attribute(element.0, "AXRole").unwrap_or_default();
-    // A button's text or icon names the button.
-    if is_part(&role) {
-        let mut parent = element_attribute(element.0, "AXParent");
-        for _ in 0..2 {
-            let Some(candidate) = parent.take() else {
-                break;
-            };
-            if over() {
-                break;
-            }
-            let parent_role = string_attribute(candidate.0, "AXRole").unwrap_or_default();
-            if is_control(&parent_role) {
-                element = candidate;
-                role = parent_role;
-                break;
-            }
-            parent = element_attribute(candidate.0, "AXParent");
-        }
-    }
-    let subrole = string_attribute(element.0, "AXSubrole").unwrap_or_default();
-    let input = is_input(&role, &subrole);
-    let role_description = string_attribute(element.0, "AXRoleDescription")
-        .or_else(|| role.strip_prefix("AX").map(str::to_lowercase))
-        .unwrap_or_default();
-    let mut hit = Hit {
-        role: clip(&role_description).unwrap_or_else(|| "element".into()),
-        ..Hit::default()
+    let tree = MacTree {
+        timeout_s: MESSAGE_TIMEOUT_S,
     };
-    for name in ["AXTitle", "AXDescription", "AXValue", "AXPlaceholderValue"] {
-        if over() || hit.label.is_some() {
+    let bundle_id = pid_of(element.0).and_then(|pid| {
+        objc2::rc::autoreleasepool(|_| crate::windows::app_meta_of(pid).bundle_id)
+    });
+    lookup(
+        &tree,
+        tree.adopt(element),
+        bundle_id.as_deref(),
+        &|| started.elapsed() > LOOKUP_BUDGET,
+    )
+}
+
+/// `AXStaticText` → `static text`: a role's name when the app gives no description of it.
+#[cfg_attr(not(any(target_os = "macos", test)), allow(dead_code))]
+pub(crate) fn role_name(role: &str) -> String {
+    let mut name = String::new();
+    for c in role.strip_prefix("AX").unwrap_or(role).chars() {
+        if c.is_uppercase() && !name.is_empty() {
+            name.push(' ');
+        }
+        name.extend(c.to_lowercase());
+    }
+    if name.is_empty() {
+        "element".into()
+    } else {
+        name
+    }
+}
+
+/// What `element` is, as it may be kept (`crate::privacy`). `bundle_id` is its app's. `over`
+/// says the lookup's time is up: it then returns what it has.
+///
+/// It first reads the roles from the element up to its window. An input on that path is what
+/// the point is on, whatever text sits inside it, and its value is never asked for. When the
+/// path can't be read to the window in time, or the app is a password manager, only the role
+/// is kept.
+#[cfg_attr(not(any(target_os = "macos", test)), allow(dead_code))]
+pub(crate) fn lookup<T: Tree>(
+    tree: &T,
+    element: T::Element,
+    bundle_id: Option<&str>,
+    over: &dyn Fn() -> bool,
+) -> Option<Hit> {
+    let mut chain: Vec<(T::Element, String, String)> = Vec::new();
+    let mut complete = false;
+    let mut next = Some(element);
+    while let Some(at) = next.take() {
+        if chain.len() >= MAX_ANCESTORS || (!chain.is_empty() && over()) {
             break;
         }
-        if name == "AXValue" && input {
-            continue;
+        let role = tree.string(&at, "AXRole").unwrap_or_default();
+        let subrole = tree.string(&at, "AXSubrole").unwrap_or_default();
+        let top = matches!(role.as_str(), "AXWindow" | "AXApplication");
+        if !top {
+            next = tree.element(&at, "AXParent");
         }
-        hit.label = string_attribute(element.0, name).and_then(|s| clip(&s));
+        chain.push((at, role, subrole));
+        if top {
+            complete = true;
+        }
     }
+    let role_only = |role: &str| Hit {
+        role: role_name(role),
+        ..Hit::default()
+    };
+    let (_, first_role, _) = chain.first()?;
+    if crate::privacy::is_sensitive_app(bundle_id) || !complete {
+        return Some(role_only(first_role));
+    }
+    let roles: Vec<(String, String)> = chain
+        .iter()
+        .map(|(_, role, subrole)| (role.clone(), subrole.clone()))
+        .collect();
+    let index = match crate::privacy::input_over(&roles) {
+        Some(input) => input,
+        // A button's text or icon names the button.
+        None if is_part(first_role) => (1..chain.len().min(3))
+            .find(|&i| is_control(&chain[i].1))
+            .unwrap_or(0),
+        None => 0,
+    };
+    let (element, role, subrole) = &chain[index];
+    let Some((node, _)) = crate::privacy::read(tree, element, role, subrole, over) else {
+        return Some(role_only(role));
+    };
+    let mut hit = Hit {
+        role: tree
+            .string(element, "AXRoleDescription")
+            .and_then(|s| clip(&s))
+            .unwrap_or_else(|| role_name(role)),
+        ..Hit::default()
+    };
+    hit.label = node
+        .title
+        .or(node.description)
+        .or(node.value)
+        .or_else(|| (!over()).then(|| tree.string(element, "AXPlaceholderValue")).flatten())
+        .and_then(|s| clip(&s));
     if !over() {
-        hit.identifier = string_attribute(element.0, "AXIdentifier")
-            .or_else(|| string_attribute(element.0, "AXDOMIdentifier"))
+        hit.identifier = node
+            .identifier
+            .or_else(|| tree.string(element, "AXDOMIdentifier"))
             .and_then(|s| clip(&s));
     }
-    if !over()
-        && let Some(window) = element_attribute(element.0, "AXWindow")
-    {
-        hit.document = string_attribute(window.0, "AXDocument")
+    if !over() {
+        let window = match chain.last() {
+            Some((window, role, _)) if role == "AXWindow" => Some(window.clone()),
+            _ => tree.element(element, "AXWindow"),
+        };
+        hit.document = window
+            .and_then(|window| tree.url(&window, "AXDocument"))
             .and_then(|url| document_name(&url))
             .and_then(|s| clip(&s));
     }
@@ -267,15 +397,18 @@ pub fn hit_test(x: f64, y: f64) -> Option<Hit> {
 }
 
 /// The element at a global point (physical pixels) from UI Automation, looking past Scrawl's own
-/// windows. Blocking; call it off the main thread.
+/// windows. Blocking; call it off the main thread. UI Automation never reads a control's value,
+/// and its strings come through `clip` (`crate::privacy`).
 #[cfg(target_os = "windows")]
 pub fn hit_test(x: f64, y: f64) -> Option<Hit> {
     crate::win::uia::hit_test(x, y, LOOKUP_BUDGET)
 }
 
-/// `file:///Users/kit/src/main.rs` → `main.rs`.
-#[cfg_attr(not(target_os = "macos"), allow(dead_code))]
+/// `file:///Users/kit/src/main.rs` → `main.rs`. A URL's query and fragment are dropped first
+/// (`page.html?token=…` → `page.html`).
+#[cfg_attr(not(any(target_os = "macos", test)), allow(dead_code))]
 fn document_name(url: &str) -> Option<String> {
+    let url = url.split(['?', '#']).next().unwrap_or(url);
     let path = url.strip_prefix("file://").unwrap_or(url);
     let name = path.trim_end_matches('/').rsplit('/').next()?;
     let decoded = percent_decode(name);
@@ -456,6 +589,7 @@ pub fn stroke_probe_point(
 mod tests {
     use super::*;
     use crate::model::*;
+    use crate::privacy::fake::FakeTree;
 
     #[test]
     fn labels_are_one_short_line_and_name_the_element() {
@@ -492,13 +626,197 @@ mod tests {
         );
     }
 
+    const MARKER: &str = "SECRET-MARKER";
+
+    /// A browser window on a page whose URL, title and field all hold a marker:
+    /// window › web area › (button › its text, text field › its typed text, a paragraph).
+    struct Page {
+        tree: FakeTree,
+        button_text: usize,
+        field: usize,
+        typed: usize,
+        paragraph: usize,
+    }
+
+    fn page() -> Page {
+        let mut tree = FakeTree::default();
+        let window = tree.add(
+            None,
+            &[
+                ("AXRole", "AXWindow"),
+                ("AXTitle", "Fixture file:///f/appshot-secret.html?token=SECRET-MARKER-URL"),
+                ("AXDocument", "file:///f/appshot-secret.html?token=SECRET-MARKER-URL#SECRET-MARKER-FRAG"),
+            ],
+        );
+        let web = tree.add(Some(window), &[("AXRole", "AXWebArea")]);
+        let button = tree.add(
+            Some(web),
+            &[
+                ("AXRole", "AXButton"),
+                ("AXRoleDescription", "button"),
+                ("AXTitle", "Save"),
+                ("AXDOMIdentifier", "save"),
+            ],
+        );
+        let button_text = tree.add(
+            Some(button),
+            &[("AXRole", "AXStaticText"), ("AXValue", "Save")],
+        );
+        let field = tree.add(
+            Some(web),
+            &[
+                ("AXRole", "AXTextField"),
+                ("AXRoleDescription", "text field"),
+                ("AXDescription", "Name"),
+                ("AXValue", "SECRET-MARKER-INPUT"),
+            ],
+        );
+        let group = tree.add(Some(field), &[("AXRole", "AXGroup")]);
+        let typed = tree.add(
+            Some(group),
+            &[
+                ("AXRole", "AXStaticText"),
+                ("AXTitle", "SECRET-MARKER-INPUT"),
+                ("AXValue", "SECRET-MARKER-INPUT"),
+            ],
+        );
+        let paragraph = tree.add(
+            Some(web),
+            &[
+                ("AXRole", "AXStaticText"),
+                ("AXValue", "Reset at https://a.dev/reset?token=SECRET-MARKER-URL today"),
+            ],
+        );
+        Page {
+            tree,
+            button_text,
+            field,
+            typed,
+            paragraph,
+        }
+    }
+
+    fn never() -> bool {
+        false
+    }
+
     #[test]
-    fn typed_values_are_never_read() {
-        assert!(is_input("AXTextField", "AXSecureTextField"));
-        assert!(is_input("AXSecureTextField", ""));
-        assert!(is_input("AXTextArea", ""));
-        assert!(!is_input("AXStaticText", ""));
-        assert!(!is_input("AXButton", ""));
+    fn privacy_a_lookup_names_the_input_and_never_reads_what_was_typed() {
+        let page = page();
+        for element in [page.typed, page.field] {
+            let hit = lookup(&page.tree, element, Some("com.apple.Safari"), &never).unwrap();
+            assert_eq!(hit.role, "text field");
+            assert_eq!(hit.label.as_deref(), Some("Name"));
+            assert!(!format!("{hit:?}").contains(MARKER), "{hit:?}");
+        }
+        assert!(!page.tree.was_read(page.field, "AXValue"));
+        for attribute in ["AXValue", "AXTitle", "AXDescription", "AXPlaceholderValue"] {
+            assert!(
+                !page.tree.was_read(page.typed, attribute),
+                "{attribute} of the text inside a field is that field's value"
+            );
+        }
+    }
+
+    #[test]
+    fn privacy_a_lookup_keeps_no_url_query_in_a_label_or_a_document() {
+        let page = page();
+        let hit = lookup(&page.tree, page.paragraph, None, &never).unwrap();
+        assert_eq!(
+            hit.label.as_deref(),
+            Some("Reset at https://a.dev/reset today")
+        );
+        assert_eq!(hit.document.as_deref(), Some("appshot-secret.html"));
+        let hit = lookup(&page.tree, page.button_text, None, &never).unwrap();
+        assert_eq!(
+            hit.on_text().as_deref(),
+            Some("button “Save” #save in appshot-secret.html"),
+            "a button's text names the button"
+        );
+        assert!(!format!("{hit:?}").contains(MARKER));
+        assert_eq!(
+            document_name("https://a.dev/x/page.html?token=SECRET-MARKER-URL#frag").as_deref(),
+            Some("page.html")
+        );
+    }
+
+    #[test]
+    fn privacy_a_lookup_in_a_password_manager_keeps_only_the_role() {
+        let page = page();
+        for id in crate::privacy::SENSITIVE_APPS {
+            let hit = lookup(&page.tree, page.paragraph, Some(id), &never).unwrap();
+            assert_eq!(
+                hit,
+                Hit {
+                    role: "static text".into(),
+                    ..Hit::default()
+                }
+            );
+        }
+        assert!(!page.tree.was_read(page.paragraph, "AXValue"));
+    }
+
+    #[test]
+    fn privacy_a_lookup_that_cannot_reach_the_window_keeps_only_the_role() {
+        // The text's ancestors can't be read in time, so an input may be among them.
+        let page = page();
+        let calls = std::cell::Cell::new(0);
+        let over = || {
+            calls.set(calls.get() + 1);
+            calls.get() > 1
+        };
+        let hit = lookup(&page.tree, page.typed, None, &over).unwrap();
+        assert_eq!(hit.label, None);
+        assert!(!format!("{hit:?}").contains(MARKER));
+        assert!(!page.tree.was_read(page.typed, "AXValue"));
+        // An element with no window above it is the same.
+        let mut tree = FakeTree::default();
+        let orphan = tree.add(
+            None,
+            &[("AXRole", "AXStaticText"), ("AXValue", "SECRET-MARKER-INPUT")],
+        );
+        let hit = lookup(&tree, orphan, None, &never).unwrap();
+        assert_eq!(hit.label, None);
+        assert!(!tree.was_read(orphan, "AXValue"));
+    }
+
+    #[test]
+    fn privacy_a_click_and_a_mark_on_typed_text_store_no_typed_text() {
+        let page = page();
+        let mut hits = HashMap::new();
+        for target in [Target::Pointer(100), Target::Stroke(500)] {
+            hits.insert(
+                target,
+                lookup(&page.tree, page.typed, None, &never).unwrap(),
+            );
+        }
+        let mut events = vec![InteractionEvent::Click {
+            t: 100,
+            x: 0.1,
+            y: 0.1,
+            button: None,
+            label: None,
+            role: None,
+        }];
+        let mut strokes = vec![Stroke {
+            t0: 500,
+            t1: 510,
+            fw: 100,
+            fh: 100,
+            on: None,
+            pin: None,
+            laser: false,
+            pts: vec![0, 0, 0],
+        }];
+        apply(&hits, &mut events, &mut strokes);
+        let stored = format!(
+            "{} {}",
+            serde_json::to_string(&events).unwrap(),
+            serde_json::to_string(&strokes).unwrap()
+        );
+        assert!(!stored.contains(MARKER), "{stored}");
+        assert!(stored.contains("text field"), "{stored}");
+        assert_eq!(strokes[0].on.as_deref(), Some("text field “Name” in appshot-secret.html"));
     }
 
     #[test]

@@ -191,9 +191,10 @@ pub fn filter_windows(
         out.push(WindowEntry {
             id: w.id,
             app: w.owner.clone(),
+            // Titles go through the privacy policy: no URL query, none for a password manager.
+            title: crate::privacy::window_title(meta.bundle_id.as_deref(), &w.title),
             bundle_id: meta.bundle_id,
             regular: meta.regular,
-            title: w.title.clone(),
             bounds: [
                 (x - frame.x).round() as i32,
                 (y - frame.y).round() as i32,
@@ -423,7 +424,7 @@ pub fn raw_windows() -> Vec<RawWindow> {
 }
 
 #[cfg(target_os = "windows")]
-fn app_meta_of(pid: i32) -> AppMeta {
+pub(crate) fn app_meta_of(pid: i32) -> AppMeta {
     let id = crate::win::app_identity(pid as u32).map(|(_, id)| id);
     let regular = crate::win::top_level_windows()
         .iter()
@@ -487,7 +488,7 @@ pub fn snapshot(
 }
 
 #[cfg(target_os = "macos")]
-fn app_meta_of(pid: i32) -> AppMeta {
+pub(crate) fn app_meta_of(pid: i32) -> AppMeta {
     use objc2_app_kit::{NSApplicationActivationPolicy, NSRunningApplication};
     match NSRunningApplication::runningApplicationWithProcessIdentifier(pid) {
         Some(app) => AppMeta {
@@ -728,6 +729,47 @@ mod tests {
             owned_window_at(&raw, 400.0, 500.0, &[], ours),
             "an overlay that takes clicks"
         );
+    }
+
+    #[test]
+    fn privacy_window_log_titles_lose_url_queries_and_a_password_managers_are_empty() {
+        let window = |id, pid, title: &str| RawWindow {
+            id,
+            pid,
+            owner: format!("App {pid}"),
+            title: title.into(),
+            bounds: [10.0, 10.0, 400.0, 300.0],
+            layer: 0,
+            alpha: 1.0,
+        };
+        let raw = [
+            window(1, 10, "Fixture file:///f/appshot-secret.html?token=SECRET-MARKER-URL"),
+            window(2, 11, "appshot-secret.html?token=SECRET-MARKER-URL"),
+            window(3, 12, "Login SECRET-MARKER — 1Password"),
+            window(4, 13, "Notes"),
+        ];
+        let entries = filter_windows(&raw, frame(), 99, Some(10), None, &mut |pid| AppMeta {
+            bundle_id: Some(
+                if pid == 12 {
+                    "com.1password.1password"
+                } else {
+                    "com.apple.Safari"
+                }
+                .into(),
+            ),
+            regular: true,
+        });
+        let titles: Vec<&str> = entries.iter().map(|w| w.title.as_str()).collect();
+        assert_eq!(
+            titles,
+            [
+                "Fixture file:///f/appshot-secret.html",
+                "appshot-secret.html",
+                "",
+                "Notes"
+            ]
+        );
+        assert!(!serde_json::to_string(&entries).unwrap().contains("SECRET-MARKER"));
     }
 
     #[test]
