@@ -1,0 +1,149 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Recording Capsule</title><style>
+:root {
+  --ds-color-surface-panel: #f8f8f7;
+  --ds-color-surface-page: #fdfdfd;
+  --ds-color-surface-sunken: color-mix(in srgb, #1f1f1f 5%, #f8f8f7);
+  --ds-color-surface-inset: #f9f9f9;
+  --ds-color-surface-sidebar: #f9f9f9;
+  --ds-color-text-ink: #1f1f1f;
+  --ds-color-text-body: #2a2a2a;
+  --ds-color-text-muted: #666562;
+  --ds-color-text-faint: #9b9a97;
+  --ds-color-text-secondary: color-mix(in srgb, #2a2a2a 84%, transparent);
+  --ds-color-text-on-solid: #ffffff;
+  --ds-color-border-default: #e6e5e3;
+  --ds-color-border-subtle: #efeeec;
+  --ds-color-border-strong: color-mix(in srgb, #e6e5e3 70%, #9b9a97 30%);
+  --ds-color-blue-soft: #ddebf1;
+  --ds-color-blue-solid: #0b6e99;
+  --ds-color-blue-text: #0b6e99;
+  --ds-color-red-solid: #e03e3e;
+  --ds-color-red-soft: #fbe4e4;
+  --ds-color-red-text: #c62121;
+  --ds-color-green-solid: #287c55;
+  --ds-color-green-soft: #e2efe6;
+  --ds-color-green-text: #26744f;
+  --ds-color-amber-text: #9a5b00;
+  --ds-color-status-warning-soft: #fbf3db;
+  --ds-color-status-warning-text: #9a5b00;
+  --ds-font-family-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --ds-font-family-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --ds-font-size-ui-2xs: 12px;
+  --ds-font-size-ui-xs: 12px;
+  --ds-font-size-ui-sm: 13px;
+  --ds-font-size-ui-md: 13.5px;
+  --ds-font-weight-medium: 500;
+  --ds-font-weight-semibold: 600;
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 16px;
+  --ds-space-5: 20px;
+  --ds-space-6: 24px;
+  --ds-radius-base: 2px;
+  --ds-radius-pill: 9999px;
+  --ds-border-width-hairline: 1px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ds-color-surface-panel: #151b23;
+    --ds-color-surface-page: #0d1117;
+    --ds-color-surface-sunken: color-mix(in srgb, #f0f6fc 5%, #151b23);
+    --ds-color-surface-inset: #010409;
+    --ds-color-surface-sidebar: #010409;
+    --ds-color-text-ink: #f0f6fc;
+    --ds-color-text-body: #d1d9e0;
+    --ds-color-text-muted: #9198a1;
+    --ds-color-text-faint: #656c76;
+    --ds-color-text-secondary: color-mix(in srgb, #d1d9e0 84%, transparent);
+    --ds-color-text-on-solid: #0d1117;
+    --ds-color-border-default: #3d444d;
+    --ds-color-border-subtle: #262c36;
+    --ds-color-border-strong: color-mix(in srgb, #3d444d 70%, #656c76 30%);
+    --ds-color-blue-soft: color-mix(in srgb, #4493f8 13%, #151b23);
+    --ds-color-blue-solid: #4493f8;
+    --ds-color-blue-text: #4493f8;
+    --ds-color-red-solid: #f85149;
+    --ds-color-red-soft: color-mix(in srgb, #f85149 13%, #151b23);
+    --ds-color-red-text: #f85b53;
+    --ds-color-green-solid: #3fb950;
+    --ds-color-green-soft: color-mix(in srgb, #3fb950 13%, #151b23);
+    --ds-color-green-text: #3fb950;
+    --ds-color-amber-text: #d29922;
+    --ds-color-status-warning-soft: color-mix(in srgb, #d29922 13%, #151b23);
+    --ds-color-status-warning-text: #d29922;
+  }
+}
+
+
+html,body{margin:0;padding:0;background:none}
+body{font-family:var(--ds-font-family-sans);color:var(--ds-color-text-body)}
+.scroll{overflow-x:auto}
+.cap{font-size:var(--ds-font-size-ui-sm);color:var(--ds-color-text-muted);margin:var(--ds-space-2) 0 0;line-height:1.45}
+.cap b{color:var(--ds-color-text-ink);font-weight:var(--ds-font-weight-semibold)}
+.tag{display:inline-block;font-size:var(--ds-font-size-ui-2xs);font-weight:var(--ds-font-weight-medium);padding:1px 6px;border-radius:var(--ds-radius-pill);background:var(--ds-color-blue-soft);color:var(--ds-color-blue-text);margin-right:6px}
+.tag.now{background:var(--ds-color-surface-sunken);color:var(--ds-color-text-muted)}
+/* App colors, copied from the Scrawl source. The app UI is dark in both themes. */
+.app{--a-win:#1e1e1e;--a-side:#262626;--a-group:rgba(255,255,255,.045);--a-line:rgba(255,255,255,.08);
+ --a-text:#f2f2f2;--a-dim:rgba(255,255,255,.55);--a-faint:rgba(255,255,255,.38);--a-accent:#3b5cf6;--a-switch:#0a84ff;
+ --a-red:#f04438;--a-green:#69d89f;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+ color:var(--a-text);font-size:13px}
+.win{background:var(--a-win);border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.1),0 8px 24px rgba(0,0,0,.25)}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;background:#ff5f57}.lights i+i{background:#febc2e}.lights i+i+i{background:#28c840}
+.kbd{white-space:nowrap;flex:none;display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:6px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);font-size:13px;letter-spacing:1px;color:var(--a-text)}
+.kbd .x{letter-spacing:0;color:var(--a-faint);font-size:11px}
+.pop{white-space:nowrap;flex:none;display:inline-flex;align-items:center;gap:8px;height:24px;padding:0 8px 0 10px;border-radius:6px;background:rgba(255,255,255,.1);font-size:13px}
+.pop:after{content:"⌃";transform:rotate(180deg);font-size:10px;color:var(--a-dim)}
+.sw{width:32px;height:18px;border-radius:9px;background:rgba(255,255,255,.18);position:relative;flex:none}
+.sw:after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff}
+.sw.on{background:var(--a-switch)}.sw.on:after{left:16px}
+.new{outline:1.5px dashed #6ea0ff;outline-offset:2px;border-radius:6px}
+
+
+.desk{border-radius:10px;overflow:hidden;background:linear-gradient(135deg,#d7c9f1,#a9c6ec 45%,#f2c7a7);min-width:520px}
+.menubar{height:22px;background:rgba(255,255,255,.55);display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-size:12px;color:#1f1f1f}
+.menubar span{display:flex;gap:14px;align-items:center}
+.stage{display:grid;justify-items:center;gap:14px;padding:16px 12px 22px}
+.lane{display:grid;grid-template-columns:150px 1fr;align-items:center;gap:12px;width:100%;max-width:680px}
+.lane .lbl{font-size:12px;color:#1f1f1f;line-height:1.3}
+.lane .lbl b{display:block;font-weight:600}
+.pill{justify-self:start;display:inline-flex;align-items:center;height:40px;padding:0 4px;border-radius:20px;background:rgba(20,20,22,.96);box-shadow:0 4px 12px rgba(0,0,0,.16)}
+.chip{display:inline-flex;align-items:center;height:32px;padding:0 12px;border-radius:16px;gap:8px;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--a-red);box-shadow:0 0 0 3px rgba(240,68,56,.25)}
+.clock{color:#f5f5f7;font-variant-numeric:tabular-nums}
+.div{width:1px;height:16px;background:rgba(255,255,255,.11);margin:0 6px}
+.cancel{color:rgba(255,255,255,.74)}
+.finish{background:var(--a-accent);color:#f2f2f5}
+.wave{display:inline-flex;align-items:center;gap:2px;width:84px;height:32px;padding:0 6px;
+ -webkit-mask-image:linear-gradient(90deg,transparent,#000 12px);mask-image:linear-gradient(90deg,transparent,#000 12px)}
+.wave i{width:2px;border-radius:1px;background:#f5f5f7;flex:none}
+.wave.dead{-webkit-mask-image:none;mask-image:none}
+.wave.dead b{display:block;width:100%;height:2px;border-radius:1px;background:rgba(240,68,56,.8)}
+.big{flex-direction:column;align-items:stretch;height:auto;border-radius:20px;padding:4px;min-width:360px}
+.big .top{display:flex;align-items:center}
+.words{border-top:1px solid rgba(255,255,255,.09);margin:4px 2px 0;padding:6px 10px 8px;font-size:13px;line-height:17px;color:rgba(255,255,255,.92)}
+.words .old{color:rgba(255,255,255,.55)}
+.mini{display:flex;gap:10px;flex-wrap:wrap}
+.mini .pill{height:40px}
+.mini .lbl2{font-size:11px;color:#1f1f1f;margin-top:4px;text-align:center}
+
+</style></head><body>
+<div class="scroll"><div class="app desk">
+<div class="menubar"><span><b>Safari</b> File Edit View</span><span>✎ &nbsp;Thu 2:41 PM</span></div>
+<div class="stage">
+ <div class="lane"><div class="lbl"><b>Today</b>Red dot and clock only</div>
+  <div class="pill"><span class="chip"><span class="dot"></span><span class="clock">0:12</span></span><span class="div"></span><span class="chip cancel">Cancel</span><span class="chip finish">Finish</span></div></div>
+ <div class="lane"><div class="lbl"><b>cp2 default</b>Waveform on, from PR #114</div>
+  <div class="pill"><span class="chip"><span class="dot"></span><span class="clock">0:12</span></span><span class="wave talk"><i style="height:3px;opacity:0.11"></i><i style="height:4px;opacity:0.24"></i><i style="height:6px;opacity:0.41"></i><i style="height:9px;opacity:0.63"></i><i style="height:14px;opacity:0.78"></i><i style="height:18px;opacity:0.90"></i><i style="height:12px;opacity:0.72"></i><i style="height:8px;opacity:0.60"></i><i style="height:5px;opacity:0.51"></i><i style="height:7px;opacity:0.57"></i><i style="height:11px;opacity:0.69"></i><i style="height:16px;opacity:0.84"></i><i style="height:20px;opacity:0.96"></i><i style="height:15px;opacity:0.81"></i><i style="height:10px;opacity:0.66"></i><i style="height:6px;opacity:0.54"></i><i style="height:4px;opacity:0.48"></i><i style="height:8px;opacity:0.60"></i><i style="height:13px;opacity:0.75"></i><i style="height:17px;opacity:0.87"></i><i style="height:9px;opacity:0.63"></i><i style="height:5px;opacity:0.51"></i></span><span class="div"></span><span class="chip cancel">Cancel</span><span class="chip finish">Finish</span></div></div>
+ <div class="lane"><div class="lbl"><b>Live words on</b>Setting, off by default</div>
+  <div class="pill big"><div class="top"><span class="chip"><span class="dot"></span><span class="clock">0:12</span></span><span class="wave talk"><i style="height:3px;opacity:0.11"></i><i style="height:4px;opacity:0.24"></i><i style="height:6px;opacity:0.41"></i><i style="height:9px;opacity:0.63"></i><i style="height:14px;opacity:0.78"></i><i style="height:18px;opacity:0.90"></i><i style="height:12px;opacity:0.72"></i><i style="height:8px;opacity:0.60"></i><i style="height:5px;opacity:0.51"></i><i style="height:7px;opacity:0.57"></i><i style="height:11px;opacity:0.69"></i><i style="height:16px;opacity:0.84"></i><i style="height:20px;opacity:0.96"></i><i style="height:15px;opacity:0.81"></i><i style="height:10px;opacity:0.66"></i><i style="height:6px;opacity:0.54"></i><i style="height:4px;opacity:0.48"></i><i style="height:8px;opacity:0.60"></i><i style="height:13px;opacity:0.75"></i><i style="height:17px;opacity:0.87"></i><i style="height:9px;opacity:0.63"></i><i style="height:5px;opacity:0.51"></i></span><span class="div"></span><span class="chip cancel">Cancel</span><span class="chip finish">Finish</span></div>
+  <div class="words"><span class="old">so this button here should open the</span><br>settings but it opens the history instead</div></div></div>
+ <div class="lane"><div class="lbl"><b>Waveform states</b>What the mic is doing</div>
+  <div class="mini">
+   <div><div class="pill"><span class="chip"><span class="dot"></span><span class="clock">0:12</span></span><span class="wave talk"><i style="height:3px;opacity:0.11"></i><i style="height:4px;opacity:0.24"></i><i style="height:6px;opacity:0.41"></i><i style="height:9px;opacity:0.63"></i><i style="height:14px;opacity:0.78"></i><i style="height:18px;opacity:0.90"></i><i style="height:12px;opacity:0.72"></i><i style="height:8px;opacity:0.60"></i><i style="height:5px;opacity:0.51"></i><i style="height:7px;opacity:0.57"></i><i style="height:11px;opacity:0.69"></i><i style="height:16px;opacity:0.84"></i><i style="height:20px;opacity:0.96"></i><i style="height:15px;opacity:0.81"></i><i style="height:10px;opacity:0.66"></i><i style="height:6px;opacity:0.54"></i><i style="height:4px;opacity:0.48"></i><i style="height:8px;opacity:0.60"></i><i style="height:13px;opacity:0.75"></i><i style="height:17px;opacity:0.87"></i><i style="height:9px;opacity:0.63"></i><i style="height:5px;opacity:0.51"></i></span></div><div class="lbl2">Talking</div></div>
+   <div><div class="pill"><span class="chip"><span class="dot"></span><span class="clock">0:12</span></span><span class="wave quiet"><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i><i style="height:2px;opacity:.36"></i></span></div><div class="lbl2">Silence: dim dots</div></div>
+   <div><div class="pill"><span class="chip"><span class="dot"></span><span class="clock">0:12</span></span><span class="wave dead"><b></b></span></div><div class="lbl2">No audio for 600 ms</div></div>
+  </div></div>
+</div></div></div>
+<p class="cap"><b>Recording capsule.</b> It sits at the top center of the screen, under the menu bar. The waveform is 96 pt wide and scrolls left, newest bar on the right. A flat red line means the mic sends no audio.</p>
+</body></html>
