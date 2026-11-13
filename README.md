@@ -224,7 +224,7 @@ Preview every pane, dark and light, with the recorder listening and a combinatio
 - **Hold `⇧` (Shift) + move**: Draw a persistent red marker stroke (`#ff3b30`) on screen that fades out after release
 - **`⇧`-click**: Drop a numbered pin where you click (a press that moves under 12 pt and lets go within 1 s; longer is ink). It shows on screen as a red circle, 22 pt across, with the pin's number in white (1, 2, 3 in the order you drop them): whole for 2 s, then it fades out over 0.5 s (on Windows it is still a brief red pulse). The recorded video never shows it, and the same numbered circle lands on the keyframes, the contact sheet and exported videos. Every `⇧`-click drops a pin, also after you've drawn in the same `⇧` hold: the line stays and ends at the pin. Keep `⇧` down and click more places to drop more pins, with the lines between them; let go of `⇧` between clicks for pins alone
 - **`⌘Z`**: Undo the last stroke
-- **`Esc`**: Cancel the active selection or capture
+- **`Esc`**: Close the picker. While recording, one press pauses and the next resumes; two presses within 400 ms cancel the capture. Paused time is cut out of the capture
 
 While picking a target, the island shows the modes **Area**, **Window**, **Screen**, and **iPhone**
 (when one is cabled). It opens on the mode you used last:

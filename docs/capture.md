@@ -1,6 +1,6 @@
 # Capture: shortcuts, Mac recording, displays
 
-Read this before changing `src/shortcut.rs`, `src/capture.rs`, `src/screens.rs` or the picker and capsule placement in `src/ui.rs`.
+Read this before changing `src/shortcut.rs`, `src/pause.rs`, `src/capture.rs`, `src/screens.rs` or the picker and capsule placement in `src/ui.rs`.
 
 ## Shortcuts (`src/shortcut.rs`, `is_capture_shortcut` in `src/capture.rs`)
 
@@ -8,9 +8,32 @@ A press of `⌥⇧S` (or the shortcut set in Settings), however long it's held, 
 
 Recording starts on the release rather than the press so nothing is captured while ⌥⇧ is still down (⇧ is the ink key), and Esc before the release cancels. The picker opens only from the menu's **Choose What to Record…** (or a chip), on the pointer's display and on the mode last used; there the shortcut records what it's on, and repeats of a held S never record (`handle_selection_key`'s `repeat`). While recording, a press finishes, ignoring one within 400 ms of the start.
 
-Carbon hotkeys and the key event tap report presses through `emit_capture_shortcut` (deduplicated within 90 ms); while a press waits for its release the UI loop polls the modifiers and takes the cancel key from the key tap (`tick_shortcut`, `take_escape`), so the release is seen whichever window has focus. The cancel key (Esc unless Settings › Shortcuts set F1 to F12) from the key tap also closes an open picker and throws an active recording away when another app has the keys; the picker's GPUI keys and the pill take the same key, and the Review window's Esc-to-close stays Esc.
+Carbon hotkeys and the key event tap report presses through `emit_capture_shortcut` (deduplicated within 90 ms); while a press waits for its release the UI loop polls the modifiers and takes the cancel key from the key tap (`tick_shortcut`, `take_escape`), so the release is seen whichever window has focus. The cancel key (Esc unless Settings › Shortcuts set F1 to F12) from the key tap also closes an open picker when another app has the keys, and pauses, resumes or cancels a recording (next section); the picker's GPUI keys and the pill take the same key, and the Review window's Esc-to-close stays Esc. The tap stamps each press as it arrives (`note_cancel`), ignoring a held key's repeats, and the UI loop takes them with their times (`take_cancel_presses`), so two quick presses are still two when the loop is late.
 
-Undo, cancel and draw are matched only in the key tap (Windows: the keyboard hook) and the HID poller, never through Carbon or `RegisterHotKey`. They are swappable atomics on `SharedCaptureTelemetry` (`undo_combo`, `cancel_key`, `draw_mask`), so a change in Settings works on the next key press. The draw modifier held alone shows the laser and inks on a drag, and with a click drops a pin (`capture::draws`). When it comes down with another modifier (`draw_in_chord`, as in ⌥⇧S with ⇧ drawing), ink waits until it is let go. The recording capsule shows the cancel key after Cancel and the Record shortcut after Finish (`pill::model::Keys` in `Pres::Recording`).
+Undo, cancel and draw are matched only in the key tap (Windows: the keyboard hook) and the HID poller, never through Carbon or `RegisterHotKey`. They are swappable atomics on `SharedCaptureTelemetry` (`undo_combo`, `cancel_key`, `draw_mask`), so a change in Settings works on the next key press. The draw modifier held alone shows the laser and inks on a drag, and with a click drops a pin (`capture::draws`). When it comes down with another modifier (`draw_in_chord`, as in ⌥⇧S with ⇧ drawing), ink waits until it is let go. The recording capsule shows the cancel key after Pause or Resume, the same key twice after Cancel, and the Record shortcut after Finish (`pill::model::Keys` in `Pres::Recording`).
+
+## Pause and resume (`src/pause.rs`)
+
+While recording, one press of the cancel key pauses and the next resumes; two presses within 400 ms (`DOUBLE_PRESS_MS`) throw the recording away, recording or paused. Annotator only watches the key, so it still reaches the app under the pointer: an Esc that closes a dialog in the app being shown pauses the recording instead of losing it. The Record shortcut and Finish end a paused recording as usual. Before a recording (the picker) and in the Review window the key means what it did. Windows and Linux keep the key as cancel.
+
+- `pause::classify` is the timing rule, a pure function of the last press's time and this one's: `Single`, `Double` (under 400 ms after the last), or `Echo` (under 40 ms: one press reported by two sources, such as the key tap and the capsule's own key handler, which is never a double press).
+- `pause::Session` is the recording's state machine (`Recording`, `Paused`, `Finishing`, `Cancelled`), owned by `ActiveRecording`. A single press acts at once, so the capsule answers the key; the second press of a double cancels whatever the first did. The capsule's Pause or Resume button is `toggle`, its Cancel button `cancel`, and `finish` closes an open pause and hands back the pauses as `pause::Cuts`. `ScrawlCoordinator::apply_pause_change` is the only place that acts on a change.
+- The capsule (`Pres::Recording { paused }`): the dot stops pulsing and dims, the timer stands still (`ActiveRecording::shown_ms`), the lead says Paused, the waveform and the words leave, and the first chip reads Resume. The chips are Pause or Resume `esc`, Cancel `esc esc`, Finish `⌥⇧S`, with the keys from Settings. `cargo test a_paused_capsule` draws it offscreen (`SCRAWL_PILL_STILLS=DIR` writes the stills).
+
+**Paused time is cut at finish, not skipped while recording.** Nothing stops during a pause: the movie, the microphone and the window log go on, on the one capture clock, and `Session` only notes when each pause began and ended. At finish `Cuts` takes those spans out of every timeline, so each loses exactly the same milliseconds and they stay in sync:
+
+| Timeline | How the pauses come out |
+|---|---|
+| Clicks, drags, scrolls, keys, ink, pins | `cut_events`, `cut_strokes`: what began in a pause is dropped, the rest moves earlier |
+| Candidate frames | `cut_frames`; none is kept during a pause anyway (`CandidateBuffer::set_paused`), so a long pause doesn't thin the rest |
+| `recording.mp4`, the iPhone's `recording.mov` | `cut_movie` → `scrawl-helper cut MOVIE --out FILE --keep FROM-TO,…`: an `AVMutableComposition` of the kept ranges of every track, exported pass-through (samples copied, not re-encoded: 0.11 s for a 2 minute, 172 MB movie with two pauses; a cut between keyframes is trimmed by the edit list, which AVFoundation and ffmpeg both follow, `scripts/check-movie-cut.sh`). `videoOffsetMs` and the phone's `offset_ms` move with it (`on_clock_from`) |
+| `audio.wav` and the transcript | `RecordedAudio::cut` drops the paused samples before transcription, so the words are on the cut clock; a live transcription that heard the pauses is dropped |
+| The window log | `ActivityLog::cut`: the recording resumes on the windows as they were when it resumed (`cut_states`); cursor samples from a pause are dropped |
+| `durationMs` | `Cuts::shift` |
+
+The other way is to stop each recorder while paused and keep a running offset. That needs a pause in four recorders that start and stop at their own pace (ScreenCaptureKit's recording output can't pause, so the movie would be written in segments and joined), and each would lose a slightly different span, which is how audio and video drift apart. One list of spans on one clock, applied once, can't drift, and the live path stays as it was. The cost: the pause is on disk until finish, the microphone's indicator stays on, and the movie is rewritten once (only when a pause happened).
+
+While paused nothing is taken in (`SharedCaptureTelemetry::pause_input` ends a stroke or drag in progress and turns `active` off, so no click, ink or key is recorded and the draw modifier does nothing), and what was already drawn stays on screen (`overlay_live`). A movie that can't be cut is deleted rather than kept with its pauses, so the keyframes then come from the candidates; an iPhone capture fails instead. `cargo test pause::` covers the press rule, the state machine and every cut.
 
 ## Mac captures (`src/capture.rs`)
 

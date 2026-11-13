@@ -128,14 +128,27 @@
       "id": "undo-cancel",
       "group": "record",
       "name": "Undo and cancel",
-      "says": "Undo removes the last stroke; Esc cancels the selection or the capture.",
+      "says": "Undo removes the last stroke; Esc closes the picker, and pressed twice cancels a recording.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
       "shortcuts": [
         { "keys": "⌘Z", "does": "Undo the last stroke (Ctrl+Z on Windows)" },
-        { "keys": "Esc", "does": "Cancel the selection or capture" }
+        { "keys": "Esc", "does": "Close the picker" },
+        { "keys": "Esc Esc", "does": "Cancel the recording (two presses within 400 ms)" }
       ],
       "docs": ["README.md#capture-controls"]
+    },
+    {
+      "id": "pause-resume",
+      "group": "record",
+      "name": "Pause and resume",
+      "says": "One press of Esc pauses a recording from any app and the next resumes it. The capsule says Paused and offers Resume, and the paused time is cut out of the video, audio, transcript, keyframes, ink, clicks and window log.",
+      "status": "branch:cp4b-esc-pause",
+      "platforms": ["mac"],
+      "added": "2026-11-13",
+      "note": "Windows and Linux keep Esc as cancel. The microphone and the screen stay on while paused; what they record then is removed when the recording finishes.",
+      "shortcuts": [{ "keys": "Esc", "does": "Pause or resume the recording from any app (or F1 to F12, set in Settings)" }],
+      "docs": ["docs/capture.md", "README.md#capture-controls"]
     },
     {
       "id": "clicks",
@@ -641,7 +654,7 @@
       "platforms": ["mac"],
       "added": "2026-11-13",
       "note": "Windows keeps Record, Paste and Undo in General. Its draw modifier and cancel key follow the config but have no menu yet.",
-      "shortcuts": [{ "keys": "Esc", "does": "Cancel the recording from any app (or F1 to F12, set in Settings)" }],
+      "shortcuts": [{ "keys": "Esc", "does": "Pause or resume the recording from any app, or cancel it with two presses (or F1 to F12, set in Settings)" }],
       "config": [{ "key": "shortcuts", "value": "{\"undo\": …, \"draw\": \"shift\" | \"option\" | \"control\" | \"command\", \"cancel\": \"escape\" | \"f1\" … \"f12\"}", "does": "Undo stroke, the draw modifier and the cancel key" }],
       "docs": ["docs/onboarding-and-settings.md", "docs/capture.md"]
     },

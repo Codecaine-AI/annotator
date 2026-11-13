@@ -1051,7 +1051,7 @@ struct SettingsView: View {
         SettingsSeparator()
         recorder("undo")
         SettingsSeparator()
-        ShortcutChoiceRow(title: "Cancel recording", note: "Stops and throws the recording away.", choice: state.cancel) {
+        ShortcutChoiceRow(title: "Cancel recording", note: "Press once to pause or resume. Press twice to cancel.", choice: state.cancel) {
           model.act("set-cancel", ["key": $0])
         }
       }
