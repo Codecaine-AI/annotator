@@ -14,6 +14,17 @@ Carbon hotkeys and the key event tap report presses through `emit_capture_shortc
 
 The sampler keeps only small candidates (480 px long edge, in a `CandidateBuffer` capped at 384 MB that thins evenly and halves its sampling rate when full, never dropping the start or click/stroke frames). At finish the chosen keyframes are decoded from `recording.mp4` at native size (2560 px Screen, 1280 px Window/Region, never above the display's own scale, so a 1x 1920 pt display records 1920 px), shifted by `videoOffsetMs` (when the movie started on the capture clock); if decoding fails the candidates are used. macOS prompts over a Screen or Area capture (`windows::system_prompts_over`: UserNotificationCenter, SecurityAgent; ScreenCaptureKit's "bypass the system private window picker" alert comes back every 30 days) are left out of the recording through the content filter when ScreenCaptureKit lists them, frames that may show one are dropped from the candidates (`CandidateBuffer::drop_since`), and clicks on them aren't recorded. `scrawl capture-sim` drives this headless for memory and timing checks.
 
+## Live audio and live words while recording (`src/live_audio.rs`, `src/audio.rs`)
+
+Two settings in Settings › Recording control what the capsule shows while a recording runs. Both are read once per recording (`live_audio::wanted`, `live_audio::captions_possible`).
+
+- **Show live audio** (`"liveAudio"`, on by default): a waveform beside the timer, so a dead, muted or wrong microphone shows at once. Set `"liveAudio": false` to hide it.
+- **Show live words** (`"liveWords"`, off by default): the words as they're said, in a row under the waveform. The words need the waveform on.
+- The words come from an Apple Speech `transcribe-stream` of their own (`Live::preview`), so they show with any transcriber (Apple Speech, Hex or a command). That stream starts only when live words are on, and it is dropped at stop, so the final transcript is unchanged.
+- With the `liveTranscribe` experiment and Apple Speech, the experiment's stream shows the words instead of a second stream.
+
+`cargo test live_audio` covers the defaults, the `liveWords` switch and the words with a non-Apple transcriber. The capsule details are in `docs/onboarding-and-settings.md`.
+
 ## More than one display (`src/screens.rs`)
 
 Every rect and point is global top-left points (`CGEvent`, `CGDisplayBounds`, `SCWindow` frames, `TargetFrame`); displays left of or above the primary one are negative. `screens::flip` converts AppKit frames, `screens::current()` lists displays with menu bar, notch and `backingScaleFactor` (main thread), `screens::displays()` the CoreGraphics view (any thread).
