@@ -333,7 +333,7 @@ enum Command {
         #[arg(long, value_parser = parse_engine)]
         transcriber: Option<crate::transcribe::Engine>,
         /// Turn an experiment on for this run, as `"experiments"` in `config.json` would
-        /// (e.g. `agentContext`). Repeatable.
+        /// (e.g. `liveTranscribe`; `agentContext` turns app state on). Repeatable.
         #[arg(long = "experiment", value_name = "NAME")]
         experiments: Vec<String>,
     },
@@ -383,7 +383,8 @@ enum Command {
         /// was drawn on, and id, for `scrawl zoom --mark`.
         #[arg(long)]
         marks: bool,
-        /// Turn an experiment on for this summary (e.g. `agentContext`). Repeatable.
+        /// Turn an experiment on for this summary (`agentContext` turns app state on).
+        /// Repeatable.
         #[arg(long = "experiment", value_name = "NAME")]
         experiments: Vec<String>,
     },

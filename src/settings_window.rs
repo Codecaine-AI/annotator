@@ -164,6 +164,7 @@ struct ViewState {
     auto_send: bool,
     shortcuts: Vec<Shortcut>,
     transcriber: Transcriber,
+    app_state: bool,
     video_export: bool,
     retention: Retention,
     captures_size: Option<String>,
@@ -171,6 +172,13 @@ struct ViewState {
     updates: bool,
     skill_command: String,
 }
+
+/// Under Save app state. App shots (the window's text at each keyframe) are macOS only.
+const APP_STATE_CAPTION: &str = if cfg!(target_os = "macos") {
+    "Saves what is under each click and mark, and the window's text at each keyframe. It stays with the capture, also after the video is cleaned."
+} else {
+    "Saves what is under each click and mark."
+};
 
 impl ViewState {
     fn recording(&self) -> Option<ShortcutKind> {
@@ -1243,6 +1251,7 @@ impl SettingsWindow {
             _ => None,
         };
         let video = state.video_export;
+        let app_state = state.app_state;
         div()
             .flex()
             .flex_col()
@@ -1251,6 +1260,24 @@ impl SettingsWindow {
             .when_some(speech, |pane, (text, error)| {
                 pane.child(caption(theme, &text, error))
             })
+            .child(header(theme, "For agents"))
+            .child(group(
+                theme,
+                vec![
+                    row(
+                        theme,
+                        "Save app state",
+                        true,
+                        switch(theme, "settings-app-state", app_state, true).on_click(cx.listener(
+                            move |view, _, _, _| {
+                                view.set("appState", (!app_state).into());
+                            },
+                        )),
+                    )
+                    .into_any_element(),
+                ],
+            ))
+            .child(caption(theme, APP_STATE_CAPTION, false))
             .child(header(theme, "Experimental"))
             .child(group(
                 theme,

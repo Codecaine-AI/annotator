@@ -723,11 +723,10 @@ fn context_value(raw: &str) -> String {
 pub const LOOK_AT_IMAGES: &str = "Open contact-sheet.png and frames/ in that folder before changing anything: the marks and words only make sense on the images, which can show more than the text does.";
 
 pub fn summary_markdown(bundle: &ScrawlBundle, bundle_dir: &std::path::Path) -> String {
-    let agent_context = crate::handoff::experiment(crate::handoff::AGENT_CONTEXT);
-    summary_markdown_with(bundle, bundle_dir, agent_context)
+    summary_markdown_with(bundle, bundle_dir, crate::handoff::app_state())
 }
 
-/// `agent_context` is the `agentContext` experiment (`agent_context::keyframe_texts`).
+/// `agent_context` is whether app state is on (`handoff::app_state`, `agent_context::keyframe_texts`).
 pub fn summary_markdown_with(
     bundle: &ScrawlBundle,
     bundle_dir: &std::path::Path,

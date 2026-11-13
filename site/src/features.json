@@ -407,18 +407,22 @@
     {
       "id": "agent-context",
       "group": "agent",
-      "name": "Agent context",
-      "says": "The summary names what clicks and marks land on, from Accessibility (UI Automation on Windows) and dev-page events.",
-      "status": "experiment:agentContext",
+      "name": "App state",
+      "says": "The summary names what clicks and marks land on, from Accessibility (UI Automation on Windows) and dev-page events. On macOS each keyframe also gets an app shot: the app, window title, URL and text tree of the window it shows, which an agent reads with scrawl appshot.",
+      "status": "main",
       "platforms": ["mac", "windows"],
       "added": "2026-10-19",
-      "docs": ["docs/keyframes-and-text.md"]
+      "note": "On by default on macOS (Settings › Recording › Save app state) and off by default on Windows, which has no app shots. No typed value, password or URL query is stored. An older experiments.agentContext value still counts while appState is not set.",
+      "config": [
+        { "key": "appState", "value": "true | false", "does": "Save app state with captures (on by default on macOS, off on Windows)" }
+      ],
+      "docs": ["docs/keyframes-and-text.md", "docs/windows.md"]
     },
     {
       "id": "screen-text",
       "group": "agent",
       "name": "Text under marks",
-      "says": "Reads the text under a mark or drag with Vision when Accessibility can't name it (with agentContext).",
+      "says": "Reads the text under a mark or drag with Vision when Accessibility can't name it (with app state on).",
       "status": "review:#56",
       "platforms": ["mac"],
       "added": "2026-10-21",

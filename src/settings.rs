@@ -874,6 +874,8 @@ pub struct View {
     pub live_audio: bool,
     /// Also show the words as they're said (`liveWords`).
     pub live_words: bool,
+    /// Save app state with each capture (`appState`, `handoff::app_state`).
+    pub app_state: bool,
     pub transcriber: TranscriberView,
     pub lower_playback: bool,
     pub playback_level: u8,
@@ -1229,7 +1231,7 @@ fn shortcut_view(
 #[serde(tag = "action", rename_all = "kebab-case")]
 pub enum Action {
     /// A settings control: `launchAtLogin`, `autoSend`, `videoExport`, `lowerPlayback`,
-    /// `liveAudio`, `liveWords` (bool),
+    /// `liveAudio`, `liveWords`, `appState` (bool),
     /// `playbackLevel` (u8), `microphone` ("default" or a device id), `transcriber`
     /// ("apple"/"hex"/"command"), `hexModel` (an id), `hexLanguage` (a code), `appleLocale`
     /// (a locale id or "auto"), `retention` (a preset id).
@@ -1489,7 +1491,8 @@ impl Panel {
                 }
             }
             (
-                "autoSend" | "videoExport" | "lowerPlayback" | "liveAudio" | "liveWords",
+                "autoSend" | "videoExport" | "lowerPlayback" | "liveAudio" | "liveWords"
+                | "appState",
                 serde_json::Value::Bool(on),
             ) => write(key, (*on).into()),
             ("playbackLevel", serde_json::Value::Number(level))
@@ -1677,6 +1680,7 @@ impl Panel {
             ),
             live_audio: config.shows_live_audio(),
             live_words: config.shows_live_words(),
+            app_state: config.saves_app_state(),
             lower_playback: config.lower_playback.unwrap_or(false),
             playback_level: config.recording_volume(),
             transcriber: TranscriberView {
@@ -2659,6 +2663,17 @@ mod tests {
         assert!(Panel::default().view(&host).live_words);
         set(&mut panel, &mut host, "liveWords", false.into());
         assert!(!Panel::default().view(&host).live_words);
+        assert_eq!(
+            panel.view(&host).app_state,
+            cfg!(target_os = "macos"),
+            "Save app state starts on for macOS only"
+        );
+        set(&mut panel, &mut host, "appState", false.into());
+        assert!(!Panel::default().view(&host).app_state);
+        set(&mut panel, &mut host, "appState", "yes".into());
+        assert!(!Panel::default().view(&host).app_state);
+        set(&mut panel, &mut host, "appState", true.into());
+        assert!(Panel::default().view(&host).app_state);
         set(&mut panel, &mut host, "autoSend", false.into());
         set(&mut panel, &mut host, "videoExport", true.into());
         set(&mut panel, &mut host, "transcriber", "hex".into());

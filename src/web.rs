@@ -363,7 +363,7 @@ pub fn handle(stream: &mut TcpStream, header: &str, expected_token: &str) -> Res
                 );
                 return Ok(true);
             };
-            let wanted = crate::handoff::experiment(crate::handoff::AGENT_CONTEXT);
+            let wanted = crate::handoff::app_state();
             if wanted && let Ok(post) = serde_json::from_slice::<crate::page::Post>(&bytes) {
                 crate::page::record(&page_origin, post);
             }
@@ -406,7 +406,7 @@ pub fn handle(stream: &mut TcpStream, header: &str, expected_token: &str) -> Res
                     ));
                     // `context`: the page may send what it sees (`crate::page`); loopback only.
                     let context = origin.is_some_and(is_loopback_origin)
-                        && crate::handoff::experiment(crate::handoff::AGENT_CONTEXT);
+                        && crate::handoff::app_state();
                     registry().register(reg, crate::now_epoch_ms());
                     respond_json(
                         stream,

@@ -905,8 +905,8 @@ pub struct SharedCaptureTelemetry {
     mouse_live: AtomicBool,
     last_shortcut_ms: AtomicU64,
     drag_start: Mutex<Option<(u64, f32, f32, Option<String>, TargetFrame)>>,
-    /// The `agentContext` experiment was on when this capture started: clicks and strokes are
-    /// looked up in the Accessibility tree (`crate::ax`, macOS only).
+    /// App state was on when this capture started (`handoff::app_state`): clicks and strokes
+    /// are looked up in the Accessibility tree (`crate::ax`).
     agent_context: AtomicBool,
     /// A ⇧-press inside the target: when, where (global points) and on which frame.
     shift_press: Mutex<Option<(u64, f64, f64, TargetFrame)>>,
@@ -1187,7 +1187,7 @@ impl SharedCaptureTelemetry {
         self.paused.store(false, Ordering::Release);
         self.active_before_pause.store(false, Ordering::Release);
         self.window_log_request.store(false, Ordering::Release);
-        let agent_context = crate::handoff::experiment(crate::handoff::AGENT_CONTEXT);
+        let agent_context = crate::handoff::app_state();
         self.agent_context.store(agent_context, Ordering::Release);
         if agent_context {
             crate::ax::Prober::shared().begin();
@@ -1313,7 +1313,7 @@ impl SharedCaptureTelemetry {
             && screen_y <= frame.y + frame.height
     }
 
-    /// Whether to look up what clicks and strokes land on: `agentContext` is on, the target is
+    /// Whether to look up what clicks and strokes land on: app state is on, the target is
     /// this Mac's screen (not the iPhone mirror) and Accessibility is granted.
     fn probing(&self) -> bool {
         self.agent_context.load(Ordering::Acquire)
@@ -1474,7 +1474,7 @@ impl SharedCaptureTelemetry {
         true
     }
 
-    /// Keeps finished ink as a stroke, and with `agentContext` looks up what it was drawn on.
+    /// Keeps finished ink as a stroke, and with app state on looks up what it was drawn on.
     fn commit_ink(&self, stroke: Stroke) {
         if self.probing() {
             let frame = *self

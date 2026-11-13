@@ -189,6 +189,7 @@ struct SettingsState: Decodable, Equatable {
   var microphone = SettingsMicrophone()
   var liveAudio = true
   var liveWords = false
+  var appState = true
   var transcriber = SettingsTranscriber()
   var videoExport = false
   var lowerPlayback = false
@@ -1138,6 +1139,13 @@ struct SettingsView: View {
       if t.engine == "apple", t.speech?.notReady == true, let line = t.speech?.line {
         SettingsCaption(text: line)
       }
+      SettingsHeader("For agents")
+      SettingsGroup {
+        SettingsRow(title: "Save app state") {
+          SettingsSwitch(on: state.appState) { model.set("appState", $0) }
+        }
+      }
+      SettingsCaption(text: "Saves what is under each click and mark, and the window's text at each keyframe. It stays with the capture, also after the video is cleaned.")
       SettingsHeader("Experimental")
       SettingsGroup {
         SettingsRow(title: "Video export") {
@@ -1803,6 +1811,8 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
     liveAudioOff.liveAudio = false
     var liveWords = base
     liveWords.liveWords = true
+    var appStateOff = base
+    appStateOff.appState = false
     let samples: [(String, SettingsPane, SettingsState)] = [
       ("general", .general, base),
       ("general-lower-playback", .general, lowered),
@@ -1826,6 +1836,7 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
       ("recording-mic-not-allowed", .recording, micNotAllowed),
       ("recording-live-audio-off", .recording, liveAudioOff),
       ("recording-live-words", .recording, liveWords),
+      ("recording-app-state-off", .recording, appStateOff),
       ("recording-downloading", .recording, downloading),
       ("recording-ready", .recording, ready),
       ("recording-language", .recording, language),

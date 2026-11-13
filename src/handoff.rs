@@ -490,8 +490,13 @@ pub struct Config {
     /// Visual style of the native recording pill: `"black"` (default) or `"glass"` (`NSGlassEffectView`).
     #[serde(default)]
     pub pill_style: Option<String>,
-    /// Behaviour Kit tries locally before it ships (`{"agentContext": true}`); see `experiment`.
-    /// Read leniently (`lenient_experiments`), so a stray value never fails the file.
+    /// Save app state with each capture (`app_state`): what clicks and marks land on, and on
+    /// macOS an app shot of the window under each keyframe. Absent follows an older
+    /// `experiments.agentContext`, else it is on for macOS and off elsewhere.
+    #[serde(default)]
+    pub app_state: Option<bool>,
+    /// Behaviour Kit tries locally before it ships (`{"liveTranscribe": true}`); see
+    /// `experiment`. Read leniently (`lenient_experiments`), so a stray value never fails the file.
     #[serde(default, deserialize_with = "lenient_experiments")]
     pub experiments: std::collections::BTreeMap<String, bool>,
     /// The microphone Mac captures record from (`mic`); absent follows the macOS default.
@@ -580,8 +585,8 @@ fn log_config_once(message: String) {
     }
 }
 
-/// More of what Scrawl already knows in the summary: marks, shortcuts, drags and windows inline
-/// at their time, numbered marks on shared frames, where a screen changed.
+/// The older name of app state (`app_state`): an `experiments.agentContext` value still counts
+/// when `appState` is absent, and `--experiment agentContext` forces app state on.
 pub const AGENT_CONTEXT: &str = "agentContext";
 
 /// Transcribe Mac recordings while they record, so finishing only waits for the last words
@@ -598,18 +603,34 @@ pub fn enable_experiment(name: &str) {
         .push(name.to_owned());
 }
 
-/// Whether an experiment is on: `"experiments": {"<name>": true}` in `config.json`, or
-/// `enable_experiment` in this process. Off by default; tests see only `enable_experiment`.
-pub fn experiment(name: &str) -> bool {
-    let overridden = EXPERIMENT_OVERRIDES
+fn experiment_enabled_here(name: &str) -> bool {
+    EXPERIMENT_OVERRIDES
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .iter()
-        .any(|n| n == name);
+        .any(|n| n == name)
+}
+
+/// Whether an experiment is on: `"experiments": {"<name>": true}` in `config.json`, or
+/// `enable_experiment` in this process. Off by default; tests see only `enable_experiment`.
+pub fn experiment(name: &str) -> bool {
+    let overridden = experiment_enabled_here(name);
     if overridden || cfg!(test) {
         return overridden;
     }
     config().experiments.get(name).copied().unwrap_or(false)
+}
+
+/// Whether captures save app state (`appState` in `config.json`, Settings › Recording › Save app
+/// state): the summary names what clicks and marks land on, and on macOS each keyframe gets an
+/// app shot (`crate::appshot`). `--experiment agentContext` forces it on for one run; tests see
+/// only that (`enable_experiment`), never the config file.
+pub fn app_state() -> bool {
+    let forced = experiment_enabled_here(AGENT_CONTEXT);
+    if forced || cfg!(test) {
+        return forced;
+    }
+    config().saves_app_state()
 }
 
 pub fn default_config_path() -> PathBuf {
@@ -859,6 +880,13 @@ pub fn live_audio() -> bool {
 }
 
 impl Config {
+    /// `appState` when set, else an older `experiments.agentContext`, else on for macOS only.
+    pub fn saves_app_state(&self) -> bool {
+        self.app_state
+            .or_else(|| self.experiments.get(AGENT_CONTEXT).copied())
+            .unwrap_or(cfg!(target_os = "macos"))
+    }
+
     pub fn shows_live_audio(&self) -> bool {
         self.live_audio.unwrap_or(true)
     }
@@ -2119,6 +2147,37 @@ mod tests {
         let cfg = load_config_from(&path);
         assert_eq!(cfg.agent_host.as_deref(), Some("pro"));
         assert_eq!(cfg.usb_apps.len(), 1);
+    }
+
+    #[test]
+    fn app_state_is_on_for_macos_and_the_setting_beats_the_old_experiment() {
+        let config = |json: &str| config_from_value(serde_json::from_str(json).unwrap());
+        assert_eq!(
+            config("{}").saves_app_state(),
+            cfg!(target_os = "macos"),
+            "an empty config saves app state on macOS only"
+        );
+        assert!(config(r#"{"appState": true}"#).saves_app_state());
+        assert!(!config(r#"{"appState": false}"#).saves_app_state());
+        assert!(
+            !config(r#"{"appState": false, "experiments": {"agentContext": true}}"#)
+                .saves_app_state(),
+            "the setting wins over the experiment"
+        );
+        assert!(
+            config(r#"{"appState": true, "experiments": {"agentContext": false}}"#)
+                .saves_app_state()
+        );
+        assert!(config(r#"{"experiments": {"agentContext": true}}"#).saves_app_state());
+        assert!(
+            !config(r#"{"experiments": {"agentContext": false}}"#).saves_app_state(),
+            "an older choice to keep it off still holds"
+        );
+        // A value that isn't true or false is dropped, so the default applies.
+        assert_eq!(
+            config(r#"{"appState": "maybe"}"#).saves_app_state(),
+            cfg!(target_os = "macos")
+        );
     }
 
     #[test]
