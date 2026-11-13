@@ -458,10 +458,14 @@ pub struct Config {
     pub lower_playback: Option<bool>,
     #[serde(default)]
     pub playback_level: Option<u8>,
-    /// Show what the microphone hears while recording: a waveform in the capsule and, with
-    /// Apple Speech, the words as they're said (`live_audio`).
+    /// Show what the microphone hears while recording: a waveform in the capsule (`live_audio`,
+    /// default on).
     #[serde(default)]
     pub live_audio: Option<bool>,
+    /// Also show the words as they're said, from an Apple Speech stream of their own, whatever
+    /// engine makes the transcript (`live_audio`, default off).
+    #[serde(default)]
+    pub live_words: Option<bool>,
     /// The Hex model to use when `transcriber` is `"hex"` (default: the first ready one of
     /// `hex::PREFERRED_MODELS`).
     #[serde(default)]
@@ -841,9 +845,24 @@ pub fn native_pill() -> bool {
     config().native_pill.unwrap_or(true)
 }
 
-/// Whether recordings show what the microphone hears (`liveAudio` in `config.json`, default off).
+/// Whether recordings show what the microphone hears (`liveAudio` in `config.json`, default on).
 pub fn live_audio() -> bool {
-    config().live_audio.unwrap_or(false)
+    config().shows_live_audio()
+}
+
+/// Whether recordings also show the words as they're said (`liveWords`, default off).
+pub fn live_words() -> bool {
+    config().shows_live_words()
+}
+
+impl Config {
+    pub fn shows_live_audio(&self) -> bool {
+        self.live_audio.unwrap_or(true)
+    }
+
+    pub fn shows_live_words(&self) -> bool {
+        self.live_words.unwrap_or(false)
+    }
 }
 
 /// Configured capsule style (`pillStyle` in `config.json`, default `"black"`).

@@ -1,6 +1,7 @@
-//! Shows what the microphone hears while recording (`"liveAudio": true`, Settings › Recording ›
-//! Show live audio): a waveform in the recording capsule, so a dead, muted or wrong microphone
-//! shows at once, and, while Apple Speech transcribes, the words as they're said under it.
+//! Shows what the microphone hears while recording (`"liveAudio"`, on by default, Settings ›
+//! Recording › Show live audio): a waveform in the recording capsule, so a dead, muted or wrong
+//! microphone shows at once, and, with `"liveWords": true` (Show live words), the words as
+//! they're said under it, from Apple Speech whatever engine makes the transcript.
 //!
 //! `AudioRecorder` publishes its 16 kHz buffer here (`begin`) for as long as it records, and the
 //! capsule reads it as it draws: `Levels` turns new samples into bars, `Caption` holds the words.
@@ -32,11 +33,17 @@ pub fn wanted() -> bool {
     cfg!(target_os = "macos") && crate::handoff::live_audio()
 }
 
-/// Whether the words can show too: Apple Speech streams (`transcribe-stream`); Hex and a command
-/// transcribe only after the recording.
+/// Whether the words show too, under the waveform. Reads the config, so once per recording.
 pub fn captions_possible() -> bool {
-    cfg!(target_os = "macos")
-        && crate::transcribe::Engine::preferred() == crate::transcribe::Engine::Apple
+    captions_possible_in(&crate::handoff::load_config_from(
+        &crate::handoff::default_config_path(),
+    ))
+}
+
+/// The words come from an Apple Speech stream of their own (`transcribe-stream`), so they show
+/// with any transcriber; they sit under the waveform, so they need it on.
+fn captions_possible_in(config: &crate::handoff::Config) -> bool {
+    cfg!(target_os = "macos") && config.shows_live_audio() && config.shows_live_words()
 }
 
 /// What a recording shares with the capsule.
@@ -436,6 +443,48 @@ mod tests {
         let (_, lines) = wrap("a supercalifragilistic b", 0, 9.0, 3, measure);
         assert_eq!(lines, vec!["a", "supercalifragilistic", "b"]);
         assert_eq!(wrap("", 0, 9.0, 2, measure), (0, Vec::<String>::new()));
+    }
+
+    fn config(json: &str) -> crate::handoff::Config {
+        static NEXT: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let n = NEXT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let path =
+            std::env::temp_dir().join(format!("scrawl-live-audio-{}-{n}.json", std::process::id()));
+        std::fs::write(&path, json).unwrap();
+        let config = crate::handoff::load_config_from(&path);
+        let _ = std::fs::remove_file(&path);
+        config
+    }
+
+    #[test]
+    fn with_no_config_the_waveform_shows_and_the_words_dont() {
+        let missing = std::env::temp_dir().join("scrawl-live-audio-missing/config.json");
+        let config = crate::handoff::load_config_from(&missing);
+        assert!(config.shows_live_audio());
+        assert!(!config.shows_live_words());
+        assert!(!captions_possible_in(&config));
+    }
+
+    #[test]
+    fn live_words_follow_their_own_setting_with_any_transcriber() {
+        for engine in ["apple", "hex", "command"] {
+            let on = config(&format!(
+                r#"{{"transcriber": "{engine}", "liveWords": true}}"#
+            ));
+            assert_eq!(
+                captions_possible_in(&on),
+                cfg!(target_os = "macos"),
+                "{engine}"
+            );
+            let off = config(&format!(
+                r#"{{"transcriber": "{engine}", "liveWords": false}}"#
+            ));
+            assert!(!captions_possible_in(&off), "{engine}");
+        }
+        // The words sit under the waveform: no waveform, no words.
+        let no_wave = config(r#"{"liveAudio": false, "liveWords": true}"#);
+        assert!(!no_wave.shows_live_audio());
+        assert!(!captions_possible_in(&no_wave));
     }
 
     #[test]

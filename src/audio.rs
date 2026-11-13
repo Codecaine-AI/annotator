@@ -21,7 +21,7 @@ pub struct AudioRecorder {
     samples: Arc<Mutex<Vec<f32>>>,
     error: Arc<Mutex<Option<String>>>,
     live: Option<crate::live_transcribe::Live>,
-    /// A live transcription only for showing the words (`live_audio`), dropped at stop.
+    /// A live transcription only for showing the words (`liveWords`), dropped at stop.
     preview: Option<crate::live_transcribe::Live>,
     /// The capsule's view of this recording (`live_audio::begin`).
     shown: Option<u64>,
@@ -68,6 +68,7 @@ impl AudioRecorder {
             })
             .context("Could not spawn microphone worker")?;
         let show = crate::live_audio::wanted();
+        // The Apple Speech stream for the words runs only with `liveWords` on.
         let caption = (show && crate::live_audio::captions_possible())
             .then(|| Arc::new(Mutex::new(crate::live_audio::Caption::default())));
         let log = |error: anyhow::Error| {

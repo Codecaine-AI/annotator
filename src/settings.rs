@@ -278,7 +278,9 @@ impl Rejection {
                 "Hold Ctrl, Alt or Win with the key.".to_owned()
             }
             Self::NoModifier => "Hold ⌘, ⌥ or ⌃ with the key.".to_owned(),
-            Self::UnsupportedKey => "Annotator can't use that key. Try a letter or number.".to_owned(),
+            Self::UnsupportedKey => {
+                "Annotator can't use that key. Try a letter or number.".to_owned()
+            }
             Self::Reserved(label) if cfg!(target_os = "windows") => {
                 if label.starts_with("Ctrl+") && !label.contains("Alt+") && !label.contains("Win+")
                 {

@@ -7,7 +7,7 @@
 //! helper fails, the model isn't installed, it lost samples or took too long) returns an error and
 //! the caller transcribes the WAV as before.
 //!
-//! The same stream shows the words as they're said (`live_audio`, `"liveAudio": true`): given a
+//! The same stream shows the words as they're said (`live_audio`, `"liveWords": true`): given a
 //! `Caption`, the helper also reports its guesses at the words in progress (`--volatile`), and
 //! the reader keeps the caption up to date. With the experiment off, a `preview` stream does only
 //! that, asks for quicker guesses (`--fast`, which may cost the finalized words some accuracy),

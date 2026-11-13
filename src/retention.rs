@@ -923,7 +923,10 @@ mod tests {
         );
         assert_eq!(partial.preset(), None);
         Preset::Week.policy().save_to(&partial_path).unwrap();
-        assert_eq!(Policy::load_from(&partial_path).preset(), Some(Preset::Week));
+        assert_eq!(
+            Policy::load_from(&partial_path).preset(),
+            Some(Preset::Week)
+        );
         Preset::Forever.policy().save_to(&path).unwrap();
         assert_eq!(Policy::load_from(&path).preset(), Some(Preset::Forever));
         let config: serde_json::Value =
