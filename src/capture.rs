@@ -1,5 +1,5 @@
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
@@ -161,7 +161,8 @@ impl Default for ShortcutConfig {
     }
 }
 
-/// Scrawl's two global shortcuts.
+/// Annotator's key combinations. Record and Paste are global hotkeys (Carbon,
+/// `RegisterHotKey`); Undo is matched only by the key tap or hook while a recording runs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ShortcutKind {
@@ -169,15 +170,18 @@ pub enum ShortcutKind {
     Record,
     /// Paste the latest capture into the app in front (⌥⇧V).
     Paste,
+    /// Take back the last stroke while recording (⌘Z).
+    Undo,
 }
 
 impl ShortcutKind {
-    pub const ALL: [Self; 2] = [Self::Record, Self::Paste];
+    pub const ALL: [Self; 3] = [Self::Record, Self::Paste, Self::Undo];
 
     pub fn default_config(self) -> ShortcutConfig {
         match self {
             Self::Record => ShortcutConfig::default_record(),
             Self::Paste => ShortcutConfig::default_paste(),
+            Self::Undo => ShortcutConfig::default_undo(),
         }
     }
 
@@ -186,6 +190,7 @@ impl ShortcutKind {
         match self {
             Self::Record => 's',
             Self::Paste => 'v',
+            Self::Undo => 'z',
         }
     }
 
@@ -193,6 +198,17 @@ impl ShortcutKind {
         match self {
             Self::Record => KEY_S,
             Self::Paste => KEY_V,
+            Self::Undo => KEY_Z,
+        }
+    }
+
+    /// The default's modifiers: the variant's for Record and Paste (`app_identity`), the
+    /// system's undo modifier (⌘, or Ctrl on Windows) for Undo.
+    fn default_modifiers_in(self, variant: Variant) -> u32 {
+        match self {
+            Self::Record | Self::Paste => variant.shortcut_modifiers(),
+            Self::Undo if cfg!(target_os = "windows") => CARBON_CONTROL_KEY,
+            Self::Undo => CARBON_CMD_KEY,
         }
     }
 
@@ -200,6 +216,7 @@ impl ShortcutKind {
         match self {
             Self::Record => "Record",
             Self::Paste => "Paste last capture",
+            Self::Undo => "Undo stroke",
         }
     }
 
@@ -230,6 +247,16 @@ impl ShortcutConfig {
         }
     }
 
+    /// ⌘Z (Ctrl+Z on Windows) in both variants.
+    pub fn default_undo() -> Self {
+        let modifiers = ShortcutKind::Undo.default_modifiers_in(Variant::current());
+        Self {
+            key_code: u32::from(key_code_for_char('z').unwrap_or(KEY_Z)),
+            carbon_modifiers: modifiers,
+            label: shortcut_label(modifiers, "Z"),
+        }
+    }
+
     /// No shortcut: nothing is registered and no key press matches. Only the paste shortcut can
     /// be turned off.
     pub fn unset() -> Self {
@@ -251,7 +278,7 @@ impl ShortcutConfig {
     }
 
     fn is_default_in(&self, variant: Variant, kind: ShortcutKind) -> bool {
-        self.carbon_modifiers == variant.shortcut_modifiers()
+        self.carbon_modifiers == kind.default_modifiers_in(variant)
             && shortcut_parts(&self.label).1 == kind.default_char().to_ascii_uppercase().to_string()
     }
 
@@ -434,11 +461,38 @@ pub fn shortcut_matches(
         return true;
     }
     let is_key = keycode == layout_code || keycode == kind.ansi_code();
-    Variant::current().shortcut_aliases()
-        && cfg.is_default_for(kind)
-        && is_key
-        && alt
-        && (shift || (ctrl && cmd))
+    if !cfg.is_default_for(kind) || !is_key {
+        return false;
+    }
+    if kind == ShortcutKind::Undo {
+        return carbon_modifiers(cmd, ctrl, alt, shift) == cfg.carbon_modifiers;
+    }
+    Variant::current().shortcut_aliases() && alt && (shift || (ctrl && cmd))
+}
+
+/// Carbon modifier bits for the modifiers held.
+pub fn carbon_modifiers(cmd: bool, ctrl: bool, alt: bool, shift: bool) -> u32 {
+    [
+        (cmd, CARBON_CMD_KEY),
+        (ctrl, CARBON_CONTROL_KEY),
+        (alt, CARBON_OPTION_KEY),
+        (shift, CARBON_SHIFT_KEY),
+    ]
+    .into_iter()
+    .filter(|(held, _)| *held)
+    .fold(0, |bits, (_, bit)| bits | bit)
+}
+
+/// Whether the modifiers `held` (Carbon bits) are the draw modifier `draw` and nothing else:
+/// held alone it shows the laser, with a drag it inks, with a click it drops a pin.
+pub fn draws(draw: u32, held: u32) -> bool {
+    held == draw
+}
+
+/// Whether the draw modifier is down together with another one (as in ⌥⇧S): ink waits until
+/// the draw modifier comes up, so a chord's leftover modifier never draws.
+pub fn draw_in_chord(draw: u32, held: u32) -> bool {
+    held & draw != 0 && held & !draw != 0
 }
 
 /// The active layout's key for `kind`'s default letter (Windows' hooks and poller match on it).
@@ -453,17 +507,26 @@ pub(crate) fn hotkey_combos(kind: ShortcutKind, cfg: &ShortcutConfig) -> Vec<(u3
     hotkey_combos_in(Variant::current(), kind, cfg)
 }
 
-fn hotkey_combos_in(variant: Variant, kind: ShortcutKind, cfg: &ShortcutConfig) -> Vec<(u32, u32)> {
+pub(crate) fn hotkey_combos_in(variant: Variant, kind: ShortcutKind, cfg: &ShortcutConfig) -> Vec<(u32, u32)> {
     if cfg.is_unset() {
         return Vec::new();
     }
     let mut combos = vec![(cfg.key_code, cfg.carbon_modifiers)];
-    if !cfg.is_default_in(variant, kind) || !variant.shortcut_aliases() {
+    if !cfg.is_default_in(variant, kind) {
         return combos;
     }
     let mut codes = vec![cfg.key_code];
     if cfg.key_code != u32::from(kind.ansi_code()) {
         codes.push(u32::from(kind.ansi_code()));
+    }
+    if kind == ShortcutKind::Undo {
+        return codes
+            .into_iter()
+            .map(|code| (code, cfg.carbon_modifiers))
+            .collect();
+    }
+    if !variant.shortcut_aliases() {
+        return combos;
     }
     for code in codes {
         for mods in [
@@ -478,6 +541,25 @@ fn hotkey_combos_in(variant: Variant, kind: ShortcutKind, cfg: &ShortcutConfig) 
         }
     }
     combos
+}
+
+/// Undo's combos as one atomic word: two key codes (the layout's and the ANSI key, the same
+/// for a custom one) and the modifiers. `u64::MAX` matches nothing.
+fn pack_undo(cfg: &ShortcutConfig) -> u64 {
+    let combos = hotkey_combos(ShortcutKind::Undo, cfg);
+    let Some(&(a, mods)) = combos.first() else {
+        return u64::MAX;
+    };
+    let b = combos.get(1).map_or(a, |&(b, _)| b);
+    (u64::from(a & 0xFFFF) << 32) | (u64::from(b & 0xFFFF) << 16) | u64::from(mods & 0xFFFF)
+}
+
+fn undo_matches(packed: u64, keycode: u16, held: u32) -> bool {
+    if packed == u64::MAX {
+        return false;
+    }
+    let (a, b, mods) = (packed >> 32 & 0xFFFF, packed >> 16 & 0xFFFF, packed & 0xFFFF);
+    u64::from(held) == mods && (u64::from(keycode) == a || u64::from(keycode) == b)
 }
 
 fn clean_label(input: &str) -> String {
@@ -709,6 +791,13 @@ pub struct SharedCaptureTelemetry {
     /// The record shortcut (`crate::settings` loads and saves it).
     pub shortcut: Mutex<ShortcutConfig>,
     pub paste_shortcut: Mutex<ShortcutConfig>,
+    /// Undo, the draw modifier and the cancel key, as Settings shows them.
+    controls: Mutex<crate::settings::Shortcuts>,
+    /// The same three as the key tap and the poller match them, swapped whole on a change:
+    /// Undo's combos (`pack_undo`), the draw modifier's Carbon bit, the cancel key's code.
+    undo_combo: AtomicU64,
+    draw_mask: AtomicU32,
+    cancel_key: AtomicU32,
     /// Settings is recording a new shortcut: none of Scrawl's fire (`pause_shortcuts`).
     pub shortcuts_paused: AtomicBool,
     pub started_at: Mutex<Instant>,
@@ -772,8 +861,12 @@ impl SharedCaptureTelemetry {
             selecting: AtomicBool::new(false),
             shift_held: AtomicBool::new(false),
             capture_mode: AtomicU64::new(0),
-            shortcut: Mutex::new(shortcuts.record),
-            paste_shortcut: Mutex::new(shortcuts.paste),
+            undo_combo: AtomicU64::new(pack_undo(&shortcuts.undo)),
+            draw_mask: AtomicU32::new(shortcuts.draw.carbon()),
+            cancel_key: AtomicU32::new(shortcuts.cancel.key_code()),
+            shortcut: Mutex::new(shortcuts.record.clone()),
+            paste_shortcut: Mutex::new(shortcuts.paste.clone()),
+            controls: Mutex::new(shortcuts),
             shortcuts_paused: AtomicBool::new(false),
             started_at: Mutex::new(Instant::now()),
             picker_started_at: Mutex::new(Instant::now()),
@@ -881,6 +974,74 @@ impl SharedCaptureTelemetry {
         (lock(&self.shortcut), lock(&self.paste_shortcut))
     }
 
+    /// All five controls: Record and Paste as registered, the other three as last set.
+    pub fn controls(&self) -> crate::settings::Shortcuts {
+        let (record, paste) = self.shortcuts();
+        crate::settings::Shortcuts {
+            record,
+            paste,
+            ..self
+                .controls
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone()
+        }
+    }
+
+    /// Takes Undo, the draw modifier and the cancel key from `shortcuts`; the next key press
+    /// and poll use them.
+    pub fn set_recording_keys(&self, shortcuts: &crate::settings::Shortcuts) {
+        self.undo_combo
+            .store(pack_undo(&shortcuts.undo), Ordering::Release);
+        self.draw_mask
+            .store(shortcuts.draw.carbon(), Ordering::Release);
+        self.cancel_key
+            .store(shortcuts.cancel.key_code(), Ordering::Release);
+        *self
+            .controls
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = shortcuts.clone();
+    }
+
+    /// The draw modifier's Carbon bit.
+    pub fn draw_mask(&self) -> u32 {
+        self.draw_mask.load(Ordering::Acquire)
+    }
+
+    /// Whether a key press (`held`: Carbon bits) is the undo shortcut.
+    pub fn is_undo(&self, keycode: u16, held: u32) -> bool {
+        undo_matches(self.undo_combo.load(Ordering::Acquire), keycode, held)
+    }
+
+    /// Whether a key press is the cancel key. ⌥ and ⇧ may still be down from the record
+    /// shortcut; with ⌘ or ⌃ it's some other app's shortcut.
+    pub fn is_cancel(&self, keycode: u16, held: u32) -> bool {
+        !self.shortcuts_paused.load(Ordering::Acquire)
+            && u32::from(keycode) == self.cancel_key.load(Ordering::Acquire)
+            && held & (CARBON_CMD_KEY | CARBON_CONTROL_KEY) == 0
+    }
+
+    /// Undo's key codes and modifiers, for a poller that reads key state (Windows).
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
+    pub fn undo_keys(&self) -> Option<([u16; 2], u32)> {
+        let packed = self.undo_combo.load(Ordering::Acquire);
+        (packed != u64::MAX).then(|| {
+            let code = |shift: u32| (packed >> shift & 0xFFFF) as u16;
+            ([code(32), code(16)], (packed & 0xFFFF) as u32)
+        })
+    }
+
+    /// The cancel key's code.
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
+    pub fn cancel_key(&self) -> u16 {
+        self.cancel_key.load(Ordering::Acquire) as u16
+    }
+
+    /// The cancel key went down (in any app): `take_escape` reports it.
+    pub fn note_cancel(&self) {
+        self.escape_pressed.store(true, Ordering::Release);
+    }
+
     pub fn set_capture_mode(&self, mode: CaptureMode) {
         let code = match mode {
             CaptureMode::Display => 0,
@@ -974,7 +1135,8 @@ impl SharedCaptureTelemetry {
         scrawl_log(format!("session clicks from {clicks}, keys from {keys}"));
     }
 
-    /// Whether Esc went down since the last call (a pending shortcut or an open picker cancels on it).
+    /// Whether the cancel key went down since the last call (a pending shortcut, an open picker
+    /// and a recording cancel on it).
     pub fn take_escape(&self) -> bool {
         self.escape_pressed.swap(false, Ordering::AcqRel)
     }
@@ -1927,6 +2089,69 @@ mod tests {
             scale: 2.0,
         });
         telemetry
+    }
+
+    /// Settings' changes to Undo, the draw modifier and the cancel key reach the next key press
+    /// without a restart.
+    #[test]
+    fn undo_cancel_and_draw_follow_settings_at_once() {
+        use crate::settings::{CancelKey, DrawModifier, Shortcuts};
+        let telemetry = session(1000.0, 1000.0);
+        let menu = if cfg!(target_os = "windows") { CARBON_CONTROL_KEY } else { CARBON_CMD_KEY };
+        let mut shortcuts = Shortcuts::default();
+        telemetry.set_recording_keys(&shortcuts);
+        let z = shortcuts.undo.key_code as u16;
+        assert!(telemetry.is_undo(z, menu));
+        assert!(telemetry.is_undo(KEY_Z, menu), "the ANSI Z too");
+        assert!(!telemetry.is_undo(z, menu | CARBON_SHIFT_KEY));
+        let esc = CancelKey::ESCAPE.key_code() as u16;
+        assert!(telemetry.is_cancel(esc, 0));
+        assert!(
+            telemetry.is_cancel(esc, CARBON_OPTION_KEY | CARBON_SHIFT_KEY),
+            "with the record shortcut's ⌥⇧ still down"
+        );
+        assert!(!telemetry.is_cancel(esc, CARBON_CMD_KEY));
+        assert_eq!(telemetry.draw_mask(), CARBON_SHIFT_KEY);
+
+        // A custom undo matches only itself; F5 cancels instead of Esc; ⌥ draws.
+        let u = shortcuts.undo.key_code + 1;
+        shortcuts.undo = ShortcutConfig {
+            key_code: u,
+            carbon_modifiers: CARBON_CONTROL_KEY | CARBON_OPTION_KEY,
+            label: "⌃⌥U".into(),
+        };
+        shortcuts.cancel = CancelKey::parse("f5").unwrap();
+        shortcuts.draw = DrawModifier::Option;
+        telemetry.set_recording_keys(&shortcuts);
+        assert!(telemetry.is_undo(u as u16, CARBON_CONTROL_KEY | CARBON_OPTION_KEY));
+        assert!(!telemetry.is_undo(z, menu));
+        assert!(!telemetry.is_undo(KEY_Z, menu));
+        assert!(!telemetry.is_cancel(esc, 0));
+        assert!(telemetry.is_cancel(shortcuts.cancel.key_code() as u16, 0));
+        assert_eq!(telemetry.draw_mask(), CARBON_OPTION_KEY);
+        assert_eq!(telemetry.controls().draw, DrawModifier::Option);
+
+        // While Settings records a shortcut, the cancel key is the recorder's.
+        telemetry.shortcuts_paused.store(true, Ordering::Release);
+        assert!(!telemetry.is_cancel(shortcuts.cancel.key_code() as u16, 0));
+    }
+
+    /// The draw modifier alone draws (laser, ink, pins); with another modifier it is part of a
+    /// chord, and ink waits for it to come up.
+    #[test]
+    fn only_the_draw_modifier_alone_draws() {
+        let opt = CARBON_OPTION_KEY;
+        assert!(draws(opt, opt));
+        assert!(!draws(opt, opt | CARBON_SHIFT_KEY));
+        assert!(!draws(opt, CARBON_SHIFT_KEY));
+        assert!(!draws(opt, 0));
+        assert!(draw_in_chord(opt, opt | CARBON_SHIFT_KEY));
+        assert!(!draw_in_chord(opt, opt));
+        assert!(!draw_in_chord(opt, CARBON_SHIFT_KEY | CARBON_CMD_KEY));
+        assert_eq!(
+            carbon_modifiers(true, false, true, false),
+            CARBON_CMD_KEY | CARBON_OPTION_KEY
+        );
     }
 
     #[test]

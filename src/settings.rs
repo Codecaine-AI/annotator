@@ -3,14 +3,17 @@
 //! Everything is decided and written here: `~/.config/scrawl/config.json` keeps its other keys
 //! and its `0600` mode (it holds the ingest token).
 //!
-//! Panes: General (launch at login, sending dev-site captures, the two shortcuts), Recording
+//! Panes: General (launch at login, sending dev-site captures), Shortcuts (Record, Paste, Undo,
+//! the draw modifier and the cancel key), Recording
 //! (transcriber, video export), Storage (how long recordings are kept), Permissions (the
 //! onboarding checklist, to fix things later), Agents (`scrawl` on PATH, the skill's install
 //! command) and About.
 //!
 //! Shortcuts live under `"shortcuts"` (`{"record": {"keyCode", "modifiers", "label"}}`, Carbon
-//! modifier bits; absent means the default, and `"paste": null` turns paste off). While the window records one, Scrawl's hotkeys are
-//! paused (`capture::pause_shortcuts`) so the current combo reaches the recorder.
+//! modifier bits, and the same for `"paste"` and `"undo"`; `"draw": "option"` and
+//! `"cancel": "f5"` name the other two). Absent means the default, and `"paste": null` turns
+//! paste off. While the window records one, Annotator's hotkeys are paused
+//! (`capture::pause_shortcuts`) so the current combo reaches the recorder.
 
 use std::collections::BTreeSet;
 use std::path::{Path, PathBuf};
@@ -19,17 +22,21 @@ use serde::{Deserialize, Serialize};
 
 use crate::capture::{
     CARBON_CMD_KEY, CARBON_CONTROL_KEY, CARBON_OPTION_KEY, CARBON_SHIFT_KEY, ShortcutConfig,
-    ShortcutKind, modifier_symbols,
+    ShortcutKind, modifier_symbols, shortcut_label,
 };
+use crate::app_identity::Variant;
 use crate::onboarding::{Grants, Permission, Status};
 
 // MARK: Shortcuts in the config
 
-/// Scrawl's two shortcuts.
+/// Annotator's five shortcut controls.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Shortcuts {
     pub record: ShortcutConfig,
     pub paste: ShortcutConfig,
+    pub undo: ShortcutConfig,
+    pub draw: DrawModifier,
+    pub cancel: CancelKey,
 }
 
 impl Default for Shortcuts {
@@ -37,8 +44,200 @@ impl Default for Shortcuts {
         Self {
             record: ShortcutConfig::default_record(),
             paste: ShortcutConfig::default_paste(),
+            undo: ShortcutConfig::default_undo(),
+            draw: DrawModifier::default(),
+            cancel: CancelKey::default(),
         }
     }
+}
+
+/// The modifier held to draw while recording: alone it shows the laser, with a drag it inks,
+/// with a click it drops a pin.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case")]
+pub enum DrawModifier {
+    #[default]
+    Shift,
+    Option,
+    Control,
+    Command,
+}
+
+impl DrawModifier {
+    pub const ALL: [Self; 4] = [Self::Shift, Self::Option, Self::Control, Self::Command];
+
+    pub fn carbon(self) -> u32 {
+        match self {
+            Self::Shift => CARBON_SHIFT_KEY,
+            Self::Option => CARBON_OPTION_KEY,
+            Self::Control => CARBON_CONTROL_KEY,
+            Self::Command => CARBON_CMD_KEY,
+        }
+    }
+
+    pub fn id(self) -> &'static str {
+        match self {
+            Self::Shift => "shift",
+            Self::Option => "option",
+            Self::Control => "control",
+            Self::Command => "command",
+        }
+    }
+
+    pub fn parse(id: &str) -> Option<Self> {
+        Self::ALL.into_iter().find(|m| m.id() == id)
+    }
+
+    /// The key alone: `⇧` on macOS, `Shift` on Windows.
+    pub fn symbol(self) -> String {
+        if cfg!(target_os = "windows") {
+            return self.name().to_owned();
+        }
+        modifier_symbols(self.carbon())
+    }
+
+    fn name(self) -> &'static str {
+        match self {
+            Self::Shift => "Shift",
+            Self::Option if cfg!(target_os = "windows") => "Alt",
+            Self::Option => "Option",
+            Self::Control if cfg!(target_os = "windows") => "Ctrl",
+            Self::Control => "Control",
+            Self::Command if cfg!(target_os = "windows") => "Win",
+            Self::Command => "Command",
+        }
+    }
+
+    /// What the menu shows: `⇧ Shift` on macOS, `Shift` on Windows.
+    pub fn title(self) -> String {
+        if cfg!(target_os = "windows") {
+            return self.name().to_owned();
+        }
+        format!("{} {}", self.symbol(), self.name())
+    }
+}
+
+/// The key that stops a recording and throws it away: Esc, or F1 to F12.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct CancelKey(u8);
+
+impl CancelKey {
+    pub const ESCAPE: Self = Self(0);
+
+    pub fn all() -> impl Iterator<Item = Self> {
+        (0..=12).map(Self)
+    }
+
+    /// `escape`, `f1` … `f12`, as the config and the window name it.
+    pub fn id(self) -> String {
+        match self.0 {
+            0 => "escape".to_owned(),
+            n => format!("f{n}"),
+        }
+    }
+
+    pub fn parse(id: &str) -> Option<Self> {
+        Self::all().find(|key| key.id() == id)
+    }
+
+    pub fn key_code(self) -> u32 {
+        match self.0 {
+            0 => KEY_ESCAPE,
+            n => FUNCTION_KEYS[usize::from(n) - 1].0,
+        }
+    }
+
+    /// `Esc`, `F1` … `F12`.
+    pub fn label(self) -> String {
+        match self.0 {
+            0 => "Esc".to_owned(),
+            n => format!("F{n}"),
+        }
+    }
+}
+
+/// One row of Settings › Shortcuts.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Control {
+    Shortcut(ShortcutKind),
+    Draw,
+    Cancel,
+}
+
+impl Control {
+    pub const ALL: [Self; 5] = [
+        Self::Shortcut(ShortcutKind::Record),
+        Self::Shortcut(ShortcutKind::Paste),
+        Self::Shortcut(ShortcutKind::Undo),
+        Self::Draw,
+        Self::Cancel,
+    ];
+
+    pub fn name(self) -> &'static str {
+        match self {
+            Self::Shortcut(kind) => kind.name(),
+            Self::Draw => "Draw",
+            Self::Cancel => "Cancel recording",
+        }
+    }
+}
+
+/// Whether two rows of `shortcuts` answer to the same keys, and the keys they share: a combo
+/// (Record's and Paste's aliases count), the cancel key pressed alone, or a combo whose only
+/// modifier is the draw modifier (holding it would start drawing).
+/// `variant`'s aliases count: the live app's defaults have them, Annotator Dev's don't.
+fn clash(variant: Variant, shortcuts: &Shortcuts, a: Control, b: Control) -> Option<String> {
+    let combos =
+        |kind: ShortcutKind| crate::capture::hotkey_combos_in(variant, kind, shortcuts.get(kind));
+    let cancel = shortcuts.cancel.key_code();
+    let draw = shortcuts.draw.carbon();
+    match (a, b) {
+        (Control::Shortcut(x), Control::Shortcut(y)) if x != y => {
+            let (cx, cy) = (shortcuts.get(x), shortcuts.get(y));
+            if cx.is_unset() || cy.is_unset() {
+                return None;
+            }
+            let (ax, ay) = (combos(x), combos(y));
+            if cx.label == cy.label || ay.contains(&(cx.key_code, cx.carbon_modifiers)) {
+                Some(cx.label.clone())
+            } else if ax.contains(&(cy.key_code, cy.carbon_modifiers)) {
+                Some(cy.label.clone())
+            } else {
+                ax.iter()
+                    .find(|combo| ay.contains(combo))
+                    .map(|&(_, mods)| shortcut_label(mods, cx.key_label()))
+            }
+        }
+        (Control::Shortcut(kind), Control::Cancel) | (Control::Cancel, Control::Shortcut(kind)) => {
+            combos(kind)
+                .contains(&(cancel, 0))
+                .then(|| shortcuts.cancel.label())
+        }
+        (Control::Shortcut(kind), Control::Draw) => (!shortcuts.get(kind).is_unset()
+            && shortcuts.get(kind).carbon_modifiers == draw)
+            .then(|| shortcuts.draw.symbol()),
+        (Control::Draw, Control::Shortcut(kind)) => (!shortcuts.get(kind).is_unset()
+            && shortcuts.get(kind).carbon_modifiers == draw)
+            .then(|| shortcuts.get(kind).label.clone()),
+        _ => None,
+    }
+}
+
+/// Checks the row that changed against the other four, naming the first it clashes with.
+pub fn check(shortcuts: &Shortcuts, changed: Control) -> Result<(), Rejection> {
+    check_in(Variant::current(), shortcuts, changed)
+}
+
+fn check_in(variant: Variant, shortcuts: &Shortcuts, changed: Control) -> Result<(), Rejection> {
+    for other in Control::ALL {
+        if other == changed {
+            continue;
+        }
+        if let Some(label) = clash(variant, shortcuts, changed, other) {
+            return Err(Rejection::Taken { label, by: other });
+        }
+    }
+    Ok(())
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -54,14 +253,23 @@ impl Shortcuts {
         match kind {
             ShortcutKind::Record => &self.record,
             ShortcutKind::Paste => &self.paste,
+            ShortcutKind::Undo => &self.undo,
         }
     }
 
-    fn set(&mut self, kind: ShortcutKind, cfg: ShortcutConfig) {
+    pub fn set(&mut self, kind: ShortcutKind, cfg: ShortcutConfig) {
         match kind {
             ShortcutKind::Record => self.record = cfg,
             ShortcutKind::Paste => self.paste = cfg,
+            ShortcutKind::Undo => self.undo = cfg,
         }
+    }
+
+    /// These shortcuts with `kind` set to `cfg`.
+    pub fn with(&self, kind: ShortcutKind, cfg: ShortcutConfig) -> Self {
+        let mut next = self.clone();
+        next.set(kind, cfg);
+        next
     }
 
     /// From `~/.config/scrawl/config.json`, moving a shortcut saved by 0.3.x (its own file
@@ -92,6 +300,17 @@ impl Shortcuts {
             {
                 shortcuts.set(kind, cfg);
             }
+        }
+        let name = |key: &str| {
+            stored
+                .and_then(|s| s.get(key))
+                .and_then(serde_json::Value::as_str)
+        };
+        if let Some(draw) = name("draw").and_then(DrawModifier::parse) {
+            shortcuts.draw = draw;
+        }
+        if let Some(cancel) = name("cancel").and_then(CancelKey::parse) {
+            shortcuts.cancel = cancel;
         }
         if stored.is_some() {
             return (shortcuts, false);
@@ -127,6 +346,7 @@ fn kind_key(kind: ShortcutKind) -> &'static str {
     match kind {
         ShortcutKind::Record => "record",
         ShortcutKind::Paste => "paste",
+        ShortcutKind::Undo => "undo",
     }
 }
 
@@ -174,30 +394,53 @@ pub fn save_shortcut_in(
     kind: ShortcutKind,
     cfg: &ShortcutConfig,
 ) -> anyhow::Result<()> {
+    let value = if cfg.is_default_for(kind) {
+        None
+    } else if cfg.is_unset() {
+        anyhow::ensure!(
+            kind.can_unset(),
+            "the {kind:?} shortcut can't be turned off"
+        );
+        Some(serde_json::Value::Null)
+    } else {
+        Some(serde_json::to_value(Stored {
+            key_code: cfg.key_code,
+            modifiers: cfg.carbon_modifiers,
+            label: cfg.label.clone(),
+        })?)
+    };
+    save_entry_in(path, kind_key(kind), value)
+}
+
+/// Saves the row `control` of `shortcuts`; a default is removed rather than written.
+pub fn save_control_in(path: &Path, control: Control, shortcuts: &Shortcuts) -> anyhow::Result<()> {
+    match control {
+        Control::Shortcut(kind) => save_shortcut_in(path, kind, shortcuts.get(kind)),
+        Control::Draw => save_entry_in(
+            path,
+            "draw",
+            (shortcuts.draw != DrawModifier::default()).then(|| shortcuts.draw.id().into()),
+        ),
+        Control::Cancel => save_entry_in(
+            path,
+            "cancel",
+            (shortcuts.cancel != CancelKey::default()).then(|| shortcuts.cancel.id().into()),
+        ),
+    }
+}
+
+/// Writes `shortcuts.<key>`, or removes it for `None`, keeping the rest of the config.
+fn save_entry_in(path: &Path, key: &str, value: Option<serde_json::Value>) -> anyhow::Result<()> {
     let mut shortcuts = read_json(path)
         .get("shortcuts")
         .cloned()
         .filter(serde_json::Value::is_object)
         .unwrap_or_else(|| serde_json::json!({}));
     let map = shortcuts.as_object_mut().expect("an object");
-    if cfg.is_default_for(kind) {
-        map.remove(kind_key(kind));
-    } else if cfg.is_unset() {
-        anyhow::ensure!(
-            kind.can_unset(),
-            "the {kind:?} shortcut can't be turned off"
-        );
-        map.insert(kind_key(kind).to_owned(), serde_json::Value::Null);
-    } else {
-        map.insert(
-            kind_key(kind).to_owned(),
-            serde_json::to_value(Stored {
-                key_code: cfg.key_code,
-                modifiers: cfg.carbon_modifiers,
-                label: cfg.label.clone(),
-            })?,
-        );
-    }
+    match value {
+        Some(value) => map.insert(key.to_owned(), value),
+        None => map.remove(key),
+    };
     crate::handoff::set_config_value_in(path, "shortcuts", shortcuts)
 }
 
@@ -265,8 +508,8 @@ pub enum Rejection {
     UnsupportedKey,
     /// macOS or every app already uses it.
     Reserved(String),
-    /// Scrawl's other shortcut.
-    Taken(ShortcutKind),
+    /// Another row of Settings › Shortcuts already answers to `label`.
+    Taken { label: String, by: Control },
     /// `RegisterEventHotKey` refused it.
     Refused,
 }
@@ -293,7 +536,9 @@ impl Rejection {
                 format!("Apps use {label}. Add ⌥ or ⌃.")
             }
             Self::Reserved(label) => format!("macOS uses {label}."),
-            Self::Taken(kind) => format!("{} already uses this.", kind.name()),
+            Self::Taken { label, by } => {
+                format!("{label} is already {}. Pick another key.", by.name())
+            }
             Self::Refused => "Another app has this shortcut.".to_owned(),
         }
     }
@@ -399,8 +644,9 @@ fn is_function_key(key_code: u32) -> bool {
 
 /// Combinations macOS or nearly every app keeps for itself, as (Carbon modifiers, key label).
 /// Turned-off system shortcuts are allowed; `Pressed::reserved` covers the enabled ones,
-/// including any Kit set up himself.
-fn reserved(modifiers: u32, key: &str) -> bool {
+/// including any Kit set up himself. Without `apps`, the combinations an app's menus use (⌘Z,
+/// Ctrl+Z) are free: Undo only listens and hands the key on.
+fn reserved(modifiers: u32, key: &str, apps: bool) -> bool {
     const CMD: u32 = CARBON_CMD_KEY;
     const SHIFT: u32 = CARBON_SHIFT_KEY;
     const OPT: u32 = CARBON_OPTION_KEY;
@@ -409,7 +655,7 @@ fn reserved(modifiers: u32, key: &str) -> bool {
         // Win (⌘'s bit) with a key, alone or with Shift, is Windows' own (Win+R, Win+Shift+S…);
         // Ctrl with one key is an app's (Ctrl+C, Ctrl+Shift+T…).
         return modifiers & CMD != 0 && modifiers & (CTRL | OPT) == 0
-            || modifiers & (CTRL | CMD | OPT) == CTRL
+            || apps && modifiers & (CTRL | CMD | OPT) == CTRL
             || [
                 (OPT, "Tab"),
                 (OPT | SHIFT, "Tab"),
@@ -421,7 +667,8 @@ fn reserved(modifiers: u32, key: &str) -> bool {
             .contains(&(modifiers, key));
     }
     // ⌘ with one key is an app's menu shortcut somewhere (⌘Q, ⌘W, ⌘R…).
-    if modifiers == CMD || modifiers == CMD | SHIFT && ["3", "4", "5", "6", "Q", "/"].contains(&key)
+    if apps && modifiers == CMD
+        || modifiers == CMD | SHIFT && ["3", "4", "5", "6", "Q", "/"].contains(&key)
     {
         return true;
     }
@@ -444,11 +691,12 @@ fn reserved(modifiers: u32, key: &str) -> bool {
     .contains(&(modifiers, key))
 }
 
-/// Checks a pressed combination for `kind` and names it. `other` is Scrawl's other shortcut.
+/// Checks a pressed combination for `kind` against the keys and against `current`'s other four
+/// rows, and names it.
 pub fn validate(
     kind: ShortcutKind,
     pressed: &Pressed,
-    other: &ShortcutConfig,
+    current: &Shortcuts,
 ) -> Result<ShortcutConfig, Rejection> {
     let modifiers = pressed.modifiers
         & (CARBON_CMD_KEY | CARBON_CONTROL_KEY | CARBON_OPTION_KEY | CARBON_SHIFT_KEY);
@@ -458,7 +706,7 @@ pub fn validate(
         return Err(Rejection::NoModifier);
     }
     let label = format!("{}{key}", modifier_symbols(modifiers));
-    if pressed.reserved || reserved(modifiers, &key) {
+    if pressed.reserved || reserved(modifiers, &key, kind != ShortcutKind::Undo) {
         return Err(Rejection::Reserved(label));
     }
     let cfg = ShortcutConfig {
@@ -466,20 +714,13 @@ pub fn validate(
         carbon_modifiers: modifiers,
         label,
     };
-    let other_kind = match kind {
-        ShortcutKind::Record => ShortcutKind::Paste,
-        ShortcutKind::Paste => ShortcutKind::Record,
-    };
-    if cfg.key_code == other.key_code && cfg.carbon_modifiers == other.carbon_modifiers
-        || cfg.label == other.label
-    {
-        return Err(Rejection::Taken(other_kind));
-    }
-    Ok(if cfg.is_default_for(kind) {
+    let cfg = if cfg.is_default_for(kind) {
         kind.default_config()
     } else {
         cfg
-    })
+    };
+    check(&current.with(kind, cfg.clone()), Control::Shortcut(kind))?;
+    Ok(cfg)
 }
 
 // MARK: Launch at login (SMAppService on macOS 13+, the Run key on Windows)
@@ -624,6 +865,10 @@ pub struct View {
     pub login: LoginView,
     pub auto_send: bool,
     pub shortcuts: Vec<ShortcutView>,
+    /// Settings › Shortcuts › Draw: the modifier menu.
+    pub draw: ChoiceView,
+    /// Settings › Shortcuts › Cancel recording: Esc or F1 to F12.
+    pub cancel: ChoiceView,
     pub microphone: MicrophoneView,
     /// Show what the microphone hears while recording (`liveAudio`).
     pub live_audio: bool,
@@ -748,11 +993,27 @@ pub struct ShortcutView {
     pub option: bool,
     pub command: bool,
     pub is_default: bool,
+    /// The running variant's default (`⌥⇧S`, or `⌃⌥S` in Annotator Dev), for Reset.
+    pub default_label: String,
     /// It can be turned off (paste); `label` is empty while it is.
     pub clearable: bool,
     /// The recorder is waiting for a new combination.
     pub recording: bool,
     /// Why the last combination was turned down.
+    pub error: Option<String>,
+}
+
+/// A shortcut row chosen from a menu (Draw, Cancel recording).
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ChoiceView {
+    pub selected: String,
+    /// What the row's keycap shows (`⇧`, `Esc`).
+    pub label: String,
+    pub default: String,
+    pub default_label: String,
+    pub options: Vec<MenuOptionView>,
+    /// Why the last choice was turned down.
     pub error: Option<String>,
 }
 
@@ -954,6 +1215,7 @@ fn shortcut_view(
         option: mods & CARBON_OPTION_KEY != 0,
         command: mods & CARBON_CMD_KEY != 0,
         is_default: cfg.is_default_for(kind),
+        default_label: kind.default_config().label,
         clearable: kind.can_unset(),
         recording,
         error: error.cloned(),
@@ -994,6 +1256,14 @@ pub enum Action {
     ClearShortcut {
         kind: ShortcutKind,
     },
+    /// The Draw menu: `shift`, `option`, `control` or `command`.
+    SetDraw {
+        modifier: String,
+    },
+    /// The Cancel recording menu: `escape` or `f1` … `f12`.
+    SetCancel {
+        key: String,
+    },
     /// A permission row's button.
     Grant {
         permission: Permission,
@@ -1033,7 +1303,8 @@ pub enum Effect {
 /// The outside world the window changes: Scrawl's hotkeys and the config file.
 pub trait Host {
     fn shortcuts(&self) -> Shortcuts;
-    /// Registers both, keeping the old ones if macOS refuses one.
+    /// Registers Record and Paste and takes the other three, keeping the old ones if macOS
+    /// refuses one.
     fn set_shortcuts(&mut self, shortcuts: &Shortcuts) -> Result<(), ShortcutKind>;
     fn pause_shortcuts(&mut self, paused: bool);
     fn config_path(&self) -> PathBuf;
@@ -1046,7 +1317,7 @@ pub trait Host {
 #[derive(Debug, Default)]
 pub struct Panel {
     recording: Option<ShortcutKind>,
-    error: Option<(ShortcutKind, String)>,
+    error: Option<(Control, String)>,
     /// Why the last Install or Uninstall failed.
     cli_error: Option<String>,
     requested: BTreeSet<Permission>,
@@ -1093,32 +1364,47 @@ impl Panel {
                     return Effect::None;
                 }
                 self.stop_recording(host);
-                let mut shortcuts = host.shortcuts();
+                let shortcuts = host.shortcuts();
+                let control = Control::Shortcut(kind);
                 if kind.can_unset() && pressed.is_delete() {
-                    self.apply(kind, ShortcutConfig::unset(), &mut shortcuts, host);
+                    self.apply(control, shortcuts.with(kind, ShortcutConfig::unset()), host);
                     return Effect::None;
                 }
-                let other = match kind {
-                    ShortcutKind::Record => &shortcuts.paste,
-                    ShortcutKind::Paste => &shortcuts.record,
-                };
-                match validate(kind, &pressed, other) {
-                    Ok(cfg) => self.apply(kind, cfg, &mut shortcuts, host),
-                    Err(rejection) => self.error = Some((kind, rejection.message())),
+                match validate(kind, &pressed, &shortcuts) {
+                    Ok(cfg) => self.apply(control, shortcuts.with(kind, cfg), host),
+                    Err(rejection) => self.error = Some((control, rejection.message())),
                 }
                 Effect::None
             }
             Action::ResetShortcut { kind } => {
                 self.stop_recording(host);
-                let mut shortcuts = host.shortcuts();
-                self.apply(kind, kind.default_config(), &mut shortcuts, host);
+                let next = host.shortcuts().with(kind, kind.default_config());
+                self.apply(Control::Shortcut(kind), next, host);
                 Effect::None
             }
             Action::ClearShortcut { kind } => {
                 self.stop_recording(host);
                 if kind.can_unset() {
-                    let mut shortcuts = host.shortcuts();
-                    self.apply(kind, ShortcutConfig::unset(), &mut shortcuts, host);
+                    let next = host.shortcuts().with(kind, ShortcutConfig::unset());
+                    self.apply(Control::Shortcut(kind), next, host);
+                }
+                Effect::None
+            }
+            Action::SetDraw { modifier } => {
+                self.stop_recording(host);
+                if let Some(draw) = DrawModifier::parse(&modifier) {
+                    let mut next = host.shortcuts();
+                    next.draw = draw;
+                    self.apply(Control::Draw, next, host);
+                }
+                Effect::None
+            }
+            Action::SetCancel { key } => {
+                self.stop_recording(host);
+                if let Some(cancel) = CancelKey::parse(&key) {
+                    let mut next = host.shortcuts();
+                    next.cancel = cancel;
+                    self.apply(Control::Cancel, next, host);
                 }
                 Effect::None
             }
@@ -1163,26 +1449,26 @@ impl Panel {
         }
     }
 
-    fn apply(
-        &mut self,
-        kind: ShortcutKind,
-        cfg: ShortcutConfig,
-        shortcuts: &mut Shortcuts,
-        host: &mut dyn Host,
-    ) {
-        if shortcuts.get(kind) == &cfg {
-            self.error = None;
+    /// Takes `next`, in which only `changed` differs from the current shortcuts, unless it
+    /// clashes with another row or macOS refuses it.
+    fn apply(&mut self, changed: Control, next: Shortcuts, host: &mut dyn Host) {
+        self.error = None;
+        if host.shortcuts() == next {
             return;
         }
-        shortcuts.set(kind, cfg.clone());
-        match host.set_shortcuts(shortcuts) {
+        if let Err(rejection) = check(&next, changed) {
+            self.error = Some((changed, rejection.message()));
+            return;
+        }
+        match host.set_shortcuts(&next) {
             Ok(()) => {
-                self.error = None;
-                if let Err(error) = save_shortcut_in(&host.config_path(), kind, &cfg) {
+                if let Err(error) = save_control_in(&host.config_path(), changed, &next) {
                     crate::capture::scrawl_log(format!("Saving the shortcut failed: {error:#}"));
                 }
             }
-            Err(refused) => self.error = Some((refused, Rejection::Refused.message())),
+            Err(refused) => {
+                self.error = Some((Control::Shortcut(refused), Rejection::Refused.message()));
+            }
         }
     }
 
@@ -1302,6 +1588,13 @@ impl Panel {
         }
     }
 
+    fn error_for(&self, control: Control) -> Option<&String> {
+        self.error
+            .as_ref()
+            .filter(|(c, _)| *c == control)
+            .map(|(_, e)| e)
+    }
+
     pub fn view(&self, host: &dyn Host) -> View {
         let config = crate::handoff::load_config_from(&host.config_path());
         let shortcuts = host.shortcuts();
@@ -1340,19 +1633,43 @@ impl Panel {
             shortcuts: ShortcutKind::ALL
                 .into_iter()
                 .map(|kind| {
-                    let error = self
-                        .error
-                        .as_ref()
-                        .filter(|(k, _)| *k == kind)
-                        .map(|(_, e)| e);
                     shortcut_view(
                         kind,
                         shortcuts.get(kind),
                         self.recording == Some(kind),
-                        error,
+                        self.error_for(Control::Shortcut(kind)),
                     )
                 })
                 .collect(),
+            draw: ChoiceView {
+                selected: shortcuts.draw.id().to_owned(),
+                label: shortcuts.draw.symbol(),
+                default: DrawModifier::default().id().to_owned(),
+                default_label: DrawModifier::default().symbol(),
+                options: DrawModifier::ALL
+                    .into_iter()
+                    .map(|m| MenuOptionView {
+                        id: m.id().to_owned(),
+                        title: m.title(),
+                        enabled: true,
+                    })
+                    .collect(),
+                error: self.error_for(Control::Draw).cloned(),
+            },
+            cancel: ChoiceView {
+                selected: shortcuts.cancel.id(),
+                label: shortcuts.cancel.label(),
+                default: CancelKey::default().id(),
+                default_label: CancelKey::default().label(),
+                options: CancelKey::all()
+                    .map(|key| MenuOptionView {
+                        id: key.id(),
+                        title: key.label(),
+                        enabled: true,
+                    })
+                    .collect(),
+                error: self.error_for(Control::Cancel).cloned(),
+            },
             microphone: microphone_view(
                 crate::mic::choice_in(&host.config_path()).as_ref(),
                 self.inputs.as_ref(),
@@ -1447,8 +1764,7 @@ pub struct AppHost<'a> {
 
 impl Host for AppHost<'_> {
     fn shortcuts(&self) -> Shortcuts {
-        let (record, paste) = self.telemetry.shortcuts();
-        Shortcuts { record, paste }
+        self.telemetry.controls()
     }
 
     fn set_shortcuts(&mut self, shortcuts: &Shortcuts) -> Result<(), ShortcutKind> {
@@ -1457,6 +1773,7 @@ impl Host for AppHost<'_> {
             shortcuts.record.clone(),
             shortcuts.paste.clone(),
         )?;
+        self.telemetry.set_recording_keys(shortcuts);
         note_paste_label(&shortcuts.paste.label);
         Ok(())
     }
@@ -1851,8 +2168,8 @@ mod tests {
 
     #[test]
     fn a_shortcut_needs_a_real_modifier_and_a_free_key() {
-        let paste = ShortcutConfig::default_paste();
-        let ok = validate(ShortcutKind::Record, &pressed(R, CTRL_OPT, "r"), &paste).unwrap();
+        let current = Shortcuts::default();
+        let ok = validate(ShortcutKind::Record, &pressed(R, CTRL_OPT, "r"), &current).unwrap();
         assert_eq!(ok.label, label(CTRL_OPT, "R"));
         assert_eq!(ok.key_label(), "R");
         // Labels follow the platform's order whatever order the bits come in.
@@ -1863,7 +2180,7 @@ mod tests {
                 CARBON_CMD_KEY | CARBON_SHIFT_KEY | CARBON_CONTROL_KEY | CARBON_OPTION_KEY,
                 "r",
             ),
-            &paste,
+            &current,
         )
         .unwrap();
         assert_eq!(
@@ -1874,12 +2191,12 @@ mod tests {
                 "⌃⌥⇧⌘R"
             }
         );
-        let no = |p: Pressed| validate(ShortcutKind::Record, &p, &paste).unwrap_err();
+        let no = |p: Pressed| validate(ShortcutKind::Record, &p, &current).unwrap_err();
         assert_eq!(no(pressed(R, 0, "r")), Rejection::NoModifier);
         assert_eq!(no(pressed(R, CARBON_SHIFT_KEY, "r")), Rejection::NoModifier);
         // A function key may stand alone.
         assert_eq!(
-            validate(ShortcutKind::Record, &pressed(F5, 0, ""), &paste)
+            validate(ShortcutKind::Record, &pressed(F5, 0, ""), &current)
                 .unwrap()
                 .label,
             "F5"
@@ -1894,19 +2211,18 @@ mod tests {
         // Scrawl's other shortcut.
         assert_eq!(
             no(pressed(V, OPT_SHIFT, "v")),
-            Rejection::Taken(ShortcutKind::Paste)
-        );
-        assert_eq!(
-            Rejection::Taken(ShortcutKind::Paste).message(),
-            "Paste last capture already uses this."
+            Rejection::Taken {
+                label: label(OPT_SHIFT, "V"),
+                by: Control::Shortcut(ShortcutKind::Paste)
+            }
         );
     }
 
     #[cfg(target_os = "macos")]
     #[test]
     fn apps_and_macos_keep_their_shortcuts() {
-        let paste = ShortcutConfig::default_paste();
-        let no = |p: Pressed| validate(ShortcutKind::Record, &p, &paste).unwrap_err();
+        let current = Shortcuts::default();
+        let no = |p: Pressed| validate(ShortcutKind::Record, &p, &current).unwrap_err();
         // ⌘ and one key belongs to apps; macOS's own combinations are refused.
         assert_eq!(
             no(pressed(R, CARBON_CMD_KEY, "r")),
@@ -1933,8 +2249,8 @@ mod tests {
     #[cfg(target_os = "windows")]
     #[test]
     fn apps_and_windows_keep_their_shortcuts() {
-        let paste = ShortcutConfig::default_paste();
-        let no = |p: Pressed| validate(ShortcutKind::Record, &p, &paste).unwrap_err();
+        let current = Shortcuts::default();
+        let no = |p: Pressed| validate(ShortcutKind::Record, &p, &current).unwrap_err();
         // Ctrl and one key belongs to apps; Win and a key, and Alt+Tab and friends, to Windows.
         assert_eq!(
             no(pressed(R, CARBON_CONTROL_KEY, "r")),
@@ -1965,7 +2281,7 @@ mod tests {
             validate(
                 ShortcutKind::Record,
                 &pressed(R, CARBON_CMD_KEY | CARBON_OPTION_KEY, "r"),
-                &paste
+                &current
             )
             .is_ok()
         );
@@ -2234,7 +2550,7 @@ mod tests {
         let free = validate(
             ShortcutKind::Record,
             &pressed(R, CARBON_CONTROL_KEY | CARBON_OPTION_KEY, "r"),
-            &host.shortcuts.paste,
+            &host.shortcuts,
         );
         assert_eq!(free.map(|c| c.label), Ok(label(CTRL_OPT, "R")));
         panel.on(
@@ -2782,5 +3098,189 @@ mod tests {
             "{}",
             row.caption
         );
+    }
+
+    fn act(panel: &mut Panel, host: &mut Fake, kind: ShortcutKind, p: Pressed) {
+        panel.on(Action::RecordShortcut { kind }, host);
+        panel.on(Action::Shortcut { kind, pressed: p }, host);
+    }
+
+    fn error(panel: &Panel, host: &Fake, row: Control) -> Option<String> {
+        let view = panel.view(host);
+        match row {
+            Control::Shortcut(kind) => view
+                .shortcuts
+                .into_iter()
+                .find(|s| s.kind == kind)
+                .and_then(|s| s.error),
+            Control::Draw => view.draw.error,
+            Control::Cancel => view.cancel.error,
+        }
+    }
+
+    #[test]
+    fn a_key_another_row_uses_is_refused_naming_that_row_in_either_order() {
+        let dir = TempDir::new("clash");
+        let mut host = fake(&dir);
+        let mut panel = Panel::default();
+        let paste = Control::Shortcut(ShortcutKind::Paste);
+        let record_label = ShortcutConfig::default_record().label;
+
+        // Paste on Record's keys.
+        let s_key = ShortcutConfig::default_record().key_code;
+        act(&mut panel, &mut host, ShortcutKind::Paste, pressed(s_key, OPT_SHIFT, "s"));
+        assert_eq!(
+            error(&panel, &host, paste),
+            Some(format!("{record_label} is already Record. Pick another key."))
+        );
+        assert_eq!(host.shortcuts, Shortcuts::default());
+
+        if !WIN {
+            // One of the live Record default's aliases (⌃⌥⌘S) is Record's too.
+            let alias = CARBON_CONTROL_KEY | CARBON_OPTION_KEY | CARBON_CMD_KEY;
+            act(&mut panel, &mut host, ShortcutKind::Paste, pressed(s_key, alias, "s"));
+            assert_eq!(
+                error(&panel, &host, paste),
+                Some("⌃⌥⌘S is already Record. Pick another key.".into())
+            );
+            // The other order: with Record changed, Paste may take it, and then Record's
+            // Reset is refused, naming Paste.
+            act(&mut panel, &mut host, ShortcutKind::Record, pressed(R, CTRL_OPT, "r"));
+            act(&mut panel, &mut host, ShortcutKind::Paste, pressed(s_key, alias, "s"));
+            assert_eq!(host.shortcuts.paste.label, "⌃⌥⌘S");
+            panel.on(Action::ResetShortcut { kind: ShortcutKind::Record }, &mut host);
+            assert_eq!(host.shortcuts.record.label, "⌃⌥R");
+            assert_eq!(
+                error(&panel, &host, Control::Shortcut(ShortcutKind::Record)),
+                Some("⌃⌥⌘S is already Paste last capture. Pick another key.".into())
+            );
+            panel.on(Action::ResetShortcut { kind: ShortcutKind::Paste }, &mut host);
+            panel.on(Action::ResetShortcut { kind: ShortcutKind::Record }, &mut host);
+            assert_eq!(host.shortcuts, Shortcuts::default());
+        }
+
+        // The cancel key against a shortcut that is that key alone, both ways.
+        act(&mut panel, &mut host, ShortcutKind::Record, pressed(F5, 0, ""));
+        assert_eq!(host.shortcuts.record.label, "F5");
+        panel.on(Action::SetCancel { key: "f5".into() }, &mut host);
+        assert_eq!(host.shortcuts.cancel, CancelKey::ESCAPE);
+        assert_eq!(
+            error(&panel, &host, Control::Cancel),
+            Some("F5 is already Record. Pick another key.".into())
+        );
+        panel.on(Action::ResetShortcut { kind: ShortcutKind::Record }, &mut host);
+        panel.on(Action::SetCancel { key: "f5".into() }, &mut host);
+        assert_eq!(host.shortcuts.cancel.label(), "F5");
+        act(&mut panel, &mut host, ShortcutKind::Undo, pressed(F5, 0, ""));
+        assert_eq!(
+            error(&panel, &host, Control::Shortcut(ShortcutKind::Undo)),
+            Some("F5 is already Cancel recording. Pick another key.".into())
+        );
+
+        // The draw modifier against a shortcut whose only modifier it is, both ways.
+        let undo_label = ShortcutConfig::default_undo().label;
+        let undo_draw = if WIN { "control" } else { "command" };
+        panel.on(Action::SetDraw { modifier: undo_draw.into() }, &mut host);
+        assert_eq!(host.shortcuts.draw, DrawModifier::Shift);
+        assert_eq!(
+            error(&panel, &host, Control::Draw),
+            Some(format!("{undo_label} is already Undo stroke. Pick another key."))
+        );
+        panel.on(Action::SetDraw { modifier: "option".into() }, &mut host);
+        assert_eq!(host.shortcuts.draw, DrawModifier::Option);
+        assert_eq!(error(&panel, &host, Control::Draw), None);
+        act(&mut panel, &mut host, ShortcutKind::Undo, pressed(R, CARBON_OPTION_KEY, "r"));
+        assert_eq!(
+            error(&panel, &host, Control::Shortcut(ShortcutKind::Undo)),
+            Some(format!(
+                "{} is already Draw. Pick another key.",
+                DrawModifier::Option.symbol()
+            ))
+        );
+        assert!(host.shortcuts.undo.is_default_for(ShortcutKind::Undo));
+    }
+
+    #[test]
+    fn only_the_live_app_s_defaults_claim_their_aliases() {
+        let key = |modifiers: u32, key: &str| ShortcutConfig {
+            key_code: u32::from(crate::capture::KEY_S),
+            carbon_modifiers: modifiers,
+            label: label(modifiers, key),
+        };
+        let mut shortcuts = Shortcuts::default();
+        // Annotator Dev's default Record is ⌃⌥S, with no aliases: ⌃⌥⌘S is free for Paste.
+        shortcuts.record = key(CTRL_OPT, "S");
+        shortcuts.paste = key(CTRL_OPT | CARBON_CMD_KEY, "S");
+        let paste = Control::Shortcut(ShortcutKind::Paste);
+        assert_eq!(check_in(Variant::Dev, &shortcuts, paste), Ok(()));
+        // The live default ⌥⇧S answers to ⌃⌥⌘S too.
+        shortcuts.record = key(OPT_SHIFT, "S");
+        assert!(matches!(
+            check_in(Variant::Live, &shortcuts, paste),
+            Err(Rejection::Taken { by: Control::Shortcut(ShortcutKind::Record), .. })
+        ));
+        assert!(check_in(Variant::Dev, &shortcuts, paste).is_ok());
+    }
+
+    #[test]
+    fn undo_may_be_an_app_s_menu_shortcut_but_needs_a_modifier() {
+        let current = Shortcuts::default();
+        let undo = |p: Pressed| validate(ShortcutKind::Undo, &p, &current);
+        let menu = if WIN { CARBON_CONTROL_KEY } else { CARBON_CMD_KEY };
+        assert_eq!(undo(pressed(R, menu, "r")).map(|c| c.label), Ok(label(menu, "R")));
+        assert!(validate(ShortcutKind::Record, &pressed(R, menu, "r"), &current).is_err());
+        assert_eq!(undo(pressed(R, 0, "r")), Err(Rejection::NoModifier));
+        let mut system = pressed(R, menu | CARBON_OPTION_KEY, "r");
+        system.reserved = true;
+        assert!(matches!(undo(system), Err(Rejection::Reserved(_))));
+    }
+
+    #[test]
+    fn undo_draw_and_cancel_are_saved_shown_and_reset() {
+        let dir = TempDir::new("controls");
+        let mut host = fake(&dir);
+        let mut panel = Panel::default();
+        let legacy = dir.0.join("legacy.json");
+        std::fs::write(&host.path, r#"{"ingestToken":"secret"}"#).unwrap();
+        let view = panel.view(&host);
+        assert_eq!(
+            view.shortcuts.iter().map(|s| s.kind).collect::<Vec<_>>(),
+            ShortcutKind::ALL
+        );
+        assert_eq!(view.shortcuts[0].default_label, label(OPT_SHIFT, "S"));
+        assert_eq!(view.shortcuts[1].default_label, label(OPT_SHIFT, "V"));
+        assert_eq!((view.draw.selected.as_str(), view.draw.default.as_str()), ("shift", "shift"));
+        assert_eq!(view.cancel.label, "Esc");
+        assert_eq!(view.cancel.options.len(), 13);
+
+        panel.on(Action::SetDraw { modifier: "option".into() }, &mut host);
+        panel.on(Action::SetCancel { key: "f12".into() }, &mut host);
+        act(&mut panel, &mut host, ShortcutKind::Undo, pressed(R, CTRL_OPT, "r"));
+        let config = read_json(&host.path);
+        assert_eq!(config["shortcuts"]["draw"], "option");
+        assert_eq!(config["shortcuts"]["cancel"], "f12");
+        assert_eq!(config["shortcuts"]["undo"]["label"], label(CTRL_OPT, "R"));
+        assert_eq!(config["ingestToken"], "secret");
+        let (loaded, _) = Shortcuts::load_from(&host.path, &legacy);
+        assert_eq!(loaded, host.shortcuts);
+        assert_eq!(loaded.draw, DrawModifier::Option);
+        assert_eq!(loaded.cancel.label(), "F12");
+        let view = panel.view(&host);
+        assert_eq!(view.draw.selected, "option");
+        assert_eq!(view.cancel.selected, "f12");
+        assert!(!view.shortcuts[2].is_default);
+
+        panel.on(Action::SetDraw { modifier: "shift".into() }, &mut host);
+        panel.on(Action::SetCancel { key: "escape".into() }, &mut host);
+        panel.on(Action::ResetShortcut { kind: ShortcutKind::Undo }, &mut host);
+        assert_eq!(host.shortcuts, Shortcuts::default());
+        assert_eq!(read_json(&host.path)["shortcuts"], serde_json::json!({}));
+
+        // Values the window can't make are ignored.
+        panel.on(Action::SetDraw { modifier: "hyper".into() }, &mut host);
+        panel.on(Action::SetCancel { key: "f13".into() }, &mut host);
+        assert_eq!(host.shortcuts, Shortcuts::default());
+        std::fs::write(&host.path, r#"{"shortcuts":{"draw":"hyper","cancel":"tab"}}"#).unwrap();
+        assert_eq!(Shortcuts::load_from(&host.path, &legacy).0, Shortcuts::default());
     }
 }
