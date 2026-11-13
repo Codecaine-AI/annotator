@@ -380,6 +380,32 @@ pub(super) fn front_own_window() -> Option<isize> {
             w.windowNumber()
         })
 }
+/// The frame of the app's own window of `size` (points), in global points from the primary
+/// display's top-left corner, the space `scrawl-helper play --frame` takes.
+pub(super) fn own_window_rect(size: [f32; 2]) -> Option<[f32; 4]> {
+    let mtm = MainThreadMarker::new()?;
+    let app = NSApplication::sharedApplication(mtm);
+    let primary_h = objc2_app_kit::NSScreen::screens(mtm)
+        .firstObject()?
+        .frame()
+        .size
+        .height;
+    let near = |a: f64, b: f32| (a - f64::from(b)).abs() < 2.0;
+    let windows = app.windows();
+    let matching = windows.iter().filter(|w| {
+        let s = w.frame().size;
+        w.isVisible() && near(s.width, size[0]) && near(s.height, size[1])
+    });
+    let window = matching.max_by_key(|w| w.isKeyWindow())?;
+    let f = window.frame();
+    Some([
+        f.origin.x as f32,
+        (primary_h - f.origin.y - f.size.height) as f32,
+        f.size.width as f32,
+        f.size.height as f32,
+    ])
+}
+
 /// Whether macOS asks for reduced motion (Accessibility ▸ Display ▸ Reduce motion).
 pub(super) fn reduce_motion() -> bool {
     use objc2::runtime::AnyClass;

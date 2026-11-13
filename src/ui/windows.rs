@@ -625,6 +625,11 @@ fn record_title() -> String {
     )
 }
 
+/// The Video tab's player places itself on macOS only.
+pub(super) fn own_window_rect(_size: [f32; 2]) -> Option<[f32; 4]> {
+    None
+}
+
 pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
     let (sender, receiver) = flume::bounded(16);
     let (show_tx, show_rx) = flume::bounded(4);

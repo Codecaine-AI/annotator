@@ -294,6 +294,28 @@
       "docs": ["README.md#usage"]
     },
     {
+      "id": "history",
+      "group": "finish",
+      "name": "History",
+      "says": "History… in the menu lists every capture newest first with its date, length and apps (three, then +N, all of them in the tooltip). Double-click one to open it in the Review window.",
+      "status": "branch:cp5-history-video",
+      "platforms": ["mac"],
+      "added": "2026-11-13",
+      "note": "A Screen capture lists each app that came to the front, an Area capture each app whose window was on top over the region, in first-seen order. Captures made before this list the app they started on.",
+      "docs": ["docs/export-and-retention.md#history-and-the-video-tab"]
+    },
+    {
+      "id": "review-video",
+      "group": "finish",
+      "name": "Video in Review",
+      "says": "The Review window's Video tab plays the capture's video in the system player, over the stage. Its header lists every app the capture showed.",
+      "status": "branch:cp5-history-video",
+      "platforms": ["mac"],
+      "added": "2026-11-13",
+      "note": "The tab is hidden once retention has cleaned the video; the contact sheet, keyframes and transcript stay.",
+      "docs": ["docs/export-and-retention.md#history-and-the-video-tab"]
+    },
+    {
       "id": "recover",
       "group": "finish",
       "name": "Recover unbuilt captures",

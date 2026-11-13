@@ -422,6 +422,22 @@ struct QrOutput {
     qr: String,
 }
 
+/// Opens `movie` in the system player (`scrawl-helper play`, an AVPlayerView window) fitted inside
+/// `stage` (global top-left points), playing. The window closes when the child is killed.
+pub fn play(movie: &Path, title: &str, stage: Option<[f32; 4]>) -> Result<std::process::Child> {
+    let mut command = Command::new(path()?);
+    command.arg("play").arg(movie).args(["--title", title]);
+    if let Some([x, y, w, h]) = stage {
+        command.args(["--frame", &format!("{x},{y},{w},{h}")]);
+    }
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .context("Could not start scrawl-helper play")
+}
+
 /// Renders `text` as a compact Unicode half-block QR code for the terminal via CoreImage.
 pub fn qr(text: &str) -> Result<String> {
     let out: QrOutput = run(&[os("qr"), os(text)], Duration::from_secs(5))?;

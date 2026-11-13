@@ -808,6 +808,8 @@ pub struct ScrawlCoordinator {
 pub enum ReviewTab {
     ContactSheet,
     Keyframes,
+    /// The capture's video in the system player (`helper::play`); hidden once the video is gone.
+    Video,
 }
 
 impl ScrawlCoordinator {
@@ -4520,6 +4522,17 @@ pub struct BundleReviewWindow {
     cached_sheet_path: Option<PathBuf>,
     cached_sheet_image: Option<Arc<Image>>,
     cached_frames: Vec<Option<Arc<Image>>>,
+    /// The Video tab's player window (`scrawl-helper play`), killed when the tab, the capture
+    /// or the window goes.
+    player: Option<std::process::Child>,
+    /// The video the Video tab last opened on its own, so closing the player doesn't reopen it.
+    auto_played: Option<PathBuf>,
+}
+
+impl Drop for BundleReviewWindow {
+    fn drop(&mut self) {
+        self.stop_player();
+    }
 }
 
 impl BundleReviewWindow {
@@ -4530,6 +4543,37 @@ impl BundleReviewWindow {
             cached_sheet_path: None,
             cached_sheet_image: None,
             cached_frames: Vec::new(),
+            player: None,
+            auto_played: None,
+        }
+    }
+
+    fn stop_player(&mut self) {
+        if let Some(mut child) = self.player.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+
+    /// Opens `video` in the player, fitted over the stage (the window less its header and the
+    /// transcript sidebar).
+    fn play(&mut self, video: &std::path::Path, title: &str, window: &Window) {
+        self.stop_player();
+        let size = window.bounds().size;
+        let stage = platform::own_window_rect([f32::from(size.width), f32::from(size.height)])
+            .map(|[x, y, w, h]| {
+                let pad = 20.0;
+                [
+                    x + pad,
+                    y + 48.0 + pad,
+                    w - 320.0 - 2.0 * pad,
+                    h - 48.0 - 2.0 * pad,
+                ]
+            })
+            .filter(|[_, _, w, h]| *w > 100.0 && *h > 100.0);
+        match crate::helper::play(video, title, stage) {
+            Ok(child) => self.player = Some(child),
+            Err(error) => scrawl_log(format!("Video tab: {error:#}")),
         }
     }
 
@@ -4641,6 +4685,24 @@ impl Render for BundleReviewWindow {
             ([], _) => format!("Display {}", bundle.target.display_id),
             (apps, _) => apps.join(" → "),
         };
+        let video = crate::history::playable_video(&dir, &bundle);
+        let has_video = video.is_some();
+        let video = video.unwrap_or_default();
+        let tab = if tab == ReviewTab::Video && !has_video {
+            ReviewTab::ContactSheet
+        } else {
+            tab
+        };
+        if tab == ReviewTab::Video {
+            if self.auto_played.as_ref() != Some(&video) {
+                self.auto_played = Some(video.clone());
+                self.play(&video, &target_label, window);
+            }
+        } else {
+            self.auto_played = None;
+            self.stop_player();
+        }
+        let c_tab_video = self.coordinator.clone();
         let timeline = timeline(&bundle);
 
         let c_keydown = self.coordinator.clone();
@@ -4776,7 +4838,18 @@ impl Render for BundleReviewWindow {
                                                 });
                                             },
                                         ),
-                                    ),
+                                    )
+                                    .when(has_video, |d| {
+                                        d.child(
+                                            tab_chip("tab-video", "Video", tab == ReviewTab::Video)
+                                                .on_click(move |_, _, cx| {
+                                                    c_tab_video.update(cx, |coord, cx| {
+                                                        coord.selected_tab = ReviewTab::Video;
+                                                        cx.notify();
+                                                    });
+                                                }),
+                                        )
+                                    }),
                             )
                             .child(
                                 div()
@@ -4886,6 +4959,28 @@ impl Render for BundleReviewWindow {
                                 ReviewTab::ContactSheet => self.render_contact_sheet_stage(stage_w),
                                 ReviewTab::Keyframes => {
                                     self.render_keyframes_stage(&bundle, selected_kf, stage_w)
+                                }
+                                ReviewTab::Video => {
+                                    let replay = cx.listener({
+                                        let video = video.clone();
+                                        let title = target_label.clone();
+                                        move |this, _, window, _| this.play(&video, &title, window)
+                                    });
+                                    div()
+                                        .min_h(px(320.0))
+                                        .flex()
+                                        .flex_col()
+                                        .items_center()
+                                        .justify_center()
+                                        .gap_3()
+                                        .text_color(rgb(MUTED_COLOR))
+                                        .text_size(px(13.0))
+                                        .child("The video plays in the player window.")
+                                        .child(
+                                            action_button("btn-play", "Play", true)
+                                                .on_click(replay),
+                                        )
+                                        .into_any_element()
                                 }
                             }),
                     )
@@ -5465,7 +5560,7 @@ impl Render for TooltipText {
 }
 
 /// Every capture in the captures folder, newest first (`crate::history`). Double-click or Return
-/// opens one in the Review window.
+/// opens one in the Review window, playing its video when it still has one.
 pub struct HistoryWindow {
     coordinator: Entity<ScrawlCoordinator>,
     focus: FocusHandle,
@@ -5505,10 +5600,14 @@ impl HistoryWindow {
         let Ok((dir, bundle)) = crate::handoff::load_bundle(&row.dir) else {
             return;
         };
+        let video = !row.cleaned;
         let coordinator = self.coordinator.clone();
         coordinator.update(cx, |coord, cx| {
             coord.mark_handled(&dir);
             coord.set_review_bundle((dir, bundle), None);
+            if video {
+                coord.selected_tab = ReviewTab::Video;
+            }
             cx.notify();
         });
         cx.defer(move |cx| open_review_window(&coordinator, cx));

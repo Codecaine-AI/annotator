@@ -108,6 +108,11 @@ pub fn frames(movie: &Path, times: FrameTimes, max_edge: u32) -> Result<Vec<Rgba
 }
 
 /// Renders `text` as a compact Unicode half-block QR code for the terminal.
+/// Opens the video in the default player (there is no AVPlayerView on Windows).
+pub fn play(movie: &Path, _title: &str, _stage: Option<[f32; 4]>) -> Result<std::process::Child> {
+    Ok(std::process::Command::new("explorer").arg(movie).spawn()?)
+}
+
 pub fn qr(_text: &str) -> Result<String> {
     bail!("QR codes need CoreImage (macOS)")
 }
