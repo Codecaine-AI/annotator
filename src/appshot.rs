@@ -510,6 +510,232 @@ pub fn match_keyframes(
         .collect()
 }
 
+/// `…/appshot-secret.html`: a URL short enough for one line of the list.
+fn short_url(url: &str) -> String {
+    let bare = url.split_once("://").map_or(url, |(_, rest)| rest);
+    let bare = bare.trim_matches('/');
+    match bare.rsplit_once('/') {
+        Some((_, last)) if bare.chars().count() > 32 => format!("…/{last}"),
+        _ => bare.to_owned(),
+    }
+}
+
+/// `1,500`.
+fn thousands(n: usize) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, c) in digits.chars().enumerate() {
+        if i > 0 && (digits.len() - i) % 3 == 0 {
+            out.push(',');
+        }
+        out.push(c);
+    }
+    out
+}
+
+/// One keyframe's row of `scrawl appshot`.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct Row {
+    frame: usize,
+    /// The keyframe's time (ms).
+    t: u64,
+    app: String,
+    window: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    url: Option<String>,
+    /// The shot's file in `appshots/`, when the keyframe has one.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    shot: Option<String>,
+    /// How far from the keyframe the shot was taken.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    age_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    took_ms: Option<u64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    nodes: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    truncated: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    withheld: Option<String>,
+}
+
+/// A keyframe's row and its shot. A keyframe without a shot names the window it expected.
+fn row(
+    bundle: &crate::model::ScrawlBundle,
+    shots: &Shots,
+    keyframe: &Keyframe,
+) -> (Row, Option<Shot>) {
+    let seen = keyframe.appshot.as_ref().and_then(|file| {
+        shots
+            .timeline
+            .observations
+            .iter()
+            .filter(|seen| &seen.shot == file)
+            .min_by_key(|seen| seen.t.abs_diff(keyframe.t))
+    });
+    let shot = seen.and_then(|seen| shots.shot(&seen.shot));
+    let expected = expected_window(bundle, keyframe.t);
+    let (app, window) = match (&shot, &expected) {
+        (Some(shot), _) => (shot.app.clone(), shot.title.clone()),
+        (None, Some(expected)) => (expected.app.clone(), expected.title.clone()),
+        (None, None) => Default::default(),
+    };
+    let row = Row {
+        frame: keyframe.index,
+        t: keyframe.t,
+        app,
+        window,
+        url: shot.as_ref().and_then(|shot| shot.url.clone()),
+        shot: shot.as_ref().and(keyframe.appshot.clone()),
+        age_ms: shot.as_ref().and(seen).map(|seen| seen.t.abs_diff(keyframe.t)),
+        took_ms: shot.as_ref().and(seen).map(|seen| seen.took_ms),
+        nodes: shot.as_ref().map(|shot| shot.nodes),
+        truncated: shot.as_ref().and_then(|shot| shot.truncated.clone()),
+        withheld: shot.as_ref().and_then(|shot| shot.withheld.clone()),
+    };
+    (row, shot)
+}
+
+/// `scrawl appshot [BUNDLE] [--frame N] [--json]`: what to print, and the exit code.
+///
+/// Without `frame` it lists each keyframe's app, window, URL, how far from the keyframe its shot
+/// was taken, and the size of its tree: never the tree, also with `json`. With `frame` (the
+/// keyframe's number, from 1) it prints that keyframe's header and outline. A capture without
+/// shots says so and exits 0; a frame out of range names the range and exits 2.
+pub fn report(
+    bundle_dir: &Path,
+    bundle: &crate::model::ScrawlBundle,
+    frame: Option<usize>,
+    json: bool,
+) -> (String, i32) {
+    use crate::model::format_clock;
+    let Some(shots) = Shots::load(bundle_dir) else {
+        return ("no app shots in this capture\n".into(), 0);
+    };
+    let dash = |text: &str| {
+        if text.is_empty() {
+            "-".to_owned()
+        } else {
+            text.to_owned()
+        }
+    };
+    let Some(n) = frame else {
+        let rows: Vec<Row> = bundle
+            .keyframes
+            .iter()
+            .map(|keyframe| row(bundle, &shots, keyframe).0)
+            .collect();
+        if json {
+            let value = serde_json::json!({
+                "capture": bundle.id,
+                "capped": shots.timeline.capped,
+                "keyframes": rows,
+            });
+            return (format!("{value:#}\n"), 0);
+        }
+        let mut table = vec![["#", "time", "app", "window", "url", "age", "nodes"].map(String::from)];
+        for row in &rows {
+            table.push([
+                row.frame.to_string(),
+                format_clock(row.t),
+                dash(&row.app),
+                dash(&row.window),
+                dash(&row.url.as_deref().map(short_url).unwrap_or_default()),
+                row.age_ms
+                    .map_or("-".into(), |ms| format!("{:.1} s", ms as f64 / 1_000.0)),
+                row.nodes.map_or("-".into(), thousands),
+            ]);
+        }
+        let width =
+            |column: usize| table.iter().map(|r| r[column].chars().count()).max().unwrap_or(0);
+        let widths: Vec<usize> = (0..7).map(width).collect();
+        let mut out = String::new();
+        for (i, cells) in table.iter().enumerate() {
+            let line: Vec<String> = cells
+                .iter()
+                .enumerate()
+                .map(|(column, cell)| {
+                    let pad = " ".repeat(widths[column] - cell.chars().count());
+                    // The age and the node count line up on the right.
+                    if column >= 5 {
+                        format!("{pad}{cell}")
+                    } else {
+                        format!("{cell}{pad}")
+                    }
+                })
+                .collect();
+            out.push_str(line.join("  ").trim_end());
+            out.push('\n');
+            let Some(row) = i.checked_sub(1).map(|i| &rows[i]) else {
+                continue;
+            };
+            let indent = " ".repeat(widths[0] + 2);
+            if row.shot.is_none() {
+                out.push_str(&format!("{indent}no app shot of this window\n"));
+            }
+            if let Some(why) = &row.withheld {
+                out.push_str(&format!("{indent}no tree: {why}\n"));
+            }
+            if let Some(cap) = &row.truncated {
+                out.push_str(&format!("{indent}cut: {cap}\n"));
+            }
+        }
+        if shots.timeline.capped {
+            out.push_str("App shots stopped at 32 MB for this capture: later states are missing.\n");
+        }
+        return (out, 0);
+    };
+    let total = bundle.keyframes.len();
+    let Some(keyframe) = n.checked_sub(1).and_then(|i| bundle.keyframes.get(i)) else {
+        let range = match total {
+            0 => "this capture has no keyframes".to_owned(),
+            1 => "this capture has keyframe 1 only".to_owned(),
+            _ => format!("this capture has keyframes 1 to {total}"),
+        };
+        return (format!("--frame {n} is out of range: {range}\n"), 2);
+    };
+    let (row, shot) = row(bundle, &shots, keyframe);
+    let Some(shot) = shot else {
+        let expected = match (row.app.is_empty(), row.window.is_empty()) {
+            (true, _) => "no app window was in front then".to_owned(),
+            (false, true) => format!("expected {}", row.app),
+            (false, false) => format!("expected {} “{}”", row.app, row.window),
+        };
+        let text = format!(
+            "no app shot for keyframe {n} ({}): {expected}\n",
+            format_clock(keyframe.t)
+        );
+        if json {
+            let value = serde_json::json!({"capture": bundle.id, "keyframe": row});
+            return (format!("{value:#}\n"), 0);
+        }
+        return (text, 0);
+    };
+    if json {
+        let value = serde_json::json!({"capture": bundle.id, "keyframe": row, "tree": shot.tree});
+        return (format!("{value:#}\n"), 0);
+    }
+    let mut header = vec![shot.app.clone()];
+    if !shot.title.is_empty() {
+        header.push(format!("“{}”", shot.title));
+    }
+    header.extend(shot.url.as_deref().map(short_url));
+    header.push(format_clock(keyframe.t));
+    header.push(format!("{} nodes", thousands(shot.nodes)));
+    header.extend(shot.truncated.as_ref().map(|cap| format!("cut: {cap}")));
+    let mut out = header.join(" · ");
+    out.push('\n');
+    if let Some(why) = &shot.withheld {
+        out.push_str(&format!("no tree: {why}\n"));
+    }
+    for line in &shot.tree {
+        out.push_str(line);
+        out.push('\n');
+    }
+    (out, 0)
+}
+
 /// Deletes the spools of captures that never finished: at launch, when nothing records, every
 /// bundle folder in `captures` without a `scrawl.json` loses its `appshots/.spool`.
 pub fn sweep_spools(captures: &Path) {
@@ -1977,6 +2203,141 @@ mod tests {
         Spool::new(&empty).into_shots().store(&empty, &mut b).unwrap();
         assert!(!empty.join(DIR).exists());
         for dir in [dir, copy, empty] {
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+    }
+
+    /// A stored capture: Safari on the fixture for keyframe 1, T3 Code for keyframe 2 (its tree
+    /// cut at the node cap), and a keyframe 3 on Xcode with no shot.
+    fn stored() -> (PathBuf, ScrawlBundle) {
+        let dir = temp("cli");
+        let mut spool = Spool::new(&dir);
+        let (tree, window) = fixture();
+        let safari = shot_of(
+            "Safari",
+            Some("dev.safari"),
+            Some(1),
+            "Fixture",
+            Some("file:///Users/kit/annotator/tests/fixtures/appshot-secret.html?token=SECRET-MARKER-URL"),
+            walk(&tree, &window, &LIMITS, &never),
+        );
+        spool.add(3_700, 12, Taken { shot: safari, pid: 1, frame: [0, 0, 800, 600] });
+        let t3 = Shot {
+            app: "T3 Code".into(),
+            bundle_id: Some("dev.t3code".into()),
+            window_id: Some(2),
+            title: "Annotator plan".into(),
+            nodes: 1_500,
+            truncated: Some("nodes".into()),
+            tree: vec!["window \"Annotator plan\"".into()],
+            ..Shot::default()
+        };
+        spool.add(19_800, 310, Taken { shot: t3, pid: 2, frame: [0, 0, 800, 600] });
+        let log = serde_json::json!([
+            {"t": 0, "windows": [entry(1, "Safari", true)]},
+            {"t": 15_000, "windows": [entry(2, "T3 Code", true)]},
+            {"t": 30_000, "windows": [entry(3, "Xcode", true)]},
+        ]);
+        let mut b = bundle("display", &[4_000, 19_000, 31_000], &[], log);
+        spool.into_shots().store(&dir, &mut b).unwrap();
+        (dir, b)
+    }
+
+    #[test]
+    fn appshot_cli_lists_each_keyframes_shot_without_its_tree() {
+        let (dir, b) = stored();
+        let (out, code) = report(&dir, &b, None, false);
+        assert_eq!(code, 0);
+        assert_eq!(
+            out,
+            "\
+#  time  app      window          url                      age  nodes
+1  0:04  Safari   Fixture         …/appshot-secret.html  0.3 s      8
+2  0:19  T3 Code  Annotator plan  -                      0.8 s  1,500
+   cut: nodes
+3  0:31  Xcode    Xcode 3         -                          -      -
+   no app shot of this window
+"
+        );
+        assert!(!out.contains("button"), "the list holds no tree");
+        let (out, code) = report(&dir, &b, None, true);
+        assert_eq!(code, 0);
+        let json: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(json["capture"], "scrawl-1-test");
+        let rows = json["keyframes"].as_array().unwrap();
+        assert_eq!(rows.len(), 3);
+        assert_eq!(rows[0]["url"], "file:///Users/kit/annotator/tests/fixtures/appshot-secret.html");
+        assert_eq!(rows[0]["ageMs"], 300);
+        assert_eq!(rows[0]["tookMs"], 12);
+        assert_eq!(rows[1]["truncated"], "nodes");
+        assert_eq!(rows[1]["nodes"], 1_500);
+        assert_eq!(rows[2]["app"], "Xcode");
+        assert!(rows[2].get("shot").is_none());
+        assert!(!out.contains("tree") && !out.contains("button"), "metadata only: {out}");
+        assert!(!out.contains(MARKER));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn appshot_cli_prints_one_keyframes_outline() {
+        let (dir, b) = stored();
+        let (out, code) = report(&dir, &b, Some(1), false);
+        assert_eq!(code, 0);
+        assert_eq!(
+            out,
+            "\
+Safari · “Fixture” · …/appshot-secret.html · 0:04 · 8 nodes
+window \"Fixture\"
+  web area
+    heading \"Settings\"
+    static text \"Open the settings to change your keys.\"
+    text field \"Name\"
+    secure text field \"Password\"
+    link \"Reset https://a.dev/reset\"
+    button \"Save\" #save
+"
+        );
+        assert!(!out.contains(MARKER));
+        let (out, _) = report(&dir, &b, Some(2), false);
+        assert!(
+            out.starts_with("T3 Code · “Annotator plan” · 0:19 · 1,500 nodes · cut: nodes\n"),
+            "{out}"
+        );
+        let (out, code) = report(&dir, &b, Some(1), true);
+        let json: serde_json::Value = serde_json::from_str(&out).unwrap();
+        assert_eq!(code, 0);
+        assert_eq!(json["keyframe"]["app"], "Safari");
+        assert_eq!(json["tree"].as_array().unwrap().len(), 8);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn appshot_cli_says_what_is_missing_and_exits_2_only_for_a_bad_frame() {
+        let (dir, b) = stored();
+        // A keyframe with no shot names the window it expected.
+        let (out, code) = report(&dir, &b, Some(3), false);
+        assert_eq!(
+            (out.as_str(), code),
+            ("no app shot for keyframe 3 (0:31): expected Xcode “Xcode 3”\n", 0)
+        );
+        // Out of range, at both ends.
+        for n in [0, 4, 99] {
+            let (out, code) = report(&dir, &b, Some(n), false);
+            assert_eq!(code, 2);
+            assert_eq!(
+                out,
+                format!("--frame {n} is out of range: this capture has keyframes 1 to 3\n")
+            );
+        }
+        // A capture made with app state off, or on another system.
+        let bare = temp("cli-bare");
+        for frame in [None, Some(1), Some(99)] {
+            assert_eq!(
+                report(&bare, &b, frame, false),
+                ("no app shots in this capture\n".to_owned(), 0)
+            );
+        }
+        for dir in [dir, bare] {
             let _ = std::fs::remove_dir_all(&dir);
         }
     }

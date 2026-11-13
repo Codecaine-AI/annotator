@@ -23,7 +23,7 @@ Cropped to: the activity in OpenCode (full frames in frames-full/)
 - The next line asks you to open the images first. Do: the text is only what was said and done, and a problem can show in a frame without being marked or mentioned.
 - Each `#N (M:SS)` line is a keyframe: what they did at that moment in brackets, then what they said while it was on screen. A line with no quote has the action alone.
 - `⚑` means they flagged the moment on purpose. `⟨Name⟩` means the app reported a new screen. Lines starting `·` are events or values the app logged.
-- Optional lines near the top: `For session:` (where Scrawl sent it), `Screen:` with app context, `Note:`, and `Cropped to:`.
+- Optional lines near the top: `For session:` (where Scrawl sent it), `App shots:` (the command that prints a keyframe's app state, see below), `Screen:` with app context, `Note:`, and `Cropped to:`.
 - Coordinates are fractions of the captured area, from the top left (x 0.51 is just right of centre).
 
 When you answer, refer to moments the same way, as in "#3 (0:10)", so the person can find them on the contact sheet.
@@ -40,7 +40,7 @@ What the drawings mean:
 - A ripple around the cursor shows a click or tap, and a finger trail shows a swipe.
 - A glowing red trail that tapers off is the laser pointer, used to point without leaving a mark.
 
-Other files: `scrawl.json` is the full manifest (keyframes, `marks` with shape and box, `events`, `transcript.words` with times, app `context`, and `autocrop`). `recording.mp4` or `recording.mov` and `audio.wav` are the source media. A `.media-pending` file means the video is still being copied from another Mac.
+Other files: `scrawl.json` is the full manifest (keyframes, `marks` with shape and box, `events`, `transcript.words` with times, app `context`, and `autocrop`). `recording.mp4` or `recording.mov` and `audio.wav` are the source media. A `.media-pending` file means the video is still being copied from another Mac. `appshots/` holds the app state of Mac captures: `shot-NN.json` is one window's app, title, URL and text outline (`tree`), `timeline.json` says when each was seen, and a keyframe's `appshot` in `scrawl.json` names its file. It stays after the video is cleaned.
 
 ## The scrawl CLI
 
@@ -68,12 +68,15 @@ It prints the path of a PNG sheet of frames around that moment, the time of each
 scrawl inspect <bundle>               # summary.md, the text above
 scrawl inspect <bundle> --json        # scrawl.json
 scrawl inspect <bundle> --marks       # the marks, numbered as in the text [--json]
+scrawl appshot <bundle>               # each keyframe's app, window, URL and tree size [--json]
+scrawl appshot <bundle> --frame 2     # keyframe #2's window as a text outline [--json]
 scrawl frames <bundle> --from 0:04 --to 0:06 [--fps 4]   # plain PNGs of a range; prints their paths
 scrawl send <bundle> --session ses_…  # queue the capture into an OpenCode session
 scrawl send <bundle> --clipboard      # copy the summary text to the clipboard
 scrawl export <bundle> [--out demo.mp4] [--zoom] [--crop auto|full|x,y,w,h] [--size 1920]
 ```
 
+- `appshot` prints what the app itself knew about the window a keyframe shows: use it when the picture leaves a name, a label or a URL unclear, or to find the element to change. `<bundle>` can be the capture's id from the `App shots:` line. The outline is one element per line, indented by depth, such as `button "Save" #save` (role, label, identifier). A text field shows its name, never what was typed in it, and a URL has no query. A header's `cut: nodes` (or `depth`, `bytes`, `timeout`) means the outline stops early. `no app shots in this capture` means it was made with app state off or on Windows; a keyframe without a shot says which window it expected.
 - `zoom` and `frames` write into `<bundle>/zoom/`. Leave the rest of the bundle as it is, because Scrawl manages those files and cleans them up.
 - `send` without `--session` goes to the session the capture was addressed to (the `For session:` line), and otherwise to the most recently active session. With a recorded destination it refuses a different `--session` unless you pass `--reroute`, so check with the person before rerouting.
 - `export` writes one `.mp4` with the ink and clicks burned in and the audio in sync (default `~/Movies/Scrawl/<bundle>.mp4`). `--zoom` eases in toward the activity. `--no-ink`, `--no-clicks`, `--hevc` and `--fps` are also available.

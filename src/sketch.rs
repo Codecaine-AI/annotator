@@ -784,6 +784,14 @@ pub fn summary_markdown_with(
         out.push_str(LOOK_AT_IMAGES);
         out.push('\n');
     }
+    // The app state of a keyframe's window is one command away, never pasted.
+    if bundle.keyframes.iter().any(|k| k.appshot.is_some()) {
+        out.push_str(&format!(
+            "App shots: {} appshot {} --frame N (N is the keyframe number)\n",
+            crate::app_identity::Variant::current().command_name(),
+            bundle.id
+        ));
+    }
     // The screen at the start and the app's own values, on one line.
     let start_screen = bundle.screen_at(0);
     let context: Vec<String> = start_screen
@@ -2079,6 +2087,47 @@ mod tests {
         let stationary_ink = [[120.0, 240.0], [120.0, 240.0], [120.0, 240.0]];
         let smoothed_ink = smooth_ink_points(&stationary_ink);
         assert_eq!(smoothed_ink.len(), 1);
+    }
+
+    #[test]
+    fn appshot_summary_names_the_command_with_the_captures_own_id() {
+        let bundle = |appshot: Option<&str>| -> ScrawlBundle {
+            serde_json::from_value(serde_json::json!({
+                "version": 1, "id": "scrawl-1794586221550-4f2a", "createdAtMs": 0,
+                "durationMs": 14000,
+                "target": {
+                    "mode": "display", "app": "Safari", "displayId": 1,
+                    "frame": {"x": 0.0, "y": 0.0, "width": 1000.0, "height": 1000.0, "scale": 1.0}
+                },
+                "transcript": {"source": "test", "text": "", "segments": []},
+                "strokes": [], "marks": [], "events": [],
+                "keyframes": [
+                    {"index": 1, "t": 4000, "reason": "scene_change",
+                     "file": "frames/frame-01.png", "event": "scene changed",
+                     "appshot": appshot},
+                    {"index": 2, "t": 9000, "reason": "scene_change",
+                     "file": "frames/frame-02.png", "event": "scene changed"}
+                ],
+                "contactSheet": "contact-sheet.png"
+            }))
+            .unwrap()
+        };
+        let dir = std::path::Path::new("/recordings/scrawl-1794586221550-4f2a.scrawl");
+        let command = crate::app_identity::Variant::current().command_name();
+        let line = format!(
+            "App shots: {command} appshot scrawl-1794586221550-4f2a --frame N (N is the keyframe number)\n"
+        );
+        for agent_context in [false, true] {
+            let with = summary_markdown_with(&bundle(Some("shot-01.json")), dir, agent_context);
+            assert_eq!(with.matches(&line).count(), 1, "{with}");
+            assert!(
+                with.find(&line).unwrap() < with.find("- #1").unwrap(),
+                "the command comes before the keyframes: {with}"
+            );
+            // A capture without shots says nothing about them.
+            let without = summary_markdown_with(&bundle(None), dir, agent_context);
+            assert!(!without.contains("appshot"), "{without}");
+        }
     }
 
     #[test]

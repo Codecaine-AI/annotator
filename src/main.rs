@@ -431,6 +431,19 @@ enum Command {
         #[arg(long)]
         full: bool,
     },
+    /// Print the app state saved with a capture: the app, window title, URL and text outline of
+    /// the window each keyframe shows (an app shot). Without `--frame` it lists the keyframes.
+    Appshot {
+        /// A capture's id, the path to its `.scrawl` folder, or `latest`.
+        #[arg(default_value = "latest")]
+        bundle: PathBuf,
+        /// The keyframe to print, by its number (`--frame 2` for #2).
+        #[arg(long)]
+        frame: Option<usize>,
+        /// Print JSON.
+        #[arg(long)]
+        json: bool,
+    },
     /// Export a bundle's recording as one shareable .mp4: H.264 video cropped to the activity
     /// with the ink and click ripples burned in, AAC audio in sync, and optionally Screen
     /// Studio-style auto-zoom (`--zoom`). Encoding runs in the helper with AVFoundation.
@@ -2244,6 +2257,19 @@ fn main() -> Result<()> {
                 eprintln!();
             }
             println!("{}", export::describe(&exported?));
+            Ok(())
+        }
+        Command::Appshot {
+            bundle,
+            frame,
+            json,
+        } => {
+            let (dir, loaded) = handoff::load_bundle(&bundle)?;
+            let (text, code) = appshot::report(&dir, &loaded, frame, json);
+            print!("{text}");
+            if code != 0 {
+                std::process::exit(code);
+            }
             Ok(())
         }
         Command::Zoom {

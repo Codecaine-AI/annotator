@@ -882,8 +882,9 @@ system owns differ:
 - **Command-line tool:** **Install** in Settings › Agents writes a `scrawl.cmd` shim into
   `%LOCALAPPDATA%\Microsoft\WindowsApps`, which is on every user's PATH, so agents and terminals
   can run `scrawl`.
-- **agentContext:** what clicks and marks land on comes from UI Automation, as it does from the
-  Accessibility tree on macOS.
+- **App state:** off by default on Windows (Settings › Recording › Save app state turns it on).
+  What clicks and marks land on then comes from UI Automation, as it does from the Accessibility
+  tree on macOS. App shots (`scrawl appshot`) are macOS only.
 - **Not on Windows:** the cabled iPhone (it needs AVFoundation's screen capture devices), video
   export, Sparkle updates (**Check for Updates…** opens the releases page) and the dev-site tab URL
   (`/sdk.js` registrations still route).
