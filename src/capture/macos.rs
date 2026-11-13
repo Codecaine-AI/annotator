@@ -1632,7 +1632,10 @@ unsafe extern "C" fn key_tap_callback(
         return event;
     }
     let held = carbon_modifiers(cmd, ctrl, alt, shift);
-    if telemetry.is_cancel(keycode, held) {
+    // A held key repeats; only its press pauses or cancels (`crate::pause`).
+    if telemetry.is_cancel(keycode, held)
+        && unsafe { CGEventGetIntegerValueField(event, KEYBOARD_EVENT_AUTOREPEAT) } == 0
+    {
         telemetry.note_cancel();
     }
     if !telemetry.active.load(Ordering::Acquire) {

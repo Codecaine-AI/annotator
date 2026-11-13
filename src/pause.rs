@@ -87,6 +87,7 @@ impl Default for Session {
 }
 
 impl Session {
+    #[cfg(test)]
     pub fn state(&self) -> State {
         self.state
     }
@@ -154,15 +155,14 @@ impl Session {
         Some(Cuts::new(std::mem::take(&mut self.spans)))
     }
 
-    /// How much has been recorded at `now_ms`, which stands still while paused: what the
-    /// capsule's timer shows.
-    pub fn recorded_ms(&self, now_ms: u64) -> u64 {
-        let paused: u64 = self.spans.iter().map(Span::len).sum();
-        let until = match self.state {
-            State::Paused { since_ms } => since_ms.min(now_ms),
-            _ => now_ms,
-        };
-        until.saturating_sub(paused)
+    /// How long the recording has been paused in all at `now_ms`, the pause it is in included.
+    /// The capsule's timer shows the time elapsed less this, so it stands still while paused.
+    pub fn paused_ms(&self, now_ms: u64) -> u64 {
+        let ended: u64 = self.spans.iter().map(Span::len).sum();
+        match self.state {
+            State::Paused { since_ms } => ended + now_ms.saturating_sub(since_ms),
+            _ => ended,
+        }
     }
 
     fn close(&mut self, since_ms: u64, now_ms: u64) {
@@ -284,6 +284,35 @@ impl Cuts {
         )
     }
 
+    /// Rewrites `movie` without the pauses, which must be on the movie's own clock
+    /// (`on_clock_from`). Every track loses the same ranges and no sample is re-encoded
+    /// (`scrawl-helper cut`), so minutes of video take a tenth
+    /// of a second. On an error `movie` is
+    /// left as it was, pauses included.
+    pub fn cut_movie(&self, movie: &std::path::Path) -> anyhow::Result<()> {
+        use anyhow::Context;
+        if self.is_empty() {
+            return Ok(());
+        }
+        let length_ms = crate::helper::probe(movie)?.duration_ms;
+        let keep = self.kept(0, length_ms);
+        anyhow::ensure!(!keep.is_empty(), "the movie was paused from start to end");
+        if keep == [(0, length_ms)] {
+            return Ok(());
+        }
+        let extension = movie
+            .extension()
+            .and_then(|extension| extension.to_str())
+            .unwrap_or("mp4");
+        let cut = movie.with_extension(format!("cut.{extension}"));
+        let made = crate::helper::cut(movie, &cut, &keep)
+            .and_then(|_| std::fs::rename(&cut, movie).context("could not replace the movie"));
+        if made.is_err() {
+            let _ = std::fs::remove_file(&cut);
+        }
+        made
+    }
+
     /// Clicks, drags, scrolls and keys: one that began during a pause is dropped, the rest
     /// move earlier.
     pub fn cut_events(&self, events: &mut Vec<InteractionEvent>) {
@@ -360,7 +389,8 @@ impl Cuts {
             return;
         }
         let pause_of = |t: u64| self.spans.iter().position(|span| span.holds(t));
-        let pauses: Vec<Option<usize>> = items.iter_mut().map(|item| pause_of(*time(item))).collect();
+        let pauses: Vec<Option<usize>> =
+            items.iter_mut().map(|item| pause_of(*time(item))).collect();
         let mut index = 0;
         items.retain_mut(|item| {
             let pause = pauses[index];
@@ -490,7 +520,10 @@ mod tests {
         s.press(1_000);
         s.press(2_000);
         s.press(7_000);
-        assert_eq!(s.finish(9_500), Some(cuts(&[(1_000, 2_000), (7_000, 9_500)])));
+        assert_eq!(
+            s.finish(9_500),
+            Some(cuts(&[(1_000, 2_000), (7_000, 9_500)]))
+        );
         assert_eq!(s.state(), State::Finishing);
         // Nothing moves a finishing recording.
         assert_eq!(s.press(9_600), Change::None);
@@ -512,15 +545,17 @@ mod tests {
     #[test]
     fn the_timer_stands_still_while_paused() {
         let mut s = Session::default();
-        assert_eq!(s.recorded_ms(1_500), 1_500);
+        // What the timer shows: the time elapsed less the time paused.
+        let shown = |s: &Session, now_ms: u64| now_ms - s.paused_ms(now_ms);
+        assert_eq!(shown(&s, 1_500), 1_500);
         s.press(2_000);
-        assert_eq!(s.recorded_ms(2_000), 2_000);
-        assert_eq!(s.recorded_ms(4_900), 2_000);
+        assert_eq!(shown(&s, 2_000), 2_000);
+        assert_eq!(shown(&s, 4_900), 2_000);
         s.press(5_000);
-        assert_eq!(s.recorded_ms(5_000), 2_000);
-        assert_eq!(s.recorded_ms(6_000), 3_000);
+        assert_eq!(shown(&s, 5_000), 2_000);
+        assert_eq!(shown(&s, 6_000), 3_000);
         s.press(6_500);
-        assert_eq!(s.recorded_ms(60_000), 3_500);
+        assert_eq!(shown(&s, 60_000), 3_500);
     }
 
     // ── The timeline shift ──────────────────────────────────────────────────────────────────
@@ -550,14 +585,22 @@ mod tests {
         // Ends land where their pause began.
         assert_eq!(cuts.shift(3_000), 2_000);
         assert_eq!(cuts.shift(10_500), 7_000);
-        assert_eq!(cuts.kept(0, 12_000), [(0, 2_000), (5_000, 10_000), (11_000, 12_000)]);
+        assert_eq!(
+            cuts.kept(0, 12_000),
+            [(0, 2_000), (5_000, 10_000), (11_000, 12_000)]
+        );
         assert_eq!(cuts.kept(3_000, 10_500), [(5_000, 10_000)]);
         assert_eq!(Cuts::default().kept(0, 900), [(0, 900)]);
     }
 
     #[test]
     fn pauses_are_kept_in_order_and_apart() {
-        let cuts = cuts(&[(7_000, 8_000), (1_000, 3_000), (2_500, 4_000), (5_000, 5_000)]);
+        let cuts = cuts(&[
+            (7_000, 8_000),
+            (1_000, 3_000),
+            (2_500, 4_000),
+            (5_000, 5_000),
+        ]);
         assert_eq!(
             cuts.spans(),
             [
@@ -571,11 +614,13 @@ mod tests {
                 }
             ]
         );
-        assert!(Cuts::new(vec![Span {
-            start_ms: 5,
-            end_ms: 5
-        }])
-        .is_empty());
+        assert!(
+            Cuts::new(vec![Span {
+                start_ms: 5,
+                end_ms: 5
+            }])
+            .is_empty()
+        );
     }
 
     #[test]
@@ -611,7 +656,10 @@ mod tests {
         cuts.cut_events(&mut events);
         assert_eq!(times(&events), [1_000, 1_500, 2_000]);
         // A drag still going when the pause began ends there.
-        assert!(matches!(events[1], InteractionEvent::Drag { t1: 2_000, .. }));
+        assert!(matches!(
+            events[1],
+            InteractionEvent::Drag { t1: 2_000, .. }
+        ));
     }
 
     #[test]
@@ -653,7 +701,13 @@ mod tests {
     fn the_window_log_resumes_on_the_last_state_of_a_pause() {
         let cuts = cuts(&[(2_000, 5_000)]);
         // (time, which windows were up)
-        let mut states = vec![(0_u64, 'a'), (1_000, 'b'), (2_500, 'c'), (4_000, 'd'), (7_000, 'e')];
+        let mut states = vec![
+            (0_u64, 'a'),
+            (1_000, 'b'),
+            (2_500, 'c'),
+            (4_000, 'd'),
+            (7_000, 'e'),
+        ];
         cuts.cut_states(&mut states, |state| &mut state.0);
         assert_eq!(states, [(0, 'a'), (1_000, 'b'), (2_000, 'd'), (4_000, 'e')]);
 
@@ -669,7 +723,11 @@ mod tests {
         let cut = cuts(&[(2_000, 5_000)]).cut_samples(&samples, 16_000);
         assert_eq!(cut.len(), 5_000 * 16);
         assert_eq!(cut[1_999 * 16 + 15], 1_999);
-        assert_eq!(cut[2_000 * 16], 5_000, "the sound at 5 s follows the sound at 2 s");
+        assert_eq!(
+            cut[2_000 * 16],
+            5_000,
+            "the sound at 5 s follows the sound at 2 s"
+        );
         // The event at 6 s is heard at 3 s, where `cut_events` puts it.
         assert_eq!(cut[3_000 * 16], 6_000);
         // A pause that outlasts the audio takes its tail and nothing more.

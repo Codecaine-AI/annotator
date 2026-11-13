@@ -67,6 +67,24 @@ pub struct PhoneRecording {
     pub flags: Vec<u64>,
 }
 
+impl PhoneRecording {
+    /// Takes a paused recording's pauses (`cuts`, on Scrawl's session clock) out of the movie,
+    /// video and narration alike, and moves the M presses with it. The movie is left whole on
+    /// an error, and the capture fails rather than keep what was paused.
+    pub fn cut(&mut self, cuts: &crate::pause::Cuts) -> Result<()> {
+        if cuts.is_empty() {
+            return Ok(());
+        }
+        let on_movie = cuts.on_clock_from(self.offset_ms);
+        on_movie
+            .cut_movie(&self.movie)
+            .context("The paused iPhone recording could not be cut")?;
+        on_movie.cut_moments(&mut self.flags, |flag| flag);
+        self.offset_ms = cuts.shift(self.offset_ms);
+        Ok(())
+    }
+}
+
 #[derive(Deserialize)]
 #[serde(tag = "event", rename_all = "lowercase")]
 enum MirrorEvent {

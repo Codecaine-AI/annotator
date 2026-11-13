@@ -75,6 +75,15 @@ pub struct ActivityLog {
 }
 
 impl ActivityLog {
+    /// Takes a paused recording's pauses out (`crate::pause`): the recording resumes on the
+    /// windows as they were when it resumed, and the cursor's samples from a pause are dropped.
+    pub fn cut(&mut self, cuts: &crate::pause::Cuts) {
+        cuts.cut_states(&mut self.windows, |snapshot| &mut snapshot.t);
+        self.windows
+            .dedup_by(|next, last| next.windows == last.windows);
+        cuts.cut_moments(&mut self.cursor, |sample| &mut sample.0);
+    }
+
     /// Stores a snapshot unless the window list is identical to the last stored one.
     pub fn push_windows(&mut self, t: u64, windows: Vec<WindowEntry>) -> bool {
         if self

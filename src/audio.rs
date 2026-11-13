@@ -15,6 +15,25 @@ pub struct RecordedAudio {
     pub live: crate::live_transcribe::Slot,
 }
 
+impl RecordedAudio {
+    /// Takes a paused recording's pauses out of the audio (`crate::pause`), sample for sample.
+    /// A transcription that ran while recording heard the pauses, so it is dropped and the
+    /// words come from the cut audio.
+    pub fn cut(self, cuts: &crate::pause::Cuts) -> Result<Self> {
+        if cuts.is_empty() {
+            return Ok(self);
+        }
+        let samples = cuts.cut_samples(&decode_wav_16k(&self.wav_bytes)?, u64::from(SAMPLE_RATE));
+        drop(self.live.take());
+        Ok(Self {
+            sample_count: samples.len(),
+            duration_ms: samples.len() as u64 * 1_000 / u64::from(SAMPLE_RATE),
+            wav_bytes: encode_wav_16k(&samples)?,
+            live: Default::default(),
+        })
+    }
+}
+
 pub struct AudioRecorder {
     worker: Option<std::thread::JoinHandle<Result<()>>>,
     stop_sender: Option<std::sync::mpsc::Sender<()>>,
@@ -437,6 +456,27 @@ pub fn encode_wav_16k(samples_16k: &[f32]) -> Result<Vec<u8>> {
 mod tests {
     use super::*;
     use std::time::Duration;
+
+    /// A recording paused from 2 s to 5 s: `audio.wav` is 3 s shorter and the sound at 5 s
+    /// follows the sound at 2 s.
+    #[test]
+    fn a_paused_recordings_audio_loses_the_pauses() {
+        // Each sample holds which tenth of a second it was heard in.
+        let heard_at = |index: usize| (index / 1_600) as f32 / 100.0;
+        let samples: Vec<f32> = (0..8 * 16_000).map(heard_at).collect();
+        let audio = recorded_audio_from_wav(encode_wav_16k(&samples).unwrap()).unwrap();
+        let cuts = crate::pause::Cuts::new(vec![crate::pause::Span {
+            start_ms: 2_000,
+            end_ms: 5_000,
+        }]);
+        let cut = audio.cut(&cuts).unwrap();
+        assert_eq!((cut.duration_ms, cut.sample_count), (5_000, 80_000));
+        let kept = decode_wav_16k(&cut.wav_bytes).unwrap();
+        assert_eq!(kept.len(), 80_000);
+        assert!((kept[31_999] - 0.19).abs() < 0.001, "{}", kept[31_999]);
+        assert!((kept[32_000] - 0.50).abs() < 0.001, "{}", kept[32_000]);
+        assert!((kept[79_999] - 0.79).abs() < 0.001, "{}", kept[79_999]);
+    }
 
     #[test]
     fn stop_joins_worker_before_reading_its_last_samples() {

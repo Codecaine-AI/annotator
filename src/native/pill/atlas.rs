@@ -129,6 +129,9 @@ pub fn measure_metrics() -> Metrics {
         record: measure_text_pt("Record", HUD_TEXT, WEIGHT_SEMIBOLD, false),
         cancel: measure_text_pt("Cancel", HUD_TEXT, WEIGHT_MEDIUM, false),
         finish: measure_text_pt("Finish", HUD_TEXT, WEIGHT_SEMIBOLD, false),
+        pause: measure_text_pt("Pause", HUD_TEXT, WEIGHT_MEDIUM, false),
+        resume: measure_text_pt("Resume", HUD_TEXT, WEIGHT_MEDIUM, false),
+        paused: measure_text_pt("Paused", HUD_TEXT, WEIGHT_MEDIUM, false),
         processing: measure_text_pt("Processing…", HUD_TEXT, WEIGHT_SEMIBOLD, false),
         paste: measure_text_pt("Paste", HUD_TEXT, WEIGHT_SEMIBOLD, false),
         inspect: measure_text_pt("Inspect", HUD_TEXT, WEIGHT_MEDIUM, false),
@@ -306,9 +309,10 @@ pub struct GlyphAtlas {
     /// Reserved rows for the Completed island's session chips (`y = 424, 468`).
     route_text: [String; 2],
     pub route_sprites: [Sprite; 2],
-    /// Reserved slots for the recording capsule's keys after Cancel and Finish (`y = 290`).
-    key_text: [String; 2],
-    pub key_sprites: [Sprite; 2],
+    /// Reserved slots for the recording capsule's keys after Cancel, Finish and Pause or Resume
+    /// (`y = 290`).
+    key_text: [String; 3],
+    pub key_sprites: [Sprite; 3],
     caption_text: Vec<String>,
     /// The live words, a line each (`CAPTION_LINES`), drawn in slots of their own.
     pub caption_sprites: Vec<Sprite>,
@@ -356,8 +360,8 @@ impl GlyphAtlas {
             completed_sprite: Sprite::default(),
             route_text: [String::new(), String::new()],
             route_sprites: [Sprite::default(); 2],
-            key_text: [String::new(), String::new()],
-            key_sprites: [Sprite::default(); 2],
+            key_text: [String::new(), String::new(), String::new()],
+            key_sprites: [Sprite::default(); 3],
             caption_text: Vec::new(),
             caption_sprites: Vec::new(),
         };
@@ -383,6 +387,9 @@ impl GlyphAtlas {
             ("Record", HUD_TEXT, WEIGHT_SEMIBOLD),
             ("Cancel", HUD_TEXT, WEIGHT_MEDIUM),
             ("Finish", HUD_TEXT, WEIGHT_SEMIBOLD),
+            ("Pause", HUD_TEXT, WEIGHT_MEDIUM),
+            ("Resume", HUD_TEXT, WEIGHT_MEDIUM),
+            ("Paused", HUD_TEXT, WEIGHT_MEDIUM),
             ("Processing…", HUD_TEXT, WEIGHT_SEMIBOLD),
             ("Paste", HUD_TEXT, WEIGHT_SEMIBOLD),
             ("Inspect", HUD_TEXT, WEIGHT_MEDIUM),
@@ -535,10 +542,10 @@ impl GlyphAtlas {
         }
     }
 
-    /// Updates the key after Cancel (`index` 0) or Finish (1) only when `text` changes; an
-    /// empty one has no width.
+    /// Updates the key after Cancel (`index` 0), Finish (1) or Pause and Resume (2) only when
+    /// `text` changes; an empty one has no width.
     pub fn update_key(&mut self, index: usize, text: &str) -> Sprite {
-        let index = index.min(1);
+        let index = index.min(2);
         if self.key_text[index] == text {
             return self.key_sprites[index];
         }
@@ -550,8 +557,8 @@ impl GlyphAtlas {
         let (w, h, size_pt, bytes) =
             rasterize_text(text, HUD_TEXT, WEIGHT_MEDIUM, false, self.scale);
         // Below the live words' slots (`y = 200 + 44 * CAPTION_LINES`), above the clock's.
-        let (x, y) = (4_u32 + 512 * index as u32, 290_u32);
-        let w = w.min(500);
+        let (x, y) = (4_u32 + 340 * index as u32, 290_u32);
+        let w = w.min(332);
         let h = h.min(SLOT_H);
         self.upload_at(x, y, w, h, &bytes);
         self.key_sprites[index] = Sprite {

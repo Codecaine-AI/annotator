@@ -44,7 +44,8 @@ use self::model::{
 };
 use crate::ui::{SelectionMode, motion};
 
-/// The cancel key's code (`PillSnapshot::cancel_key`); pressing it on the pill cancels.
+/// The cancel key's code (`PillSnapshot::cancel_key`); pressed on the pill, it is reported as
+/// `PillAction::CancelKey` (the picker closes; a recording pauses, resumes or cancels).
 static CANCEL_KEY: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(53);
 
 /// Draws the changing labels `pres` shows (the Completed island's, the recording keys) and
@@ -64,6 +65,7 @@ fn measure_labels(atlas: &mut GlyphAtlas, model: &mut PillModel, pres: &Pres) {
             labels.keys = [
                 atlas.update_key(0, &keys.cancel).size_pt[0],
                 atlas.update_key(1, &keys.finish).size_pt[0],
+                atlas.update_key(2, &keys.pause).size_pt[0],
             ];
         }
         _ => return,
@@ -181,14 +183,15 @@ define_class!(
 
         #[unsafe(method(cancelOperation:))]
         fn cancel_operation(&self, _sender: Option<&AnyObject>) {
-            let _ = self.ivars().action_tx.try_send(PillAction::Cancel);
+            let _ = self.ivars().action_tx.try_send(PillAction::CancelKey);
         }
 
         #[unsafe(method(keyDown:))]
         fn key_down(&self, event: &NSEvent) {
             let key_code: u16 = unsafe { msg_send![event, keyCode] };
-            if key_code == CANCEL_KEY.load(std::sync::atomic::Ordering::Acquire) {
-                let _ = self.ivars().action_tx.try_send(PillAction::Cancel);
+            let repeat: bool = unsafe { msg_send![event, isARepeat] };
+            if key_code == CANCEL_KEY.load(std::sync::atomic::Ordering::Acquire) && !repeat {
+                let _ = self.ivars().action_tx.try_send(PillAction::CancelKey);
             }
         }
 
@@ -931,6 +934,7 @@ impl PillRuntimeState {
             }
             ElemId::Record => PillAction::RecordSelected,
             ElemId::Cancel => PillAction::Cancel,
+            ElemId::Pause => PillAction::TogglePause,
             ElemId::Finish => PillAction::Finish,
             ElemId::Close => {
                 if matches!(self.model.pres, Pres::Completed { .. }) {
@@ -1367,11 +1371,14 @@ fn emit_elem_prims(
                 push_shape(out, [ox, oy, bw, bh], bh * 0.5, [0.06, 0.07, 0.10, 0.24]);
             }
             let tx = atlas.clock_sprite;
+            // Paused (`elem.active`): the dot stops pulsing and dims, and "Paused" follows the
+            // timer.
+            let paused = elem.active;
             let cycle = 1.6_f32;
             let ripple = (t / cycle).fract();
-            let breath = 0.5 + 0.5 * (std::f32::consts::TAU * t / cycle).cos();
+            let breath = 1.0 - (1.0 - paused) * (0.5 - 0.5 * (std::f32::consts::TAU * t / cycle).cos());
             let halo_r = 4.0 + 6.0 * ripple;
-            let halo_a = 0.34 * (1.0 - ripple).powi(2);
+            let halo_a = 0.34 * (1.0 - ripple).powi(2) * (1.0 - paused);
             push_shape(
                 out,
                 [
@@ -1387,7 +1394,7 @@ fn emit_elem_prims(
                 out,
                 [ox + 12.0, oy + 12.0, 8.0, 8.0],
                 4.0,
-                [0.941, 0.267, 0.220, 0.78 + 0.22 * breath],
+                [0.941, 0.267, 0.220, (0.78 + 0.22 * breath) * (1.0 - 0.45 * paused)],
             );
             push_sprite(
                 out,
@@ -1400,6 +1407,46 @@ fn emit_elem_prims(
                 tx.uv,
                 [0.961, 0.961, 0.969, 1.0],
             );
+            if paused > 0.004 {
+                let said = atlas.label("Paused");
+                push_sprite(
+                    out,
+                    [
+                        ox + CHIP_H - 2.0 + tx.size_pt[0] + model::PAUSED_GAP - 2.0,
+                        oy + (CHIP_H - said.size_pt[1]) * 0.5,
+                        said.size_pt[0],
+                        said.size_pt[1],
+                    ],
+                    said.uv,
+                    [0.961, 0.961, 0.969, 0.62 * paused],
+                );
+            }
+        }
+        ElemId::Pause => {
+            // Pause while recording, Resume while paused (`elem.active`), drawn like Cancel.
+            let paused = elem.active > 0.5;
+            if is_glass {
+                let smoke_a = 0.20 + 0.12 * elem.hover + 0.06 * elem.press;
+                push_shape(out, [ox, oy, bw, bh], bh * 0.5, [0.06, 0.07, 0.10, smoke_a]);
+            } else {
+                // Resume is what a paused recording waits for: a faint fill sets it apart.
+                let bg_a = 0.09 * elem.active + 0.08 * elem.hover + 0.06 * elem.press;
+                if bg_a > 0.002 {
+                    push_shape(out, [ox, oy, bw, bh], bh * 0.5, [1.0, 1.0, 1.0, bg_a]);
+                }
+            }
+            let tx = atlas.label(if paused { "Resume" } else { "Pause" });
+            let fg = if is_glass {
+                0.92 + 0.08 * elem.hover
+            } else {
+                0.74 + 0.22 * elem.hover.max(elem.active * 0.7)
+            };
+            // The label swaps at the midpoint of the fade, dipping so it doesn't pop.
+            let swap = (2.0 * elem.active - 1.0).abs();
+            let key = atlas.key_sprites[2];
+            let [text, key_rect] = text_and_key(tx, key);
+            push_sprite(out, text, tx.uv, [fg, fg, fg, swap]);
+            push_sprite(out, key_rect, key.uv, [fg, fg, fg, 0.55]);
         }
         ElemId::Route0 | ElemId::Route1 => {
             let index = usize::from(elem.id == ElemId::Route1);
@@ -1722,9 +1769,11 @@ mod tests {
             has_iphone: false,
             live: model::Rows { wave, caption },
             keys: model::Keys {
-                cancel: "esc".into(),
+                pause: "esc".into(),
+                cancel: "esc esc".into(),
                 finish: "⌥⇧S".into(),
             },
+            paused: false,
         };
         // Speech with a pause in it.
         let speech: Vec<f32> = (0..WAVE_BARS)
@@ -1831,6 +1880,84 @@ mod tests {
             });
             assert_eq!(red, live.stalled, "{name}");
             assert!(lay.b < PANEL_H);
+            if let Some(dir) = &out {
+                crate::render::save_png(&frame, &dir.join(format!("{name}.png"))).unwrap();
+            }
+        }
+    }
+
+    /// The recording capsule running and paused (`crate::pause`), drawn offscreen. With
+    /// `SCRAWL_PILL_STILLS=DIR` the stills are written there.
+    #[test]
+    fn a_paused_capsule_renders_offscreen() {
+        let mut pipelines = MetalPipelines::new(2.0).expect("MetalPipelines::new failed");
+        let mut model = PillModel::new(atlas::measure_metrics());
+        pipelines.atlas.update_clock("0:12");
+        model.set_clock("0:12");
+        let recording = |paused: bool, key: &str, wave: bool| Pres::Recording {
+            chips: false,
+            has_iphone: false,
+            // A paused capsule shows no waveform (`ScrawlCoordinator::pill_snapshot`).
+            live: model::Rows {
+                wave: wave && !paused,
+                caption: false,
+            },
+            keys: model::Keys {
+                pause: key.into(),
+                cancel: format!("{key} {key}"),
+                finish: "⌥⇧S".into(),
+            },
+            paused,
+        };
+        let states = [
+            ("pause-1-recording", recording(false, "esc", false)),
+            ("pause-2-paused", recording(true, "esc", false)),
+            ("pause-3-recording-live-audio", recording(false, "esc", true)),
+            ("pause-4-paused-live-audio", recording(true, "esc", true)),
+            ("pause-5-paused-f5", recording(true, "F5", false)),
+        ];
+        let out = std::env::var_os("SCRAWL_PILL_STILLS").map(std::path::PathBuf::from);
+        if let Some(dir) = &out {
+            std::fs::create_dir_all(dir).unwrap();
+        }
+        let px = |frame: &crate::model::RgbaFrame, x: f32, y: f32| {
+            let (x, y) = ((x * 2.0) as usize, (y * 2.0) as usize);
+            let i = (y * frame.width as usize + x) * 4;
+            [frame.rgba[i], frame.rgba[i + 1], frame.rgba[i + 2]]
+        };
+        let quiet = LiveDraw {
+            bars: vec![0.0; WAVE_BARS],
+            ..LiveDraw::default()
+        };
+        for (name, pres) in &states {
+            let paused = matches!(pres, Pres::Recording { paused: true, .. });
+            let frame = still_live(&mut pipelines, &mut model, pres, 1.5, &quiet);
+            assert!(model.is_at_rest(), "{name} didn't settle");
+            let (lay, items) = model::layout_of(pres, "0:12", model.labels, &model.metrics);
+            assert!(lay.width() < PANEL_W - 40.0, "{name}: {}", lay.width());
+            let ids: Vec<ElemId> = items.iter().map(|i| i.id).collect();
+            assert!(
+                ids.ends_with(&[ElemId::Pause, ElemId::Cancel, ElemId::Finish]),
+                "{name}: {ids:?}"
+            );
+            assert_eq!(ids.contains(&ElemId::Wave), !paused && name.contains("live"));
+            // The dot is red, running or paused.
+            let lead = items[0].rect;
+            let [r, g, _] = px(&frame, lead[0] + 16.0, lead[1] + 16.0);
+            assert!(r > g.saturating_add(60), "{name}: the dot is {r}, {g}");
+            // Its halo pulses while recording and is gone while paused: 7 pt from the dot's
+            // centre, over a pulse and a half.
+            let mut halo = vec![px(&frame, lead[0] + 23.0, lead[1] + 16.0)];
+            for _ in 0..12 {
+                let frame = still_live(&mut pipelines, &mut model, pres, 0.2, &quiet);
+                halo.push(px(&frame, lead[0] + 23.0, lead[1] + 16.0));
+            }
+            let pulses = halo.iter().any(|at| at != &halo[0]);
+            assert_eq!(pulses, !paused, "{name}: {halo:?}");
+            if paused {
+                let [r, g, _] = halo[0];
+                assert!(r < g.saturating_add(12), "{name}: a halo while paused, {halo:?}");
+            }
             if let Some(dir) = &out {
                 crate::render::save_png(&frame, &dir.join(format!("{name}.png"))).unwrap();
             }

@@ -460,7 +460,8 @@ impl SharedMetalOverlay {
     }
 
     fn draw(&self) {
-        let is_active = self.telemetry.active.load(Ordering::Acquire);
+        // A paused recording still shows its ink and lets a laser trail fade.
+        let is_active = self.telemetry.overlay_live();
         let is_selecting = self.telemetry.selecting.load(Ordering::Acquire);
         let is_device_pending = self.telemetry.capture_mode.load(Ordering::Acquire) == 3;
         if !is_active && !is_selecting && !is_device_pending {

@@ -282,6 +282,34 @@ pub fn shrink(movie: &Path, out: &Path, max_edge: u32) -> Result<crate::retentio
     )
 }
 
+/// Writes `out` as `movie` with only the `keep` ranges (ms on the movie's clock), one after the
+/// other and every track alike: a paused recording without its pauses (`pause::Cuts::kept`).
+/// Samples are copied, so minutes of video take a tenth of a second. Returns the new duration.
+pub fn cut(movie: &Path, out: &Path, keep: &[(u64, u64)]) -> Result<u64> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Cut {
+        duration_ms: u64,
+    }
+    let ranges = keep
+        .iter()
+        .map(|(from, to)| format!("{from}-{to}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let cut: Cut = run(
+        &[
+            os("cut"),
+            movie.as_os_str(),
+            os("--out"),
+            out.as_os_str(),
+            os("--keep"),
+            os(&ranges),
+        ],
+        Duration::from_secs(300),
+    )?;
+    Ok(cut.duration_ms)
+}
+
 /// Mixes a movie's audio to 16 kHz mono WAV, aligned to the movie's start.
 pub fn export_audio(movie: &Path, wav: &Path) -> Result<()> {
     let _: serde_json::Value = run(

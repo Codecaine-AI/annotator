@@ -697,6 +697,52 @@ enum Media {
     ]
   }
 
+  /// A copy of `movie` holding only the `keep` ranges (ms on the movie's clock, in order), one
+  /// after the other: a paused recording without its pauses. Every track loses the same ranges,
+  /// so video and audio stay together. Samples are copied, not re-encoded, so minutes of video
+  /// take a tenth of a second. A range that starts between two keyframes is trimmed by the
+  /// file's edit list, which AVFoundation and ffmpeg follow (`scripts/check-movie-cut.sh`).
+  static func cut(movie: URL, out: URL, keep: [(Int, Int)]) async throws -> [String: Any] {
+    let asset = AVURLAsset(url: movie, options: [AVURLAssetPreferPreciseDurationAndTimingKey: true])
+    let duration = try await asset.load(.duration)
+    let composition = AVMutableComposition()
+    var slots: [(AVAssetTrack, CMTimeRange, AVMutableCompositionTrack)] = []
+    for track in try await asset.load(.tracks) {
+      guard let slot = composition.addMutableTrack(withMediaType: track.mediaType, preferredTrackID: kCMPersistentTrackID_Invalid) else { continue }
+      let (range, transform) = try await track.load(.timeRange, .preferredTransform)
+      slot.preferredTransform = transform
+      slots.append((track, range, slot))
+    }
+    guard !slots.isEmpty else { throw HelperError("Movie has no tracks") }
+    func time(_ ms: Int) -> CMTime { CMTime(value: CMTimeValue(ms), timescale: 1000) }
+    var at = CMTime.zero
+    for (from, to) in keep {
+      let range = CMTimeRange(start: time(from), end: min(time(to), duration))
+      guard range.duration > .zero else { continue }
+      for (track, trackRange, slot) in slots {
+        // A track that starts late or ends early keeps its place in the range.
+        let part = range.intersection(trackRange)
+        guard part.duration > .zero else { continue }
+        try slot.insertTimeRange(part, of: track, at: at + (part.start - range.start))
+      }
+      at = at + range.duration
+    }
+    guard at > .zero else { throw HelperError("Nothing of the movie is kept") }
+    try? FileManager.default.removeItem(at: out)
+    guard let export = AVAssetExportSession(asset: composition, presetName: AVAssetExportPresetPassthrough) else {
+      throw HelperError("Could not set up the cut")
+    }
+    try await export.export(to: out, as: movie.pathExtension.lowercased() == "mov" ? .mov : .mp4)
+    let written = try await AVURLAsset(url: out).load(.duration)
+    // Samples are copied whole, so a cut may be a frame off; more means the cut went wrong.
+    let drift = abs(written.seconds - at.seconds)
+    guard drift < 0.25 else {
+      try? FileManager.default.removeItem(at: out)
+      throw HelperError(String(format: "The cut movie is %.2f s off what was kept", drift))
+    }
+    return ["durationMs": Int((written.seconds * 1000).rounded()), "keptMs": Int((at.seconds * 1000).rounded())]
+  }
+
   /// Every audio track mixed to 16 kHz mono 16-bit PCM, padded so sample 0 is the movie's start.
   static func exportAudio(movie: URL, wav: URL) async throws -> [String: Any] {
     let asset = AVURLAsset(url: movie)

@@ -36,6 +36,9 @@ pub struct CandidateBuffer {
     cap: usize,
     budget: usize,
     interval: Duration,
+    /// The recording is paused (`crate::pause`): frames are not kept, so a long pause neither
+    /// fills the budget nor thins what was recorded.
+    paused: bool,
 }
 
 impl CandidateBuffer {
@@ -45,6 +48,7 @@ impl CandidateBuffer {
             cap: 0,
             budget: budget_bytes,
             interval: FRAME_SAMPLE_INTERVAL,
+            paused: false,
         }
     }
 
@@ -58,7 +62,14 @@ impl CandidateBuffer {
         self.frames.len()
     }
 
+    pub fn set_paused(&mut self, paused: bool) {
+        self.paused = paused;
+    }
+
     pub fn push(&mut self, frame: RgbaFrame, urgent: bool) {
+        if self.paused {
+            return;
+        }
         if self.cap == 0 {
             self.cap = (self.budget / frame.rgba.len().max(1)).clamp(60, 1_200);
         }
@@ -118,6 +129,32 @@ pub struct ScreenRecording {
     pub duration_ms: u64,
     /// The capture time (on the frames' clock) of the video's start.
     pub video_offset_ms: u64,
+}
+
+impl ScreenRecording {
+    /// Takes a paused recording's pauses out of the candidate frames, the movie and the
+    /// duration. `cuts` are on this recording's clock (the frames'). A movie that can't be cut
+    /// is deleted, so nothing recorded during a pause stays in the bundle; the keyframes then
+    /// come from the candidates.
+    pub fn cut(&mut self, cuts: &crate::pause::Cuts) {
+        if cuts.is_empty() {
+            return;
+        }
+        cuts.cut_frames(&mut self.frames);
+        if let Some(movie) = self.video.take() {
+            match cuts.on_clock_from(self.video_offset_ms).cut_movie(&movie) {
+                Ok(()) => self.video = Some(movie),
+                Err(error) => {
+                    scrawl_log(format!(
+                        "The paused recording's movie could not be cut and is left out: {error:#}"
+                    ));
+                    let _ = std::fs::remove_file(&movie);
+                }
+            }
+        }
+        self.video_offset_ms = cuts.shift(self.video_offset_ms);
+        self.duration_ms = cuts.shift(self.duration_ms).max(100);
+    }
 }
 
 /// Live UI events emitted by the global input monitor to drive Scrawl's HUD & Review windows.
@@ -747,6 +784,15 @@ impl ScreenCaptureSession {
         self.started_at.elapsed().as_millis() as u64
     }
 
+    /// While paused no candidate frame is kept. The movie goes on; `pause::Cuts` takes the
+    /// pause out of it at finish.
+    pub fn set_paused(&self, paused: bool) {
+        self.frames
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .set_paused(paused);
+    }
+
     pub fn stop(mut self) -> ScreenRecording {
         let duration_ms = self.elapsed_ms();
         self.stopping.store(true, Ordering::Release);
@@ -844,8 +890,14 @@ pub struct SharedCaptureTelemetry {
     tap_tried_ms: AtomicU64,
     /// Whether key presses are arriving (macOS's key tap, Windows' keyboard hook).
     tap_live: AtomicBool,
-    /// Esc went down since the UI loop last looked (`take_escape`).
-    escape_pressed: AtomicBool,
+    /// When the cancel key went down, for each press since the UI loop last looked
+    /// (`take_escape`, `take_cancel_presses`).
+    cancel_presses: Mutex<Vec<Instant>>,
+    /// The recording is paused (`crate::pause`): `active` is off so no click, ink or key is
+    /// recorded, and the overlay keeps drawing what is already there.
+    paused: AtomicBool,
+    /// Whether input was being recorded when the pause began, to put back at resume.
+    active_before_pause: AtomicBool,
     /// A Screen recording started straight from the shortcut: the overlay flashes an edge glow.
     pub start_glow: AtomicBool,
     /// Clicks are arriving (macOS's global mouse monitor, Windows' mouse hook). Until then the
@@ -902,7 +954,9 @@ impl SharedCaptureTelemetry {
             tap_starting: AtomicBool::new(false),
             tap_tried_ms: AtomicU64::new(0),
             tap_live: AtomicBool::new(false),
-            escape_pressed: AtomicBool::new(false),
+            cancel_presses: Mutex::new(Vec::new()),
+            paused: AtomicBool::new(false),
+            active_before_pause: AtomicBool::new(false),
             start_glow: AtomicBool::new(false),
             mouse_live: AtomicBool::new(false),
             last_shortcut_ms: AtomicU64::new(0),
@@ -1045,9 +1099,16 @@ impl SharedCaptureTelemetry {
         self.cancel_key.load(Ordering::Acquire) as u16
     }
 
-    /// The cancel key went down (in any app): `take_escape` reports it.
+    /// The cancel key went down (in any app): `take_escape` and `take_cancel_presses` report it.
     pub fn note_cancel(&self) {
-        self.escape_pressed.store(true, Ordering::Release);
+        let mut presses = self
+            .cancel_presses
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // The UI loop takes them every few ms; this only bounds a stalled one.
+        if presses.len() < 32 {
+            presses.push(Instant::now());
+        }
     }
 
     pub fn set_capture_mode(&self, mode: CaptureMode) {
@@ -1123,6 +1184,8 @@ impl SharedCaptureTelemetry {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clear();
         self.shift_held.store(false, Ordering::Release);
+        self.paused.store(false, Ordering::Release);
+        self.active_before_pause.store(false, Ordering::Release);
         self.window_log_request.store(false, Ordering::Release);
         let agent_context = crate::handoff::experiment(crate::handoff::AGENT_CONTEXT);
         self.agent_context.store(agent_context, Ordering::Release);
@@ -1143,10 +1206,89 @@ impl SharedCaptureTelemetry {
         scrawl_log(format!("session clicks from {clicks}, keys from {keys}"));
     }
 
-    /// Whether the cancel key went down since the last call (a pending shortcut, an open picker
-    /// and a recording cancel on it).
+    /// Whether the cancel key went down since the last call (a pending shortcut and an open
+    /// picker cancel on it).
     pub fn take_escape(&self) -> bool {
-        self.escape_pressed.swap(false, Ordering::AcqRel)
+        !self.take_cancel_presses().is_empty()
+    }
+
+    /// The cancel key's presses since the last call, each as milliseconds on the capture clock
+    /// (`elapsed_ms`), oldest first: a recording pauses on one and cancels on two close together
+    /// (`crate::pause`).
+    pub fn take_cancel_presses(&self) -> Vec<u64> {
+        let presses = std::mem::take(
+            &mut *self
+                .cancel_presses
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        if presses.is_empty() {
+            return Vec::new();
+        }
+        let started_at = *self
+            .started_at
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        presses
+            .into_iter()
+            .map(|at| at.saturating_duration_since(started_at).as_millis() as u64)
+            .collect()
+    }
+
+    /// Whether key presses reach Annotator from every app (the key tap or hook is on).
+    pub fn keys_live(&self) -> bool {
+        self.tap_live.load(Ordering::Acquire)
+    }
+
+    /// The recording pauses: what is being drawn is finished as it stands, and no click, ink or
+    /// key is recorded until `resume_input`.
+    pub fn pause_input(&self) {
+        if self.paused.swap(true, Ordering::AcqRel) {
+            return;
+        }
+        let was_active = self.active.swap(false, Ordering::AcqRel);
+        self.active_before_pause.store(was_active, Ordering::Release);
+        self.end_gestures();
+    }
+
+    /// The recording resumes.
+    pub fn resume_input(&self) {
+        if self.paused.swap(false, Ordering::AcqRel)
+            && self.active_before_pause.swap(false, Ordering::AcqRel)
+        {
+            self.active.store(true, Ordering::Release);
+        }
+    }
+
+    /// Whether the overlay has something to draw: a recording, paused or not.
+    pub fn overlay_live(&self) -> bool {
+        self.active.load(Ordering::Acquire) || self.paused.load(Ordering::Acquire)
+    }
+
+    /// Ends a press, drag, laser trail or ink stroke in progress, keeping what was drawn.
+    fn end_gestures(&self) {
+        *self
+            .drag_start
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+        *self
+            .shift_press
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+        self.shift_held.store(false, Ordering::Release);
+        self.finish_active_laser(None);
+        if let Some(ink) = self
+            .live_ink
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+            && ink.pts.len() >= 3
+        {
+            self.strokes
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(ink);
+        }
     }
 
     pub fn elapsed_ms(&self) -> u64 {
@@ -1448,27 +1590,9 @@ impl SharedCaptureTelemetry {
     pub fn finish_session(&self) -> (Vec<InteractionEvent>, Vec<Stroke>) {
         self.active.store(false, Ordering::Release);
         self.selecting.store(false, Ordering::Release);
-        *self
-            .drag_start
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
-        *self
-            .shift_press
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
-        self.finish_active_laser(None);
-        if let Some(ink) = self
-            .live_ink
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .take()
-            && ink.pts.len() >= 3
-        {
-            self.strokes
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .push(ink);
-        }
+        self.paused.store(false, Ordering::Release);
+        self.active_before_pause.store(false, Ordering::Release);
+        self.end_gestures();
         let mut events = std::mem::take(
             &mut *self
                 .events
@@ -1895,6 +2019,61 @@ mod tests {
             "{x}, {y}"
         );
         assert_eq!(button.as_deref(), Some("left"));
+    }
+
+    /// Two quick presses of the cancel key cancel a recording and one pauses it, so the UI
+    /// loop must get each press, however late it looks.
+    #[test]
+    fn every_press_of_the_cancel_key_reaches_the_ui_loop() {
+        let (sender, _receiver) = flume::unbounded();
+        let telemetry = SharedCaptureTelemetry::new(sender);
+        assert!(telemetry.take_cancel_presses().is_empty());
+        telemetry.note_cancel();
+        telemetry.note_cancel();
+        let presses = telemetry.take_cancel_presses();
+        assert_eq!(presses.len(), 2);
+        assert!(presses[0] <= presses[1], "{presses:?}");
+        assert!(telemetry.take_cancel_presses().is_empty());
+        // The picker and a pending shortcut only ask whether it went down.
+        telemetry.note_cancel();
+        assert!(telemetry.take_escape());
+        assert!(!telemetry.take_escape());
+    }
+
+    /// Pausing keeps the ink being drawn and records nothing more until the recording resumes.
+    #[test]
+    fn a_pause_keeps_the_stroke_in_progress_and_stops_input_until_resume() {
+        let (sender, _receiver) = flume::unbounded();
+        let telemetry = SharedCaptureTelemetry::new(sender);
+        let frame = TargetFrame {
+            x: 0.0,
+            y: 0.0,
+            width: 1728.0,
+            height: 1117.0,
+            scale: 2.0,
+        };
+        telemetry.reset_for_session(frame);
+        track_shift_ink(&telemetry, (100.0, 100.0), true, false);
+        track_shift_ink(&telemetry, (300.0, 240.0), true, true);
+        telemetry.pause_input();
+        assert!(!telemetry.active.load(Ordering::Acquire));
+        assert!(telemetry.overlay_live(), "the ink stays on screen");
+        assert!(telemetry.live_ink.lock().unwrap().is_none());
+        assert_eq!(telemetry.strokes.lock().unwrap().len(), 1);
+        telemetry.resume_input();
+        assert!(telemetry.active.load(Ordering::Acquire));
+        let (_, strokes) = telemetry.finish_session();
+        assert_eq!(strokes.len(), 1);
+        assert_eq!(strokes[0].pts.len(), 6);
+
+        // An iPhone recording waits for its movie before it takes input; a pause and resume
+        // before then don't start it early.
+        telemetry.reset_for_session(frame);
+        telemetry.active.store(false, Ordering::Release);
+        telemetry.pause_input();
+        telemetry.resume_input();
+        assert!(!telemetry.active.load(Ordering::Acquire));
+        assert!(!telemetry.overlay_live());
     }
 
     #[test]

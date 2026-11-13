@@ -658,6 +658,9 @@ struct ActiveRecording {
     bundle_dir: PathBuf,
     source: CaptureSource,
     _metal_overlay: Option<LaserOverlay>,
+    /// Recording, paused, finishing or cancelled, and the pauses so far (`crate::pause`), on
+    /// the capture clock (`SharedCaptureTelemetry::elapsed_ms`).
+    pause: crate::pause::Session,
 }
 
 impl ActiveRecording {
@@ -666,6 +669,33 @@ impl ActiveRecording {
             CaptureSource::Screen { session, .. } => session.elapsed_ms(),
             CaptureSource::Phone(session) => session.elapsed_ms(),
             CaptureSource::Lab => self.started.elapsed().as_millis() as u64,
+        }
+    }
+
+    /// What the capsule's timer shows at `now_ms` on the capture clock: the time recorded,
+    /// which stands still while paused.
+    fn shown_ms(&self, now_ms: u64) -> u64 {
+        self.elapsed_ms()
+            .saturating_sub(self.pause.paused_ms(now_ms))
+    }
+
+    /// Stops or restarts what a pause can stop while it lasts: input, and the candidate frames
+    /// (the movie, the microphone and the window log go on, and are cut at finish).
+    fn set_paused(&self, telemetry: &SharedCaptureTelemetry, paused: bool) {
+        if paused {
+            telemetry.pause_input();
+        } else {
+            telemetry.resume_input();
+        }
+        if let CaptureSource::Screen { session, .. } = &self.source {
+            session.set_paused(paused);
+            if !paused {
+                // What the recording resumes on: a candidate frame and the windows, at once.
+                session.request_immediate_frame();
+                telemetry
+                    .window_log_request
+                    .store(true, std::sync::atomic::Ordering::Release);
+            }
         }
     }
 }
@@ -951,6 +981,60 @@ impl ScrawlCoordinator {
 
     pub fn is_recording(&self) -> bool {
         self.active_recording.is_some()
+    }
+
+    /// Whether the recording is paused (`crate::pause`).
+    pub fn is_paused(&self) -> bool {
+        self.active_recording
+            .as_ref()
+            .is_some_and(|rec| rec.pause.is_paused())
+    }
+
+    /// The cancel key went down at each of `presses` (ms on the capture clock, oldest first),
+    /// in any app. The picker closes. A recording pauses or resumes on a single press and is
+    /// thrown away on the second of two within 400 ms (`pause::classify`).
+    pub fn press_cancel_key(&mut self, presses: &[u64], cx: &mut Context<Self>) {
+        // Only macOS's capsule shows a paused recording and only its helper cuts a movie, so
+        // elsewhere the key cancels as it always did.
+        if self.is_selecting() || (self.is_recording() && !cfg!(target_os = "macos")) {
+            self.cancel_recording(cx);
+            return;
+        }
+        for &at_ms in presses {
+            let Some(rec) = self.active_recording.as_mut() else {
+                return;
+            };
+            let change = rec.pause.press(at_ms);
+            self.apply_pause_change(change, cx);
+        }
+    }
+
+    /// Acts on what the recording's state machine decided.
+    fn apply_pause_change(&mut self, change: crate::pause::Change, cx: &mut Context<Self>) {
+        use crate::pause::Change;
+        let paused = match change {
+            Change::None => return,
+            Change::Cancelled => {
+                self.cancel_recording(cx);
+                return;
+            }
+            Change::Paused => true,
+            Change::Resumed => false,
+        };
+        scrawl_log(if paused {
+            "recording paused"
+        } else {
+            "recording resumed"
+        });
+        if let Some(rec) = &self.active_recording {
+            rec.set_paused(&self.telemetry, paused);
+        }
+        if paused {
+            // The switch chips would hide Resume.
+            self.fold_reveal();
+        }
+        self.sync_native_pill();
+        cx.notify();
     }
 
     pub fn is_processing(&self) -> bool {
@@ -1879,13 +1963,16 @@ impl ScrawlCoordinator {
             model::{Keys, Pres},
         };
         let controls = self.telemetry.controls();
+        let now_ms = self.telemetry.elapsed_ms();
         let recording_ms = self
             .active_recording
             .as_ref()
-            .map(ActiveRecording::elapsed_ms);
+            .map(|rec| rec.shown_ms(now_ms));
         let elapsed_ms = recording_ms.unwrap_or(self.last_elapsed_ms);
         let clock = format_clock(elapsed_ms);
         let has_iphone = self.iphone.is_some();
+        let paused = self.is_paused();
+        let cancel_key = pill_key(controls.cancel);
 
         let pres = match self.island_phase {
             IslandPhase::Hidden | IslandPhase::Dismissing => Pres::Hidden,
@@ -1893,11 +1980,18 @@ impl ScrawlCoordinator {
             IslandPhase::Recording => Pres::Recording {
                 chips: self.reveal.is_open(),
                 has_iphone,
-                live: crate::live_audio::rows(),
+                // A pause is cut out of the audio, so the capsule doesn't show it being heard.
+                live: if paused {
+                    Default::default()
+                } else {
+                    crate::live_audio::rows()
+                },
                 keys: Keys {
-                    cancel: pill_key(controls.cancel),
+                    cancel: format!("{cancel_key} {cancel_key}"),
+                    pause: cancel_key,
                     finish: controls.record.label.clone(),
                 },
+                paused,
             },
             IslandPhase::Processing => Pres::Processing,
             IslandPhase::Completed { inbox_count, .. } => Pres::Completed {
@@ -1933,7 +2027,32 @@ impl ScrawlCoordinator {
             PillAction::SelectMode(mode) => self.click_selection_mode(mode, cx),
             PillAction::SwitchRecording(mode) => self.switch_recording(mode, cx),
             PillAction::RecordSelected => self.record_selected_mode(cx),
-            PillAction::Cancel => self.cancel_recording(cx),
+            PillAction::Cancel => {
+                let change = self
+                    .active_recording
+                    .as_mut()
+                    .map(|rec| rec.pause.cancel());
+                match change {
+                    Some(change) => self.apply_pause_change(change, cx),
+                    None => self.cancel_recording(cx),
+                }
+            }
+            PillAction::CancelKey => {
+                if !self.is_recording() {
+                    self.cancel_recording(cx);
+                } else if !self.telemetry.keys_live() {
+                    // With the key tap on, the tap reports this press itself.
+                    let now_ms = self.telemetry.elapsed_ms();
+                    self.press_cancel_key(&[now_ms], cx);
+                }
+            }
+            PillAction::TogglePause => {
+                let now_ms = self.telemetry.elapsed_ms();
+                if let Some(rec) = self.active_recording.as_mut() {
+                    let change = rec.pause.toggle(now_ms);
+                    self.apply_pause_change(change, cx);
+                }
+            }
             PillAction::Finish => self.finish_recording(cx),
             PillAction::Paste(target) => self.paste_completed_bundle(target, cx),
             PillAction::Inspect => self.inspect_completed_bundle(cx),
@@ -2617,6 +2736,7 @@ impl ScrawlCoordinator {
                 windows: window_log,
             },
             _metal_overlay: metal_overlay,
+            pause: Default::default(),
         });
         self.present_recording_island(cx);
         start_metric("recording_start_ms", started);
@@ -2659,6 +2779,7 @@ impl ScrawlCoordinator {
             bundle_dir: PathBuf::new(),
             source: CaptureSource::Lab,
             _metal_overlay: None,
+            pause: Default::default(),
         });
         self.present_recording_island(cx);
     }
@@ -2758,6 +2879,7 @@ impl ScrawlCoordinator {
             bundle_dir,
             source: CaptureSource::Phone(session),
             _metal_overlay: metal_overlay,
+            pause: Default::default(),
         });
         self.present_recording_island(cx);
     }
@@ -2793,10 +2915,25 @@ impl ScrawlCoordinator {
     pub fn finish_recording(&mut self, cx: &mut Context<Self>) {
         self.playback.take();
         scrawl_log("finish_recording invoked");
-        let Some(rec) = self.active_recording.take() else {
+        let Some(mut rec) = self.active_recording.take() else {
             return;
         };
-        let (events, strokes) = self.telemetry.finish_session();
+        // Finish works while paused too; the pauses come out of every timeline below.
+        let now_ms = self.telemetry.elapsed_ms();
+        let cuts = rec.pause.finish(now_ms).unwrap_or_default();
+        // The movie and the candidate frames run on the screen session's clock, which started
+        // a little after the capture clock the pauses are on.
+        let frames_clock_ms = now_ms.saturating_sub(rec.elapsed_ms());
+        let (mut events, mut strokes) = self.telemetry.finish_session();
+        cuts.cut_events(&mut events);
+        cuts.cut_strokes(&mut strokes);
+        if !cuts.is_empty() {
+            scrawl_log(format!(
+                "finish: {} ms paused in {} pauses",
+                cuts.total_ms(),
+                cuts.spans().len()
+            ));
+        }
         let bundle_dir = rec.bundle_dir;
         let target = rec.target;
         let source = rec.source;
@@ -2865,7 +3002,8 @@ impl ScrawlCoordinator {
                             windows,
                         } => (session, audio, windows),
                         CaptureSource::Phone(session) => {
-                            let finalized = session.stop().and_then(|recording| {
+                            let finalized = session.stop().and_then(|mut recording| {
+                                recording.cut(&cuts)?;
                                 crate::phone::finalize_live_capture(
                                     &bundle_dir,
                                     recording,
@@ -2886,7 +3024,7 @@ impl ScrawlCoordinator {
                         }
                     };
                     let stop_started = Instant::now();
-                    let (recording, recorded_audio, mut activity) = std::thread::scope(|s| {
+                    let (mut recording, mut recorded_audio, mut activity) = std::thread::scope(|s| {
                         let screen_handle = s.spawn(|| screen_session.stop());
                         let win_handle = s.spawn(|| {
                             window_log
@@ -2902,6 +3040,18 @@ impl ScrawlCoordinator {
                     });
                     activity.stop_started = Some(stop_started);
                     activity.stop_ms = Some(stop_started.elapsed().as_millis() as u64);
+                    if !cuts.is_empty() {
+                        recording.cut(&cuts.on_clock_from(frames_clock_ms));
+                        activity.cut(&cuts);
+                        recorded_audio = recorded_audio.and_then(|audio| {
+                            audio
+                                .cut(&cuts)
+                                .inspect_err(|error| {
+                                    scrawl_log(format!("Paused audio could not be cut: {error:#}"));
+                                })
+                                .ok()
+                        });
+                    }
                     let duration_ms = recording.duration_ms;
                     let finalized = crate::finalize_capture_bundle(
                         &bundle_dir,
@@ -3112,10 +3262,11 @@ impl Render for HudPillWindow {
         let scale = coord.island_scale;
         let y_off = coord.island_y;
         let opacity = coord.island_opacity.clamp(0.0, 1.0);
+        let now_ms = coord.telemetry.elapsed_ms();
         let recording_ms = coord
             .active_recording
             .as_ref()
-            .map(ActiveRecording::elapsed_ms);
+            .map(|rec| rec.shown_ms(now_ms));
         let elapsed_ms = recording_ms.unwrap_or(coord.last_elapsed_ms);
         let switch = coord
             .switch
@@ -5552,13 +5703,14 @@ pub fn run_app(
                     motion::poll_tune();
                     if loop_coord.read(cx).shortcut.is_pending() {
                         loop_coord.update(cx, |coord, cx| coord.tick_shortcut(cx));
-                    } else if loop_coord.read(cx).telemetry.take_escape()
-                        && (loop_coord.read(cx).is_selecting()
-                            || loop_coord.read(cx).is_recording())
-                    {
-                        // The picker may not have the keys (another app is active), but the
-                        // key tap sees the cancel key anyway; it also throws a recording away.
-                        loop_coord.update(cx, |coord, cx| coord.cancel_recording(cx));
+                    } else {
+                        // The picker or the capsule may not have the keys (another app is
+                        // active), but the key tap sees the cancel key anyway: it closes the
+                        // picker, and pauses, resumes or cancels a recording.
+                        let presses = loop_coord.read(cx).telemetry.take_cancel_presses();
+                        if !presses.is_empty() {
+                            loop_coord.update(cx, |coord, cx| coord.press_cancel_key(&presses, cx));
+                        }
                     }
                     if loop_coord.read(cx).gate.is_pending() {
                         loop_coord.update(cx, |coord, _| coord.tick_gate());
