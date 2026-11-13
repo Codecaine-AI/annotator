@@ -7,6 +7,8 @@
 // It opens a small window of its own (so the test clicks land on nothing of yours), starts a
 // recording with Annotator Dev's ⌃⌥S, posts ⇧, moves, drags and clicks at the HID event tap,
 // stops with ⌃⌥S, and counts the strokes, pins and marks in the new bundle's `scrawl.json`.
+// ⇧ below is the draw modifier: the harness posts the one Annotator Dev's config names
+// (`"shortcuts": {"draw": "option"}` in ~/.config/scrawl-dev/config.json), else ⇧.
 //
 // Exit codes: 0 the scenario left what it should; 1 it did not; 2 it could not run (no
 // Accessibility for this terminal, Dev not running, or the live Annotator is recording, which
@@ -17,8 +19,9 @@
 //   move         hold ⇧, move the pointer: 1 stroke
 //   drag         hold ⇧, press the left button, drag, let go: 1 stroke
 //   click        hold ⇧, click, let go of ⇧: pin 1
+//   move-then-pin hold ⇧, move 200 pt, click: 1 stroke and pin 1
 //   pins         three ⇧-clicks, ⇧ let go between them: pins 1, 2 and 3
-//   held-pins    hold ⇧ once and click three places: pins 1, 2 and 3, no stroke
+//   held-pins    hold ⇧ once and click three places: pins 1, 2 and 3, and the 2 lines between
 //   button-first press the left button, then hold ⇧ and drag: 1 stroke
 //   late-shift   press the left button, tap ⇧ without moving, let go: nothing (by design)
 //
@@ -43,7 +46,8 @@ func stop(_ code: Int32, _ message: String) -> Never {
 /// What a scenario must leave: ink strokes and pin numbers.
 let wanted: [String: (ink: Int, pins: [Int])] = [
   "all": (2, [1]), "move": (1, []), "drag": (1, []), "click": (0, [1]),
-  "pins": (0, [1, 2, 3]), "held-pins": (0, [1, 2, 3]), "button-first": (1, []),
+  "move-then-pin": (1, [1]), "pins": (0, [1, 2, 3]), "held-pins": (2, [1, 2, 3]),
+  "button-first": (1, []),
   "late-shift": (0, []),
 ]
 let usage = "usage: shift-ink-harness [--scenario \(wanted.keys.sorted().joined(separator: "|"))] [--screenshot <png>]"
@@ -108,8 +112,26 @@ let devRunning = NSWorkspace.shared.runningApplications.contains {
 }
 guard devRunning else { stop(2, "Annotator Dev.app is not running") }
 
+/// The draw modifier Annotator Dev uses: its key, its event flag and its name in the log.
+let drawModifiers: [String: (key: CGKeyCode, flag: CGEventFlags, log: String)] = [
+  "shift": (56, .maskShift, "shift"), "option": (58, .maskAlternate, "alt"),
+  "control": (59, .maskControl, "ctrl"), "command": (55, .maskCommand, "cmd"),
+]
+let configured: String? = {
+  let config = home.appendingPathComponent(".config/scrawl-dev/config.json")
+  guard let data = try? Data(contentsOf: config),
+    let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+  else { return nil }
+  return (root["shortcuts"] as? [String: Any])?["draw"] as? String
+}()
+guard let draw = drawModifiers[configured ?? "shift"] else {
+  stop(2, "unknown draw modifier \(configured ?? "") in Annotator Dev's config")
+}
+/// The poller's log line while the draw modifier alone is down.
+let drawAloneLine = "hid_poller: " + ["cmd", "ctrl", "alt", "shift"]
+  .map { "\($0)=\($0 == draw.log)" }.joined(separator: " ")
+
 let source = CGEventSource(stateID: .hidSystemState)
-let shiftKey: CGKeyCode = 56
 var held: CGEventFlags = []
 /// How many times this run pressed ⇧.
 var shiftPresses = 0
@@ -121,13 +143,13 @@ func post(_ event: CGEvent?) {
 }
 
 func holdShift() {
-  let event = CGEvent(keyboardEventSource: source, virtualKey: shiftKey, keyDown: !held.isEmpty)
+  let event = CGEvent(keyboardEventSource: source, virtualKey: draw.key, keyDown: !held.isEmpty)
   event?.type = .flagsChanged
   post(event)
 }
 
 func shift(_ down: Bool) {
-  held = down ? .maskShift : []
+  held = down ? draw.flag : []
   if down { shiftPresses += 1 }
   holdShift()
   Thread.sleep(forTimeInterval: 0.12)
@@ -146,7 +168,7 @@ func glide(_ type: CGEventType, from: CGPoint, to: CGPoint, seconds: Double = 0.
     let at = CGPoint(x: from.x + (to.x - from.x) * t, y: from.y + (to.y - from.y) * t)
     if type == .mouseMoved {
       CGWarpMouseCursorPosition(at)
-      if held.contains(.maskShift) { holdShift() }
+      if !held.isEmpty { holdShift() }
     } else {
       mouse(type, at)
     }
@@ -268,6 +290,15 @@ func play(_ name: String) {
     click(point(150, 260))
     shift(false)
     capture()
+  case "move-then-pin":
+    mouse(.mouseMoved, point(100, 260))
+    Thread.sleep(forTimeInterval: 0.1)
+    shift(true)
+    glide(.mouseMoved, from: point(100, 260), to: point(300, 260), seconds: 0.4)
+    Thread.sleep(forTimeInterval: 0.1)
+    click(point(300, 260))
+    shift(false)
+    capture()
   case "pins":
     for x in [100.0, 220.0, 340.0] {
       mouse(.mouseMoved, point(x, 260))
@@ -339,11 +370,10 @@ func record() -> Outcome {
     stop(2, "Annotator Dev did not start recording on ⌃⌥S (see \(devLog.path))")
   }
   Thread.sleep(forTimeInterval: 1.0)
+  let played = logSize(devLog)
   play(scenario)
   Thread.sleep(forTimeInterval: 0.5)
-  let shiftSeen = logLines(devLog, from: start).filter {
-    $0.contains("hid_poller") && $0.contains("shift=true")
-  }.count
+  let shiftSeen = logLines(devLog, from: played).filter { $0.contains(drawAloneLine) }.count
   let stopAt = logSize(devLog)
   recordShortcut()
   let finished = waitFor(devLog, from: stopAt, seconds: 30, "finish timings")

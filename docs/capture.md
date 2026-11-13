@@ -18,16 +18,16 @@ The sampler keeps only small candidates (480 px long edge, in a `CandidateBuffer
 
 ## ⇧ ink and pins (`track_shift_ink`, `shift_down`, `shift_up` in `src/capture.rs`, `src/laser_overlay.rs`)
 
-Annotator only watches input: the app under the pointer still gets every key and click. The 120 Hz poller (`run_global_hid_poller`) reads the modifier flags, and ⇧ counts only when it is down alone and is not left over from a chord such as `⌥⇧S`.
+Annotator only watches input: the app under the pointer still gets every key and click. The 120 Hz poller (`run_global_hid_poller`) reads the modifier flags, and ⇧ counts only when it is down alone and is not left over from a chord such as `⌥⇧S`. ⇧ here is the draw modifier: Settings › Shortcuts can make it ⌥, ⌃ or ⌘ (`"shortcuts": {"draw": …}`, `draw_mask`), and every rule below then holds for that key.
 
 - **Ink:** while ⇧ is down and the pointer moves inside the capture target, `track_shift_ink` draws one stroke, with or without a mouse button down. Letting go of ⇧ commits it when it spans 6 pt or more. A pointer on another display draws nothing: a capture belongs to one display.
 - **Pin:** a left press that goes down while ⇧ is already down, moves under 12 pt and comes up within 1 s (`is_pin_click`). Pins are numbered 1, 2, 3 in the order they drop in the recording (`Stroke.pin`).
-- **A click in a drawing is no pin:** when the hold has already drawn ink before the press (`drew_before`), the click belongs to the drawing. So ⇧ first, then a move to the target, then a click, gives a line and no pin. Put the pointer on the target before you press ⇧.
-- **More pins in one hold:** once a hold has dropped a pin, each later ⇧-click in it drops the next one, and the ink between two pins is discarded (`pinned_in_hold`). Ink after the last pin is a drawing again.
+- **A click after a line keeps both:** every ⇧-click drops a pin, also when the hold has already drawn ink. The ink before the press becomes a stroke that ends at the press (`ink_before`, 6 pt or more, without the click's jitter) and comes before its pin in `strokes`; ink after the click starts a new stroke. So ⇧ first, then a move to the target, then a click, gives one line and one pin.
+- **More pins in one hold:** each ⇧-click drops the next pin, and the lines between the pins stay. For pins alone, let go of ⇧ between the clicks.
 - **Nothing by design:** ⇧ pressed after the button is already down, with the pointer still, records neither ink nor a pin.
 - **Live:** a dropped pin pulses once (`sketch::pin_pulse`, 350 ms) and shows as a red disc 22 pt across in a white ring with its number in white, whole for 2 s, then fading over 0.5 s (`sketch::pin_badge`). The shader takes the numbers from a coverage texture made when the first pin drops (`pin_label_texture`). The overlay window is left out of the recording, so the video never shows ink or pins; keyframes and exports draw them again from `scrawl.json`. The Windows overlay still shows the pulse only.
 
-`cargo test shift_click` and `cargo test pin` cover the rules, the timing and the pixels. `scripts/shift-ink-harness.swift` proves them end to end in Annotator Dev.app: it starts a recording with `⌃⌥S`, posts ⇧, moves, drags and clicks at the HID event tap inside a window of its own, and counts the strokes and pins in the new bundle (`--scenario all|move|drag|click|pins|held-pins|button-first|late-shift`, `--screenshot <png>` for the live pins). It moves the real pointer for about 5 s a run.
+`cargo test shift_click` and `cargo test pin` cover the rules, the timing and the pixels. `scripts/shift-ink-harness.swift` proves them end to end in Annotator Dev.app: it starts a recording with `⌃⌥S`, posts the draw modifier it reads from Dev's config, moves, drags and clicks at the HID event tap inside a window of its own, and counts the strokes and pins in the new bundle (`--scenario all|move|drag|click|move-then-pin|pins|held-pins|button-first|late-shift`, `--screenshot <png>` for the live pins). It moves the real pointer for about 5 s a run.
 
 ## Live audio and live words while recording (`src/live_audio.rs`, `src/audio.rs`)
 
