@@ -833,7 +833,7 @@ fn microphone_view(
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TranscriberView {
-    /// What recordings use now: "apple", "hex" or "command".
+    /// What recordings use now: "deepgram", "apple", "hex" or "command".
     pub engine: &'static str,
     pub hex_title: &'static str,
     pub hex_enabled: bool,
@@ -843,6 +843,8 @@ pub struct TranscriberView {
     /// The program's file name while `transcribeCommand` is usable (read, never run); Command
     /// is offered only then.
     pub command: Option<String>,
+    /// Why the last recording used Apple Speech although Deepgram was chosen.
+    pub fallback: Option<String>,
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
@@ -1363,6 +1365,7 @@ impl Panel {
             transcriber: TranscriberView {
                 engine: match engine {
                     crate::transcribe::Engine::Command if command.is_some() => "command",
+                    crate::transcribe::Engine::Deepgram => "deepgram",
                     _ if menu.hex_checked => "hex",
                     _ => "apple",
                 },
@@ -1377,6 +1380,9 @@ impl Panel {
                     .map(|(id, title, chosen)| ModelView { id, title, chosen })
                     .collect(),
                 command,
+                fallback: (engine == crate::transcribe::Engine::Deepgram)
+                    .then(crate::transcribe::deepgram_fallback)
+                    .flatten(),
             },
             video_export: config.video_export.unwrap_or(false),
             retention: RetentionView {
@@ -1692,7 +1698,8 @@ impl Session {
         view["type"] = "state".into();
         // Switched from Hex to Apple Speech: get its model now, not at the first capture.
         let speech = crate::speech_model::current();
-        if view["transcriber"]["engine"] == "apple"
+        // Deepgram falls back to Apple Speech, so it needs the model too.
+        if (view["transcriber"]["engine"] == "apple" || view["transcriber"]["engine"] == "deepgram")
             && speech.state == crate::speech_model::State::Unknown
         {
             crate::speech_model::ensure();
@@ -2568,6 +2575,38 @@ mod tests {
         );
         assert_eq!(read_json(&host.path)["transcriber"], "command");
         assert_eq!(panel.view(&host).transcriber.engine, "command");
+    }
+
+    #[test]
+    fn transcribe_engine_is_deepgram_by_default_on_macos_and_can_be_picked() {
+        let dir = TempDir::new("deepgram");
+        let mut host = fake(&dir);
+        let mut panel = Panel::default();
+        std::fs::write(&host.path, "{}").unwrap();
+        let unset = if cfg!(target_os = "macos") {
+            "deepgram"
+        } else {
+            "apple"
+        };
+        assert_eq!(panel.view(&host).transcriber.engine, unset);
+        panel.on(
+            Action::Set {
+                key: "transcriber".into(),
+                value: "apple".into(),
+            },
+            &mut host,
+        );
+        let view = panel.view(&host).transcriber;
+        assert_eq!((view.engine, view.fallback), ("apple", None));
+        panel.on(
+            Action::Set {
+                key: "transcriber".into(),
+                value: "deepgram".into(),
+            },
+            &mut host,
+        );
+        assert_eq!(read_json(&host.path)["transcriber"], "deepgram");
+        assert_eq!(panel.view(&host).transcriber.engine, "deepgram");
     }
 
     #[test]

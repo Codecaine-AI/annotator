@@ -84,6 +84,8 @@ struct SettingsTranscriber: Decodable, Equatable {
   var appleLocale = "auto"
   var models: [SettingsModelOption] = []
   var speech: SpeechStatus?
+  /// Why the last recording used Apple Speech although Deepgram was chosen.
+  var fallback: String?
 
   static func languageMenu(saved: String, speech: SpeechStatus?) -> (value: String, selected: String, options: [(id: String, title: String, enabled: Bool)], note: String?) {
     func name(_ id: String) -> String { Locale.current.localizedString(forIdentifier: id) ?? id }
@@ -946,7 +948,7 @@ struct SettingsView: View {
   private var recording: some View {
     let t = state.transcriber
     let language = SettingsTranscriber.languageMenu(saved: t.appleLocale, speech: t.speech)
-    var engines: [(id: String, title: String, enabled: Bool)] = [("apple", "Apple Speech", true)]
+    var engines: [(id: String, title: String, enabled: Bool)] = [("deepgram", "Deepgram nova-3", true), ("apple", "Apple Speech", true)]
     engines.append(("hex", t.hexTitle, t.hexEnabled))
     if let command = t.command { engines.append(("command", "Command (\(command))", true)) }
     let chosenModel = t.models.first(where: \.chosen)
@@ -1002,16 +1004,21 @@ struct SettingsView: View {
             ) { model.set("hexModel", $0) }
           }
         }
-        if t.engine == "hex" {
+        if t.engine == "hex" || t.engine == "deepgram" {
           SettingsSeparator()
-          HexLanguageField(model: model, language: t.language)
+          HexLanguageField(model: model, language: t.language, title: t.engine == "deepgram" ? "Language" : "Hex language")
         }
       }
-      SettingsCaption(text: t.engine == "command"
+      SettingsCaption(text: t.engine == "deepgram"
+        ? "Deepgram times each word and adds punctuation. Without a key, or if it fails, that recording uses Apple Speech."
+        : t.engine == "command"
         ? "Command runs transcribeCommand from config.json. If it fails, that recording uses Apple Speech."
         : t.hexEnabled || t.engine == "hex"
         ? "Apple Speech times each word. Hex uses a model you have in Hex, and its word times are estimates."
         : "Apple Speech runs on this Mac and times each word. Hex shows up here while Hex is running.")
+      if t.engine == "deepgram", let fallback = t.fallback {
+        SettingsCaption(text: "The last recording used Apple Speech: \(fallback).")
+      }
       if t.engine == "apple", let note = language.note {
         SettingsCaption(text: note)
       }
@@ -1629,6 +1636,10 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
     languageUnsupported.transcriber.appleLocale = "xx-XX"
     var command = base
     command.transcriber = SettingsTranscriber(engine: "command", command: "whisper-scrawl")
+    var deepgram = base
+    deepgram.transcriber = SettingsTranscriber(engine: "deepgram")
+    var deepgramFallback = base
+    deepgramFallback.transcriber = SettingsTranscriber(engine: "deepgram", fallback: "no DEEPGRAM_API_KEY")
     var missing = base
     missing.permissions[0].status = "granted"
     missing.permissions[0].relaunch = true
@@ -1696,6 +1707,8 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
       ("recording-language-loading", .recording, languageLoading),
       ("recording-language-unsupported", .recording, languageUnsupported),
       ("recording-command", .recording, command),
+      ("recording-deepgram", .recording, deepgram),
+      ("recording-deepgram-fallback", .recording, deepgramFallback),
       ("storage", .storage, base),
       ("storage-custom", .storage, storageCustom),
       ("permissions", .permissions, base),
@@ -1782,11 +1795,13 @@ private struct PlaybackLevelRow: View {
 private struct HexLanguageField: View {
   @ObservedObject var model: SettingsModel
   let language: String
+  var title = "Hex language"
   @State private var draft: String
 
-  init(model: SettingsModel, language: String) {
+  init(model: SettingsModel, language: String, title: String = "Hex language") {
     self.model = model
     self.language = language
+    self.title = title
     _draft = State(initialValue: language)
   }
 
@@ -1798,7 +1813,7 @@ private struct HexLanguageField: View {
     if valid { model.set("hexLanguage", normalized) }
   }
   var body: some View {
-    SettingsRow(title: "Hex language") {
+    SettingsRow(title: title) {
       // ImageRenderer cannot draw AppKit-backed text fields; keep previews readable.
       if model.rendering {
         Text(language).frame(width: 120, alignment: .leading)
@@ -1807,7 +1822,7 @@ private struct HexLanguageField: View {
           .textFieldStyle(.roundedBorder)
           .frame(width: 120)
           .onSubmit { apply() }
-          .accessibilityLabel("Hex language code")
+          .accessibilityLabel("\(title) code")
       }
       Button("Apply") { apply() }
         .disabled(!valid || (normalized.isEmpty ? "en" : normalized) == language)

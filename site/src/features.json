@@ -397,7 +397,7 @@
       "platforms": ["mac"],
       "note": "Windows and Linux use Parakeet on device.",
       "config": [
-        { "key": "transcriber", "value": "\"apple\" | \"hex\" | \"command\"", "does": "Which engine transcribes" },
+        { "key": "transcriber", "value": "\"deepgram\" | \"apple\" | \"hex\" | \"command\"", "does": "Which engine transcribes (Deepgram by default on macOS)" },
         { "key": "appleLocale", "value": "\"zh-TW\"", "does": "Apple Speech language; absent follows the Mac" }
       ],
       "docs": ["README.md#transcription"]
@@ -410,6 +410,17 @@
       "status": "stable@0.3.6",
       "platforms": ["windows", "linux"],
       "docs": ["docs/windows.md"]
+    },
+    {
+      "id": "deepgram",
+      "group": "agent",
+      "name": "Deepgram nova-3",
+      "says": "The default engine on macOS: Deepgram nova-3 transcribes the recording with measured word times and punctuation, and Apple Speech takes over when it can't.",
+      "status": "main",
+      "platforms": ["mac"],
+      "added": "2026-11-13",
+      "note": "Needs DEEPGRAM_API_KEY in the environment or ~/.config/codecaine/env. Without a key, on a timeout (120 s), a non-200 answer or an empty result, that recording uses Apple Speech and Settings › Recording names the reason. The language is hexLanguage (\"auto\" lets Deepgram detect it).",
+      "docs": ["docs/keyframes-and-text.md"]
     },
     {
       "id": "hex",

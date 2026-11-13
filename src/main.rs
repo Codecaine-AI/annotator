@@ -90,7 +90,7 @@ struct Cli {
 
 fn parse_engine(name: &str) -> Result<crate::transcribe::Engine, String> {
     crate::transcribe::Engine::parse(name)
-        .ok_or_else(|| "expected `apple`, `hex` or `command`".to_owned())
+        .ok_or_else(|| "expected `deepgram`, `apple`, `hex` or `command`".to_owned())
 }
 
 /// `scrawl hex status`: connection, models and what the next recording would use.
@@ -105,7 +105,18 @@ fn hex_status() {
             Err(unusable) => println!("Command: not usable ({unusable})"),
         }
     }
+    if preferred == transcribe::Engine::Deepgram {
+        // Whether a key is there, never the key.
+        let key = if deepgram::key().is_some() { "found" } else { "missing" };
+        println!("Deepgram key: {key}");
+        if let Some(reason) = transcribe::deepgram_fallback() {
+            println!("Last Deepgram fallback: {reason}");
+        }
+    }
     let next = |hex_model: Option<&str>| match (preferred, hex_model, &command) {
+        (transcribe::Engine::Deepgram, _, _) if deepgram::key().is_some() => {
+            deepgram::TITLE.to_owned()
+        }
         (transcribe::Engine::Command, _, Ok(program)) => format!("Command ({})", program.name()),
         (transcribe::Engine::Hex, Some(model), _) => format!("Hex ({model})"),
         _ => transcribe::LOCAL_ENGINE_TITLE.to_owned(),
@@ -276,7 +287,8 @@ enum Command {
         /// Copy the summary to the clipboard.
         #[arg(long)]
         clipboard: bool,
-        /// Transcribe with `apple`, `hex` or `command` instead of the configured transcriber.
+        /// Transcribe with `deepgram`, `apple`, `hex` or `command` instead of the configured
+        /// transcriber.
         #[arg(long, value_parser = parse_engine)]
         transcriber: Option<crate::transcribe::Engine>,
     },
@@ -314,7 +326,8 @@ enum Command {
         /// many times real time first, as if recording, so the finish only transcribes the tail.
         #[arg(long, hide = true, requires = "bench")]
         live_speed: Option<f64>,
-        /// Transcribe with `apple`, `hex` or `command` instead of the configured transcriber.
+        /// Transcribe with `deepgram`, `apple`, `hex` or `command` instead of the configured
+        /// transcriber.
         #[arg(long, value_parser = parse_engine)]
         transcriber: Option<crate::transcribe::Engine>,
         /// Turn an experiment on for this run, as `"experiments"` in `config.json` would
