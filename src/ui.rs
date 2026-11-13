@@ -437,6 +437,7 @@ enum MenuAction {
     ToggleCapture,
     ChooseTarget,
     OpenLatest,
+    History,
     OpenInbox(PathBuf),
     ExportVideo,
     Settings,
@@ -643,7 +644,8 @@ enum CaptureSource {
     Screen {
         session: ScreenCaptureSession,
         audio: Option<AudioRecorder>,
-        /// Screen mode only: which windows were where, for `scrawl autocrop`.
+        /// Screen and Area modes: which windows were where, for `scrawl autocrop` and the apps
+        /// list.
         windows: Option<crate::windows::WindowLogger>,
     },
     /// The helper's mirror window records the phone's native video and the narration.
@@ -2714,18 +2716,19 @@ impl ScrawlCoordinator {
             Arc::clone(&self.telemetry.excluded_window_ids),
         );
         start_metric("sck_start_ms", stage);
-        let window_log = (target.mode == CaptureMode::Display).then(|| {
-            let started_at = *self
-                .telemetry
-                .started_at
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            crate::windows::WindowLogger::start(
-                target.frame,
-                started_at,
-                Arc::clone(&self.telemetry.window_log_request),
-            )
-        });
+        let window_log =
+            matches!(target.mode, CaptureMode::Display | CaptureMode::Region).then(|| {
+                let started_at = *self
+                    .telemetry
+                    .started_at
+                    .lock()
+                    .unwrap_or_else(std::sync::PoisonError::into_inner);
+                crate::windows::WindowLogger::start(
+                    target.frame,
+                    started_at,
+                    Arc::clone(&self.telemetry.window_log_request),
+                )
+            });
         self.active_recording = Some(ActiveRecording {
             started: Instant::now(),
             target,
@@ -4628,12 +4631,15 @@ impl Render for BundleReviewWindow {
 
         self.ensure_images(&dir, &bundle);
 
-        let target_label = match (&bundle.target.app, &bundle.target.window_title) {
-            (Some(app), Some(win)) if !win.is_empty() && win != app => {
+        let apps = bundle.apps();
+        let target_label = match (apps.as_slice(), &bundle.target.window_title) {
+            ([app], Some(win))
+                if bundle.target.mode == CaptureMode::Window && !win.is_empty() && win != app =>
+            {
                 format!("{app} — “{win}”")
             }
-            (Some(app), _) => app.clone(),
-            _ => format!("Display {}", bundle.target.display_id),
+            ([], _) => format!("Display {}", bundle.target.display_id),
+            (apps, _) => apps.join(" → "),
         };
         let timeline = timeline(&bundle);
 
@@ -5442,6 +5448,295 @@ fn open_review_window(coord_entity: &Entity<ScrawlCoordinator>, cx: &mut App) {
     platform::take_keys(cx);
 }
 
+/// Plain text for a hover tooltip.
+struct TooltipText(SharedString);
+
+impl Render for TooltipText {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .px(px(8.0))
+            .py(px(4.0))
+            .rounded(px(6.0))
+            .bg(rgb(0x3a3a3c))
+            .text_size(px(11.5))
+            .text_color(rgb(TEXT_COLOR))
+            .child(self.0.clone())
+    }
+}
+
+/// Every capture in the captures folder, newest first (`crate::history`). Double-click or Return
+/// opens one in the Review window.
+pub struct HistoryWindow {
+    coordinator: Entity<ScrawlCoordinator>,
+    focus: FocusHandle,
+    rows: Vec<crate::history::HistoryEntry>,
+    selected: usize,
+}
+
+const HISTORY_DATE_W: f32 = 150.0;
+const HISTORY_LENGTH_W: f32 = 64.0;
+const HISTORY_VIDEO_W: f32 = 112.0;
+
+impl HistoryWindow {
+    fn new(coordinator: Entity<ScrawlCoordinator>, focus: FocusHandle) -> Self {
+        let mut window = Self {
+            coordinator,
+            focus,
+            rows: Vec::new(),
+            selected: 0,
+        };
+        window.refresh();
+        window
+    }
+
+    fn refresh(&mut self) {
+        self.rows = crate::history::scan(
+            &crate::handoff::default_captures_dir(),
+            crate::now_epoch_ms(),
+        );
+        self.selected = self.selected.min(self.rows.len().saturating_sub(1));
+    }
+
+    fn open(&mut self, index: usize, cx: &mut Context<Self>) {
+        let Some(row) = self.rows.get(index) else {
+            return;
+        };
+        self.selected = index;
+        let Ok((dir, bundle)) = crate::handoff::load_bundle(&row.dir) else {
+            return;
+        };
+        let coordinator = self.coordinator.clone();
+        coordinator.update(cx, |coord, cx| {
+            coord.mark_handled(&dir);
+            coord.set_review_bundle((dir, bundle), None);
+            cx.notify();
+        });
+        cx.defer(move |cx| open_review_window(&coordinator, cx));
+    }
+}
+
+fn history_cell(width: Option<f32>) -> Div {
+    let cell = div().px(px(14.0)).flex().items_center().min_w_0();
+    match width {
+        Some(w) => cell.w(px(w)).flex_none(),
+        None => cell.flex_1(),
+    }
+}
+
+impl Render for HistoryWindow {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let header = |label: &'static str, width| {
+            history_cell(width)
+                .text_size(px(11.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(MUTED_COLOR))
+                .child(label)
+        };
+        let rows = self.rows.iter().enumerate().map(|(i, row)| {
+            let selected = i == self.selected;
+            let label = row.apps_label();
+            let (shown, more) = match label.rsplit_once(" +") {
+                Some((shown, more)) if row.apps.len() > 3 => {
+                    (shown.to_owned(), Some(more.to_owned()))
+                }
+                _ => (label, None),
+            };
+            let tooltip: SharedString = row.apps_tooltip().into();
+            div()
+                .id(("history-row", i))
+                .h(px(32.0))
+                .flex()
+                .items_center()
+                .rounded(px(6.0))
+                .text_size(px(13.0))
+                .text_color(rgb(TEXT_COLOR))
+                .when(selected, |d| d.bg(rgb(ACCENT_COLOR)))
+                .when(!selected, |d| d.hover(|s| s.bg(rgb(SURFACE_BG))))
+                .on_click(cx.listener(move |this, event: &gpui::ClickEvent, _, cx| {
+                    if event.click_count() >= 2 {
+                        this.open(i, cx);
+                    } else {
+                        this.selected = i;
+                    }
+                    cx.notify();
+                }))
+                .child(history_cell(Some(HISTORY_DATE_W)).child(row.date.clone()))
+                .child(
+                    history_cell(None)
+                        .id(("history-apps", i))
+                        .gap(px(6.0))
+                        .when(!tooltip.is_empty(), |d| {
+                            d.tooltip(move |_, cx| cx.new(|_| TooltipText(tooltip.clone())).into())
+                        })
+                        .child(div().min_w_0().truncate().child(shown))
+                        .when_some(more, |d, more| {
+                            d.child(
+                                div()
+                                    .flex_none()
+                                    .px(px(5.0))
+                                    .rounded(px(7.0))
+                                    .bg(rgba(0xffffff38))
+                                    .text_size(px(11.0))
+                                    .child(format!("+{more}")),
+                            )
+                        }),
+                )
+                .child(history_cell(Some(HISTORY_LENGTH_W)).child(row.length.clone()))
+                .child(
+                    history_cell(Some(HISTORY_VIDEO_W)).child(
+                        div()
+                            .px(px(7.0))
+                            .rounded(px(9.0))
+                            .text_size(px(11.0))
+                            .map(|d| match (row.cleaned, selected) {
+                                (true, _) => d
+                                    .bg(rgba(0xffffff14))
+                                    .text_color(rgb(MUTED_COLOR))
+                                    .child("Video cleaned"),
+                                (false, true) => d
+                                    .bg(rgba(0xffffff40))
+                                    .text_color(rgb(TEXT_COLOR))
+                                    .child("Video"),
+                                (false, false) => d
+                                    .bg(rgba(0x69d89f2e))
+                                    .text_color(rgb(POSITIVE_COLOR))
+                                    .child("Video"),
+                            }),
+                    ),
+                )
+        });
+        let empty = self.rows.is_empty();
+        div()
+            .id("history-root")
+            .track_focus(&self.focus)
+            .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+                let key = event.keystroke.key.as_str();
+                let mods = event.keystroke.modifiers;
+                match key {
+                    "escape" => window.remove_window(),
+                    "w" if mods.secondary() => window.remove_window(),
+                    "up" => this.selected = this.selected.saturating_sub(1),
+                    "down" => {
+                        this.selected = (this.selected + 1).min(this.rows.len().saturating_sub(1))
+                    }
+                    "enter" => this.open(this.selected, cx),
+                    _ => return,
+                }
+                cx.stop_propagation();
+                cx.notify();
+            }))
+            .size_full()
+            .flex()
+            .flex_col()
+            .bg(rgb(CANVAS_BG))
+            .text_color(rgb(TEXT_COLOR))
+            .child(
+                div()
+                    .h(px(44.0))
+                    .pl(px(platform::HEADER_LEAD))
+                    .pr(px(platform::HEADER_TRAIL))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .gap(px(14.0))
+                    .bg(rgb(SIDEBAR_BG))
+                    .border_b_1()
+                    .border_color(rgb(LINE_COLOR))
+                    .map(platform::window_drag_region)
+                    .child(
+                        div()
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child("History"),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .text_size(px(12.0))
+                            .text_color(rgb(MUTED_COLOR))
+                            .child("Newest first"),
+                    )
+                    .children(platform::caption_buttons()),
+            )
+            .child(
+                div()
+                    .h(px(30.0))
+                    .px(px(8.0))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .border_b_1()
+                    .border_color(rgb(LINE_COLOR))
+                    .child(header("Date", Some(HISTORY_DATE_W)))
+                    .child(header("Apps", None))
+                    .child(header("Length", Some(HISTORY_LENGTH_W)))
+                    .child(header("Video", Some(HISTORY_VIDEO_W))),
+            )
+            .child(
+                div()
+                    .id("history-rows")
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
+                    .p(px(8.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(2.0))
+                    .when(empty, |d| {
+                        d.child(
+                            div()
+                                .p_6()
+                                .text_size(px(13.0))
+                                .text_color(rgb(MUTED_COLOR))
+                                .child("No captures yet."),
+                        )
+                    })
+                    .children(rows),
+            )
+    }
+}
+
+/// Opens the History window in front, or brings it forward with a fresh list.
+fn open_history_window(coord_entity: &Entity<ScrawlCoordinator>, cx: &mut App) {
+    for handle in cx.windows() {
+        if let Some(history) = handle.downcast::<HistoryWindow>() {
+            platform::take_keys(cx);
+            let _ = history.update(cx, |this, window, cx| {
+                this.refresh();
+                window.activate_window();
+                cx.notify();
+            });
+            return;
+        }
+    }
+    let bounds = Bounds::centered(None, size(px(720.0), px(480.0)), cx);
+    let coordinator = coord_entity.clone();
+    let _ = cx.open_window(
+        WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(bounds)),
+            titlebar: Some(gpui::TitlebarOptions {
+                title: cfg!(target_os = "windows").then(|| "Annotator History".into()),
+                appears_transparent: true,
+                traffic_light_position: Some(point(px(16.0), px(14.0))),
+            }),
+            app_id: Some(crate::app_identity::Variant::current().bundle_id().into()),
+            focus: true,
+            show: true,
+            kind: WindowKind::Normal,
+            is_resizable: true,
+            window_background: WindowBackgroundAppearance::Opaque,
+            ..Default::default()
+        },
+        move |window, cx| {
+            platform::decorate_app_window(window);
+            let focus = cx.focus_handle();
+            window.focus(&focus);
+            cx.new(|_| HistoryWindow::new(coordinator, focus))
+        },
+    );
+    platform::take_keys(cx);
+}
+
 pub(crate) fn start_metric(name: &str, started: Instant) {
     if std::env::var_os("SCRAWL_BENCH_START").is_some() {
         eprintln!(
@@ -5625,6 +5920,7 @@ pub fn run_app(
                                         open_review_window(&loop_coord, cx);
                                     }
                                 }
+                                MenuAction::History => open_history_window(&loop_coord, cx),
                                 MenuAction::OpenInbox(path) => {
                                     let loaded = crate::handoff::load_bundle(&path).ok();
                                     let opened = loaded.is_some();

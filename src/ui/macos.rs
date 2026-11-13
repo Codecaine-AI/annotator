@@ -420,6 +420,11 @@ objc2::define_class!(
             let _ = self.ivars().sender.try_send(MenuAction::OpenLatest);
         }
 
+        #[unsafe(method(openHistory:))]
+        fn open_history(&self, _sender: &AnyObject) {
+            let _ = self.ivars().sender.try_send(MenuAction::History);
+        }
+
         #[unsafe(method(exportVideo:))]
         fn export_video(&self, _sender: &AnyObject) {
             let _ = self.ivars().sender.try_send(MenuAction::ExportVideo);
@@ -626,6 +631,7 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
     add("Choose What to Record…", sel!(chooseTarget:));
     menu.addItem(&NSMenuItem::separatorItem(mtm));
     add("Open Latest Capture", sel!(openLatest:));
+    add("History…", sel!(openHistory:));
     add("Export Last Capture as Video…", sel!(exportVideo:));
     if let Some(item) = menu.itemAtIndex(menu.numberOfItems() - 1) {
         item.setTag(EXPORT_VIDEO_MENU_TAG);

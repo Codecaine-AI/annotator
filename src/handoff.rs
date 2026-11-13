@@ -187,6 +187,14 @@ fn plain_path(path: PathBuf) -> PathBuf {
     }
 }
 
+/// The bundle's video file: the one `scrawl.json` names (`recording.mp4` or `.mov`), or
+/// `recording.mp4` when it names none. It may be gone (`retention` cleans old videos).
+pub fn bundle_video(directory: &Path, bundle: Option<&ScrawlBundle>) -> PathBuf {
+    bundle
+        .and_then(|b| b.video.as_deref())
+        .map_or_else(|| directory.join("recording.mp4"), |v| directory.join(v))
+}
+
 pub fn load_bundle(bundle_dir: &Path) -> Result<(PathBuf, ScrawlBundle)> {
     let directory = resolve_bundle_dir(bundle_dir)?;
     let path = directory.join("scrawl.json");
@@ -1600,9 +1608,7 @@ pub fn extract_frames_range(
     let directory = resolve_bundle_dir(bundle_dir)?;
     let loaded = load_bundle(&directory).ok().map(|(_, bundle)| bundle);
     let offset_ms = loaded.as_ref().map_or(0, |b| b.video_offset_ms);
-    let video = loaded
-        .and_then(|bundle| bundle.video)
-        .map_or_else(|| directory.join("recording.mp4"), |v| directory.join(v));
+    let video = bundle_video(&directory, loaded.as_ref());
     if video.is_file() && from_ms < to_ms {
         let output_dir = directory
             .join("zoom")

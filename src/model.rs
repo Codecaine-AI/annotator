@@ -92,11 +92,12 @@ pub struct ScrawlBundle {
     /// Which screen the app said it was on, and when (ScrawlKit `Scrawl.screen`).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub screens: Vec<ScreenSpan>,
-    /// Screen mode: the on-screen windows over time, front to back, stored only when they
-    /// change. Titles stay here and never go into the summary or the clipboard.
+    /// Screen and Area modes: the on-screen windows over time, front to back, stored only when
+    /// they change. Titles stay here and never go into the summary or the clipboard.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub windows: Vec<WindowSnapshot>,
-    /// Screen mode: the cursor at up to 15 Hz while it moves, as `[t, x, y]` (normalized).
+    /// Screen and Area modes: the cursor at up to 15 Hz while it moves, as `[t, x, y]`
+    /// (normalized).
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cursor: Vec<CursorSample>,
     /// Screen mode: how the keyframes were cropped (`frames/` and the contact sheet are cropped;
@@ -175,6 +176,40 @@ impl KeyframeCrop {
 }
 
 impl ScrawlBundle {
+    /// The apps the capture showed, in first-seen order: a Screen or Area capture names the app
+    /// of each window-log snapshot's top window (`windows::top_window`), a Window capture its
+    /// window's app, an iPhone capture the app on the phone. A capture with no window log (made
+    /// before Area captures logged windows, say) falls back to `target.app`.
+    pub fn apps(&self) -> Vec<String> {
+        let target = || {
+            self.target
+                .app
+                .iter()
+                .filter(|a| !a.is_empty())
+                .cloned()
+                .collect()
+        };
+        match self.target.mode {
+            CaptureMode::Display | CaptureMode::Region => {
+                let mut apps: Vec<String> = Vec::new();
+                for snapshot in &self.windows {
+                    if let Some(w) = crate::windows::top_window(snapshot, self.target.mode)
+                        && !w.app.is_empty()
+                        && !apps.contains(&w.app)
+                    {
+                        apps.push(w.app.clone());
+                    }
+                }
+                if apps.is_empty() { target() } else { apps }
+            }
+            CaptureMode::Window => target(),
+            CaptureMode::Device => match self.device.as_ref().and_then(|d| d.app.clone()) {
+                Some(app) if !app.is_empty() => vec![app],
+                _ => target(),
+            },
+        }
+    }
+
     /// The screen the app was on at `t_ms`, if it said.
     pub fn screen_at(&self, t_ms: u64) -> Option<&str> {
         self.screens
@@ -744,5 +779,79 @@ mod tests {
         if let InteractionEvent::Drag { t, t1, .. } = spanning_drag {
             assert_eq!((t, t1), (0, 150));
         }
+    }
+
+    fn bundle(mode: CaptureMode, app: Option<&str>) -> ScrawlBundle {
+        serde_json::from_value(serde_json::json!({
+            "version": 1, "id": "t", "createdAtMs": 0, "durationMs": 1_000,
+            "target": {"mode": mode, "app": app, "displayId": 0,
+                "frame": {"x": 0.0, "y": 0.0, "width": 10.0, "height": 10.0, "scale": 1.0}},
+            "transcript": {"source": "test", "text": "", "segments": []},
+            "strokes": [], "marks": [], "events": [], "keyframes": [], "contactSheet": "c.png"
+        }))
+        .unwrap()
+    }
+
+    /// A snapshot whose windows are `(app, frontmost)`, front to back.
+    fn snapshot(t: u64, windows: &[(&str, bool)]) -> WindowSnapshot {
+        serde_json::from_value(serde_json::json!({
+            "t": t,
+            "windows": windows.iter().enumerate().map(|(i, (app, front))| serde_json::json!({
+                "id": i, "app": app, "bounds": [0, 0, 100, 100], "layer": 0, "frontmost": front
+            })).collect::<Vec<_>>()
+        }))
+        .unwrap()
+    }
+
+    #[test]
+    fn a_screen_capture_lists_each_app_that_came_to_the_front_once_in_first_seen_order() {
+        let mut b = bundle(CaptureMode::Display, Some("Safari"));
+        b.windows = vec![
+            snapshot(0, &[("Safari", true), ("T3 Code", false)]),
+            snapshot(500, &[("T3 Code", true), ("Safari", false)]),
+            snapshot(900, &[("Safari", true), ("T3 Code", false)]),
+            snapshot(1_200, &[("T3 Code", false), ("Finder", true)]),
+            // Annotator itself in front: no app for this moment.
+            snapshot(1_400, &[("Finder", false)]),
+            snapshot(1_600, &[("Xcode", true), ("Finder", false)]),
+        ];
+        assert_eq!(b.apps(), ["Safari", "T3 Code", "Finder", "Xcode"]);
+    }
+
+    #[test]
+    fn an_area_capture_lists_the_apps_whose_windows_were_on_top_of_the_region() {
+        let mut b = bundle(CaptureMode::Region, None);
+        // Safari stays the frontmost app while T3 Code's window covers the region.
+        b.windows = vec![
+            snapshot(0, &[("Safari", true)]),
+            snapshot(800, &[("T3 Code", false), ("Safari", true)]),
+            snapshot(900, &[("Safari", true), ("T3 Code", false)]),
+        ];
+        assert_eq!(b.apps(), ["Safari", "T3 Code"]);
+    }
+
+    #[test]
+    fn window_iphone_and_old_captures_name_their_one_app() {
+        let mut window = bundle(CaptureMode::Window, Some("Figma"));
+        window.windows = vec![snapshot(0, &[("Safari", true)])];
+        assert_eq!(window.apps(), ["Figma"]);
+
+        let mut phone = bundle(CaptureMode::Device, Some("iPhone"));
+        assert_eq!(phone.apps(), ["iPhone"]);
+        phone.device = Some(DeviceInfo {
+            app: Some("OpenCode".into()),
+            ..DeviceInfo::default()
+        });
+        assert_eq!(phone.apps(), ["OpenCode"]);
+
+        // Made before the window log: the app the capture started on.
+        assert_eq!(
+            bundle(CaptureMode::Display, Some("Xcode")).apps(),
+            ["Xcode"]
+        );
+        assert_eq!(
+            bundle(CaptureMode::Region, None).apps(),
+            Vec::<String>::new()
+        );
     }
 }

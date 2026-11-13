@@ -22,6 +22,7 @@ mod handoff;
 #[cfg_attr(target_os = "windows", path = "win/helper.rs")]
 mod helper;
 mod hex;
+mod history;
 mod icons;
 mod inbox;
 mod ingest_http;
@@ -1682,13 +1683,14 @@ fn main() -> Result<()> {
                 Some(video_path),
                 std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
             );
-            let window_log = (target.mode == CaptureMode::Display).then(|| {
-                windows::WindowLogger::start(
-                    target.frame,
-                    std::time::Instant::now(),
-                    std::sync::Arc::default(),
-                )
-            });
+            let window_log = matches!(target.mode, CaptureMode::Display | CaptureMode::Region)
+                .then(|| {
+                    windows::WindowLogger::start(
+                        target.frame,
+                        std::time::Instant::now(),
+                        std::sync::Arc::default(),
+                    )
+                });
             std::thread::sleep(Duration::from_secs(duration.max(1)));
             drop(playback);
             let recording = session.stop();

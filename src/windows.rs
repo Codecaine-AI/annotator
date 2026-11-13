@@ -1,4 +1,4 @@
-//! Window geometry and cursor log for Screen-mode captures.
+//! Window geometry and cursor log for Screen and Area captures.
 //!
 //! While a full-screen capture records, a low-rate worker writes down which windows were on
 //! screen (front to back) and where the cursor was, so `scrawl autocrop` can work out which
@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
-use crate::model::TargetFrame;
+use crate::model::{CaptureMode, TargetFrame};
 
 /// How often the worker wakes to sample the cursor and check its triggers.
 const TICK: Duration = Duration::from_millis(66);
@@ -205,6 +205,35 @@ pub fn filter_windows(
         });
     }
     out
+}
+
+/// The window a capture was about in one snapshot: for a Screen capture the frontmost app's
+/// window (the entry marked `frontmost`), for an Area capture the first normal window of a
+/// regular app in front-to-back order (snapshots hold only windows that overlap the region).
+/// Window and iPhone captures have one subject already, so they get `None`.
+pub fn top_window(snapshot: &WindowSnapshot, mode: CaptureMode) -> Option<&WindowEntry> {
+    let mut windows = snapshot.windows.iter();
+    match mode {
+        CaptureMode::Display => windows.find(|w| w.frontmost),
+        CaptureMode::Region => windows.find(|w| w.layer == 0 && w.regular),
+        CaptureMode::Window | CaptureMode::Device => None,
+    }
+}
+
+/// `top_window` for a live window list (`raw_windows()`, front to back): the same filters as the
+/// window log (`filter_windows`: own windows, invisible and tiny ones, layers, `app_meta`), then
+/// the same rule, over `region` (global points).
+#[cfg_attr(not(test), allow(dead_code))] // App shots read the live top window; the log doesn't.
+pub fn top_raw_window(
+    raw: &[RawWindow],
+    region: TargetFrame,
+    mode: CaptureMode,
+    own_pid: i32,
+    frontmost_pid: Option<i32>,
+    app_meta: &mut dyn FnMut(i32) -> AppMeta,
+) -> Option<WindowEntry> {
+    let windows = filter_windows(raw, region, own_pid, frontmost_pid, None, app_meta);
+    top_window(&WindowSnapshot { t: 0, windows }, mode).cloned()
 }
 
 /// Apps whose windows are macOS asking the user something, never what a capture is about:
@@ -535,7 +564,7 @@ pub fn snapshot(
     })
 }
 
-/// Background worker that logs windows and the cursor during a Screen-mode capture.
+/// Background worker that logs windows and the cursor during a Screen or Area capture.
 ///
 /// Snapshots are taken at the start, right after `request` is raised (click, ink or laser
 /// start), when the frontmost app changes, at most every 500 ms while the cursor moves, every
@@ -866,5 +895,95 @@ mod tests {
             settings[0].clone(),
         ];
         assert!(!macos_is_asking(&behind));
+    }
+
+    fn snap(windows: Vec<WindowEntry>) -> WindowSnapshot {
+        WindowSnapshot { t: 0, windows }
+    }
+
+    #[test]
+    fn the_top_window_is_the_frontmost_on_screen_and_the_first_regular_one_over_an_area() {
+        let mut menu_bar = entry(9, 0);
+        menu_bar.app = "Window Server".into();
+        menu_bar.layer = 24;
+        let mut agent = entry(8, 0);
+        agent.app = "Cua Driver".into();
+        agent.regular = false;
+        let mut front = entry(1, 0);
+        front.app = "Safari".into();
+        let mut behind = entry(2, 100);
+        behind.app = "Finder".into();
+        // Safari is the frontmost app but Finder's window is on top of the region.
+        front.frontmost = true;
+        let s = snap(vec![menu_bar, agent, behind.clone(), front.clone()]);
+        assert_eq!(
+            top_window(&s, CaptureMode::Display).map(|w| w.app.as_str()),
+            Some("Safari")
+        );
+        assert_eq!(
+            top_window(&s, CaptureMode::Region).map(|w| w.app.as_str()),
+            Some("Finder")
+        );
+        assert_eq!(top_window(&s, CaptureMode::Window), None);
+        assert_eq!(top_window(&s, CaptureMode::Device), None);
+        // Nothing marked frontmost (Annotator itself was in front): no app for that moment.
+        front.frontmost = false;
+        assert_eq!(
+            top_window(&snap(vec![behind, front]), CaptureMode::Display),
+            None
+        );
+        assert_eq!(top_window(&snap(Vec::new()), CaptureMode::Region), None);
+    }
+
+    #[test]
+    fn the_live_top_window_over_a_region_away_from_the_origin_uses_the_log_filters() {
+        let raw = |id, pid, owner: &str, bounds, layer, alpha| RawWindow {
+            id,
+            pid,
+            owner: owner.into(),
+            title: String::new(),
+            bounds,
+            layer,
+            alpha,
+        };
+        let region = TargetFrame {
+            x: 2000.0,
+            y: 600.0,
+            width: 400.0,
+            height: 300.0,
+            scale: 2.0,
+        };
+        let windows = [
+            raw(1, 7, "Annotator", [2000.0, 600.0, 400.0, 300.0], 0, 1.0), // our own
+            raw(2, 11, "Hidden", [2000.0, 600.0, 400.0, 300.0], 0, 0.0),
+            raw(3, 12, "Elsewhere", [0.0, 0.0, 800.0, 600.0], 0, 1.0),
+            raw(4, 13, "Overlay", [2000.0, 600.0, 400.0, 300.0], 0, 1.0), // an agent app
+            raw(5, 14, "T3 Code", [2100.0, 700.0, 900.0, 700.0], 0, 1.0),
+            raw(6, 15, "Safari", [1800.0, 500.0, 900.0, 700.0], 0, 1.0),
+        ];
+        let mut meta = |pid| AppMeta {
+            bundle_id: None,
+            regular: pid != 13,
+        };
+        let top = top_raw_window(
+            &windows,
+            region,
+            CaptureMode::Region,
+            7,
+            Some(15),
+            &mut meta,
+        )
+        .unwrap();
+        assert_eq!(top.app, "T3 Code");
+        assert_eq!(top.bounds, [100, 100, 900, 700], "in region points");
+        let front = top_raw_window(
+            &windows,
+            region,
+            CaptureMode::Display,
+            7,
+            Some(15),
+            &mut meta,
+        );
+        assert_eq!(front.map(|w| w.app), Some("Safari".to_owned()));
     }
 }
