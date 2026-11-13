@@ -194,24 +194,53 @@ func recordShortcut() {
   }
 }
 
-// A window of our own on the main display, so the clicks and drags touch nothing else.
+// A window of our own, so the clicks and drags touch nothing else.
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
 guard let screen = NSScreen.screens.first else { stop(2, "no display") }
-let size = CGSize(width: 640, height: 420)
 let window = NSWindow(
-  contentRect: CGRect(
-    x: screen.frame.midX - size.width / 2, y: screen.frame.midY - size.height / 2,
-    width: size.width, height: size.height),
+  contentRect: CGRect(x: 0, y: 0, width: 640, height: 420),
   styleMask: [.titled], backing: .buffered, defer: false)
 window.title = "Shift ink harness (closes by itself)"
 window.level = .floating
 window.isReleasedWhenClosed = false
 
-// Global (top-left origin) points inside the window.
-let left = Double(screen.frame.midX - size.width / 2) + 60
-let top = Double(screen.frame.height - (screen.frame.midY + size.height / 2)) + 80
+// Global (top-left origin) points inside the window, from where it really is (`showWindow`).
+var left = 0.0
+var top = 0.0
 func point(_ x: Double, _ y: Double) -> CGPoint { CGPoint(x: left + x, y: top + y) }
+
+/// Whether the window server's topmost window at a global point is this process's.
+func ownsPoint(_ at: CGPoint) -> Bool {
+  let list = CGWindowListCopyWindowInfo([.optionOnScreenOnly, .excludeDesktopElements], kCGNullWindowID)
+  for info in (list as? [[String: Any]]) ?? [] {
+    guard let bounds = info[kCGWindowBounds as String] as? [String: CGFloat],
+      let x = bounds["X"], let y = bounds["Y"], let w = bounds["Width"], let h = bounds["Height"],
+      CGRect(x: x, y: y, width: w, height: h).contains(at),
+      (info[kCGWindowAlpha as String] as? Double ?? 1) > 0
+    else { continue }
+    let owner = (info[kCGWindowOwnerPID as String] as? NSNumber)?.int32Value
+    // Annotator Dev's click-through ink overlay covers the display while it records.
+    let name = info[kCGWindowOwnerName as String] as? String ?? ""
+    if name.hasPrefix("Annotator") { continue }
+    return owner == ProcessInfo.processInfo.processIdentifier
+  }
+  return false
+}
+
+/// Shows the window in the middle of the main display and aims every test point inside it.
+func showWindow() {
+  window.setFrameOrigin(
+    CGPoint(x: screen.frame.midX - window.frame.width / 2, y: screen.frame.midY - window.frame.height / 2))
+  window.orderFrontRegardless()
+  RunLoop.current.run(until: Date().addingTimeInterval(0.4))
+  left = Double(window.frame.minX) + 60
+  top = Double(screen.frame.height - window.frame.maxY) + 80
+  // The corners of the area the scenarios use.
+  for corner in [point(0, 0), point(340, 0), point(0, 260), point(340, 260)] where !ownsPoint(corner) {
+    stop(2, "the harness window is not under \(corner); refusing to click on another app")
+  }
+}
 
 func play(_ name: String) {
   switch name {
@@ -296,8 +325,7 @@ func record() -> Outcome {
     stop(2, "the live Annotator is recording; the test's ⇧ would draw into it. Try again later")
   }
   guard !recording(devLog) else { stop(2, "Annotator Dev is already recording") }
-  window.orderFrontRegardless()
-  RunLoop.current.run(until: Date().addingTimeInterval(0.4))
+  showWindow()
   let pointerBefore = CGEvent(source: nil)?.location
   let before = bundles()
   let start = logSize(devLog)
