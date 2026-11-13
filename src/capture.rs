@@ -6,6 +6,8 @@ use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
 
+use crate::app_identity::Variant;
+
 use crate::model::{
     CaptureMode, InteractionEvent, RgbaFrame, SCALE, Stroke, TargetFrame, TargetInfo,
 };
@@ -208,19 +210,23 @@ impl ShortcutKind {
 }
 
 impl ShortcutConfig {
+    /// ⌥⇧S, or ⌃⌥S in Annotator Dev (`app_identity`).
     pub fn default_record() -> Self {
+        let modifiers = Variant::current().shortcut_modifiers();
         Self {
             key_code: u32::from(layout_s_keycode()),
-            carbon_modifiers: CARBON_OPTION_KEY | CARBON_SHIFT_KEY,
-            label: shortcut_label(CARBON_OPTION_KEY | CARBON_SHIFT_KEY, "S"),
+            carbon_modifiers: modifiers,
+            label: shortcut_label(modifiers, "S"),
         }
     }
 
+    /// ⌥⇧V, or ⌃⌥V in Annotator Dev.
     pub fn default_paste() -> Self {
+        let modifiers = Variant::current().shortcut_modifiers();
         Self {
             key_code: u32::from(layout_v_keycode()),
-            carbon_modifiers: CARBON_OPTION_KEY | CARBON_SHIFT_KEY,
-            label: shortcut_label(CARBON_OPTION_KEY | CARBON_SHIFT_KEY, "V"),
+            carbon_modifiers: modifiers,
+            label: shortcut_label(modifiers, "V"),
         }
     }
 
@@ -238,10 +244,14 @@ impl ShortcutConfig {
         self.label.is_empty()
     }
 
-    /// Whether this is `kind`'s default, which also answers to its aliases (⌃⌥⇧, ⌘⌥⇧, ⌃⌥⌘
-    /// and the ANSI key).
+    /// Whether this is `kind`'s default, which in the live app also answers to its aliases
+    /// (⌃⌥⇧, ⌘⌥⇧, ⌃⌥⌘ and the ANSI key).
     pub fn is_default_for(&self, kind: ShortcutKind) -> bool {
-        self.carbon_modifiers == CARBON_OPTION_KEY | CARBON_SHIFT_KEY
+        self.is_default_in(Variant::current(), kind)
+    }
+
+    fn is_default_in(&self, variant: Variant, kind: ShortcutKind) -> bool {
+        self.carbon_modifiers == variant.shortcut_modifiers()
             && shortcut_parts(&self.label).1 == kind.default_char().to_ascii_uppercase().to_string()
     }
 
@@ -424,7 +434,11 @@ pub fn shortcut_matches(
         return true;
     }
     let is_key = keycode == layout_code || keycode == kind.ansi_code();
-    cfg.is_default_for(kind) && is_key && alt && (shift || (ctrl && cmd))
+    Variant::current().shortcut_aliases()
+        && cfg.is_default_for(kind)
+        && is_key
+        && alt
+        && (shift || (ctrl && cmd))
 }
 
 /// The active layout's key for `kind`'s default letter (Windows' hooks and poller match on it).
@@ -436,11 +450,15 @@ pub fn layout_default_keycode(kind: ShortcutKind) -> u16 {
 /// The key codes and Carbon modifiers `cfg` registers: itself, plus for a default its aliases
 /// (⌃⌥⇧, ⌘⌥⇧, ⌃⌥⌘) on the active layout's key and the ANSI one.
 pub(crate) fn hotkey_combos(kind: ShortcutKind, cfg: &ShortcutConfig) -> Vec<(u32, u32)> {
+    hotkey_combos_in(Variant::current(), kind, cfg)
+}
+
+fn hotkey_combos_in(variant: Variant, kind: ShortcutKind, cfg: &ShortcutConfig) -> Vec<(u32, u32)> {
     if cfg.is_unset() {
         return Vec::new();
     }
     let mut combos = vec![(cfg.key_code, cfg.carbon_modifiers)];
-    if !cfg.is_default_for(kind) {
+    if !cfg.is_default_in(variant, kind) || !variant.shortcut_aliases() {
         return combos;
     }
     let mut codes = vec![cfg.key_code];
@@ -1688,6 +1706,36 @@ mod tests {
             "{x}, {y}"
         );
         assert_eq!(button.as_deref(), Some("left"));
+    }
+
+    #[test]
+    fn dev_defaults_register_none_of_the_live_apps_keys() {
+        let default_in = |variant: Variant, kind: ShortcutKind| {
+            let modifiers = variant.shortcut_modifiers();
+            let key = if kind == ShortcutKind::Record {
+                "S"
+            } else {
+                "V"
+            };
+            ShortcutConfig {
+                key_code: u32::from(kind.ansi_code()),
+                carbon_modifiers: modifiers,
+                label: shortcut_label(modifiers, key),
+            }
+        };
+        for kind in ShortcutKind::ALL {
+            let live = hotkey_combos_in(Variant::Live, kind, &default_in(Variant::Live, kind));
+            let dev = hotkey_combos_in(Variant::Dev, kind, &default_in(Variant::Dev, kind));
+            assert_eq!(dev.len(), 1, "{kind:?}: no aliases in Dev");
+            assert!(
+                !live.contains(&dev[0]),
+                "{kind:?}: {dev:?} is one of {live:?}"
+            );
+        }
+        if cfg!(target_os = "macos") {
+            assert_eq!(default_in(Variant::Dev, ShortcutKind::Record).label, "⌃⌥S");
+            assert_eq!(default_in(Variant::Dev, ShortcutKind::Paste).label, "⌃⌥V");
+        }
     }
 
     #[test]

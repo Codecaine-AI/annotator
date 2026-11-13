@@ -1,4 +1,5 @@
 mod agent_context;
+mod app_identity;
 mod audio;
 mod autocrop;
 // Windows looks elements up through UI Automation (`win/uia.rs`); other systems have no lookup.
@@ -590,13 +591,13 @@ enum Command {
         #[arg(long)]
         session: Option<String>,
         /// Ingest port used when discovering default Tailscale / LAN URLs.
-        #[arg(long, default_value_t = phone::DEFAULT_INGEST_PORT)]
+        #[arg(long, default_value_t = app_identity::Variant::current().ingest_port())]
         port: u16,
     },
     /// Run the headless ScrawlKit ingest server (HTTP + optional USB watcher, no GUI or clipboard).
     Serve {
         /// TCP port to listen on.
-        #[arg(long, default_value_t = phone::DEFAULT_INGEST_PORT)]
+        #[arg(long, default_value_t = app_identity::Variant::current().ingest_port())]
         port: u16,
         /// Also poll cabled iPhones over USB (`devicectl`) for apps listed in `usbApps`.
         #[arg(long)]

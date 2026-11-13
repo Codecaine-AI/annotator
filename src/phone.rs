@@ -1058,8 +1058,6 @@ pub fn import(
     )
 }
 
-pub const DEFAULT_INGEST_PORT: u16 = 47777;
-
 pub type IngestCallback = Arc<dyn Fn(PathBuf, ScrawlBundle, Option<String>) + Send + Sync>;
 
 #[derive(Clone, Default)]
@@ -1268,7 +1266,10 @@ pub fn start_ingest_server(ui_sender: flume::Sender<LiveOverlayEvent>) {
     let _ = std::thread::Builder::new()
         .name("scrawl-ingest-http".into())
         .spawn(move || {
-            if let Err(err) = serve_http(DEFAULT_INGEST_PORT, http_cfg) {
+            if let Err(err) = serve_http(
+                crate::app_identity::Variant::current().ingest_port(),
+                http_cfg,
+            ) {
                 scrawl_log(format!("ingest server: {err:#}"));
             }
         });

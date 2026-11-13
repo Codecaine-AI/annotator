@@ -289,7 +289,8 @@ pub(super) fn tune_path() -> Option<PathBuf> {
     if let Some(path) = std::env::var_os("SCRAWL_TUNE") {
         return Some(PathBuf::from(path));
     }
-    dirs::home_dir().map(|home| home.join(".config/scrawl/tune.json"))
+    dirs::home_dir()
+        .map(|home| crate::app_identity::Variant::current().config_file(&home, "tune.json"))
 }
 
 struct TuneState {

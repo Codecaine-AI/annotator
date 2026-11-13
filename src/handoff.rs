@@ -63,7 +63,8 @@ pub fn configured_captures_dir(value: &str) -> Option<PathBuf> {
     }
 }
 
-/// `~/Library/Application Support/scrawl/captures` on macOS, `%LOCALAPPDATA%\scrawl\captures`
+/// `~/Library/Application Support/scrawl/captures` on macOS (`scrawl-dev` in Annotator Dev,
+/// `app_identity`), `%LOCALAPPDATA%\scrawl\captures`
 /// on Windows (local, not roaming: the movies are large).
 pub fn builtin_captures_dir() -> PathBuf {
     if cfg!(target_os = "windows") {
@@ -72,9 +73,8 @@ pub fn builtin_captures_dir() -> PathBuf {
             .join("scrawl")
             .join("captures")
     } else {
-        dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("Library/Application Support/scrawl/captures")
+        crate::app_identity::Variant::current()
+            .captures_dir(&dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")))
     }
 }
 
@@ -604,9 +604,10 @@ pub fn default_config_path() -> PathBuf {
     std::env::var_os("SCRAWL_CONFIG")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
-            dirs::home_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join(".config/scrawl/config.json")
+            crate::app_identity::Variant::current().config_file(
+                &dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")),
+                "config.json",
+            )
         })
 }
 
