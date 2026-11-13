@@ -1,5 +1,6 @@
 mod agent_context;
 mod app_identity;
+mod appshot;
 mod audio;
 mod autocrop;
 // Windows looks elements up through UI Automation (`win/uia.rs`); other systems have no lookup.
@@ -812,6 +813,9 @@ pub struct SourceExtras {
     pub full_frames: Option<FullFrames>,
     pub prepared: Option<PreparedVisuals>,
     pub timings: StageTimings,
+    /// The capture's app shots (`appshot`): the walker's spool, or an older bundle's
+    /// `appshots/` when it is rebuilt. Each keyframe gets its shot before the summary is made.
+    pub appshots: Option<appshot::Shots>,
 }
 
 /// Decodes frames at these times at full quality.
@@ -893,6 +897,7 @@ pub fn finalize_capture_bundle(
     recorded_audio: Option<RecordedAudio>,
     note: Option<String>,
     activity: windows::ActivityLog,
+    appshots: Option<appshot::Shots>,
 ) -> Result<(PathBuf, ScrawlBundle, String)> {
     // Before anything is written (`recover.json` holds the target too).
     let mut target = target;
@@ -1003,6 +1008,7 @@ pub fn finalize_capture_bundle(
         note,
         SourceExtras {
             activity,
+            appshots,
             video_offset_ms,
             autocrop: Some(crop_settings),
             full_frames: video_path
@@ -1024,9 +1030,14 @@ pub fn finalize_capture_bundle(
 }
 
 /// Builds a Screen capture's bundle in `out`, which holds its video and `audio.wav`, from them
-/// and what the recording logged: `scrawl reprocess` and `scrawl recover`.
-pub fn rebuild_screen_bundle(out: &Path, old: recover::Unfinished) -> Result<String> {
-    rebuild_screen_bundle_with(out, old, None, &recover::Media::SYSTEM)
+/// and what the recording logged: `scrawl reprocess` and `scrawl recover`. `appshots` are the
+/// older bundle's app shots (`scrawl reprocess`), which the new keyframes are matched to.
+pub fn rebuild_screen_bundle(
+    out: &Path,
+    old: recover::Unfinished,
+    appshots: Option<appshot::Shots>,
+) -> Result<String> {
+    rebuild_screen_bundle_with(out, old, None, appshots, &recover::Media::SYSTEM)
 }
 
 /// `autocrop` as in `SourceExtras`: `None` follows the config, `Some(None)` keeps the whole frame.
@@ -1034,6 +1045,7 @@ pub fn rebuild_screen_bundle_with(
     out: &Path,
     old: recover::Unfinished,
     autocrop: Option<Option<autocrop::Settings>>,
+    appshots: Option<appshot::Shots>,
     media: &recover::Media,
 ) -> Result<String> {
     let started_at = std::time::Instant::now();
@@ -1088,6 +1100,7 @@ pub fn rebuild_screen_bundle_with(
             full_frames,
             video_offset_ms: offset,
             autocrop,
+            appshots,
             timings: StageTimings {
                 started_at: Some(started_at),
                 candidates_ms: Some(candidates_ms),
@@ -1287,7 +1300,8 @@ pub fn build_bundle_from_parts(
         .exists()
         .then(|| "audio.wav".to_string());
 
-    let bundle = ScrawlBundle {
+    let appshots = extras.appshots.take();
+    let mut bundle = ScrawlBundle {
         version: 1,
         id,
         created_at_ms: now_epoch_ms(),
@@ -1313,6 +1327,12 @@ pub fn build_bundle_from_parts(
         autocrop,
         destination: None,
     };
+    // App shots go into `appshots/` and onto their keyframes before the summary names them.
+    if let Some(shots) = appshots
+        && let Err(error) = shots.store(bundle_dir, &mut bundle)
+    {
+        capture::scrawl_log(format!("App shots could not be stored: {error:#}"));
+    }
     let summary = summary_markdown(&bundle, bundle_dir);
 
     match output {
@@ -1695,8 +1715,10 @@ fn main() -> Result<()> {
                 .then(|| {
                     windows::WindowLogger::start(
                         target.frame,
+                        target.mode,
                         std::time::Instant::now(),
                         std::sync::Arc::default(),
+                        None,
                     )
                 });
             std::thread::sleep(Duration::from_secs(duration.max(1)));
@@ -1715,6 +1737,7 @@ fn main() -> Result<()> {
                 recorded_audio,
                 note,
                 activity,
+                None,
             )?;
             print!("{summary}");
             Ok(())
@@ -1897,6 +1920,7 @@ fn main() -> Result<()> {
                             recorded,
                             iter_note,
                             iter_activity,
+                            None,
                         )?;
                         let _ = handoff::copy_bundle_to_clipboard(&iter_out);
                         runs_ms.push(t0.elapsed().as_secs_f64() * 1_000.0);
@@ -1926,6 +1950,8 @@ fn main() -> Result<()> {
             if timeline_src.is_file() {
                 let _ = std::fs::copy(&timeline_src, out.join("timeline.json"));
             }
+            // The older bundle's app shots go with it: the new keyframes are matched to them.
+            let appshots = appshot::Shots::load(&dir);
             let summary = if let Some(device) = old.device.clone() {
                 phone::build_movie_bundle(
                     &out,
@@ -1967,6 +1993,7 @@ fn main() -> Result<()> {
                         windows: old.windows,
                         cursor: old.cursor,
                     },
+                    appshots,
                 )?
             };
             print!("{summary}");
@@ -2514,6 +2541,7 @@ mod tests {
             said: None,
             mark_id: None,
             cursor: None,
+            appshot: None,
         };
         let small = |t: u64| RgbaFrame::new(t, 32, 32, vec![10; 32 * 32 * 4]);
         let large = |t: u64| RgbaFrame::new(t, 160, 160, vec![200; 160 * 160 * 4]);

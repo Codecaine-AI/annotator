@@ -1313,9 +1313,9 @@ impl SharedCaptureTelemetry {
             && screen_y <= frame.y + frame.height
     }
 
-    /// Whether to look up what clicks and strokes land on: app state is on, the target is
-    /// this Mac's screen (not the iPhone mirror) and Accessibility is granted.
-    fn probing(&self) -> bool {
+    /// Whether to look up what clicks and strokes land on, and to take app shots: app state is
+    /// on, the target is this Mac's screen (not the iPhone mirror) and Accessibility is granted.
+    pub fn probing(&self) -> bool {
         self.agent_context.load(Ordering::Acquire)
             && self.capture_mode.load(Ordering::Acquire) != 3
             && accessibility_granted()
@@ -1346,6 +1346,10 @@ impl SharedCaptureTelemetry {
             Some((t_ms, nx, ny, None, start_frame));
         if self.probing() {
             crate::ax::Prober::shared().probe(crate::ax::Target::Pointer(t_ms), screen_x, screen_y);
+            // The click changes the window: an app shot once it has settled.
+            if let Some(walker) = crate::appshot::walker() {
+                walker.request(crate::appshot::SETTLE);
+            }
         }
     }
 
@@ -1483,6 +1487,10 @@ impl SharedCaptureTelemetry {
                 .unwrap_or_else(std::sync::PoisonError::into_inner);
             if let Some((x, y)) = crate::ax::stroke_probe_point(&stroke, frame) {
                 crate::ax::Prober::shared().probe(crate::ax::Target::Stroke(stroke.t0), x, y);
+            }
+            // An app shot of what the mark is on.
+            if let Some(walker) = crate::appshot::walker() {
+                walker.request(crate::appshot::SETTLE);
             }
         }
         self.strokes

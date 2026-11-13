@@ -1825,6 +1825,7 @@ mod tests {
             said: Some("When I click Used 12 tools…".into()),
             mark_id: None,
             cursor: None,
+            appshot: None,
         }
     }
 

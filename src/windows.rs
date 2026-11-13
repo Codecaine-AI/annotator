@@ -224,7 +224,7 @@ pub fn top_window(snapshot: &WindowSnapshot, mode: CaptureMode) -> Option<&Windo
 /// `top_window` for a live window list (`raw_windows()`, front to back): the same filters as the
 /// window log (`filter_windows`: own windows, invisible and tiny ones, layers, `app_meta`), then
 /// the same rule, over `region` (global points).
-#[cfg_attr(not(test), allow(dead_code))] // App shots read the live top window; the log doesn't.
+#[cfg_attr(not(any(test, target_os = "macos")), allow(dead_code))] // App shots are macOS only.
 pub fn top_raw_window(
     raw: &[RawWindow],
     region: TargetFrame,
@@ -235,6 +235,12 @@ pub fn top_raw_window(
 ) -> Option<WindowEntry> {
     let windows = filter_windows(raw, region, own_pid, frontmost_pid, None, app_meta);
     top_window(&WindowSnapshot { t: 0, windows }, mode).cloned()
+}
+
+/// What an app shot is taken of at one moment: the capture's top window and its title. When
+/// this changes, the window log asks for a new shot (`crate::appshot`).
+pub fn top_key(snapshot: &WindowSnapshot, mode: CaptureMode) -> Option<(u32, String)> {
+    top_window(snapshot, mode).map(|w| (w.id, w.title.clone()))
 }
 
 /// Apps whose windows are macOS asking the user something, never what a capture is about:
@@ -575,15 +581,35 @@ pub struct WindowLogger {
     worker: Option<JoinHandle<ActivityLog>>,
 }
 
+/// Called when the capture's top window or its title changes (`top_key`): app shots ask for a
+/// shot of the new one.
+pub type TopChanged = Box<dyn Fn() + Send>;
+
 impl WindowLogger {
     /// Call on the main thread, so the Dock's strip can be read from `NSScreen`.
-    pub fn start(frame: TargetFrame, started_at: Instant, request: Arc<AtomicBool>) -> Self {
+    pub fn start(
+        frame: TargetFrame,
+        mode: CaptureMode,
+        started_at: Instant,
+        request: Arc<AtomicBool>,
+        top_changed: Option<TopChanged>,
+    ) -> Self {
         let stopping = Arc::new(AtomicBool::new(false));
         let stop = Arc::clone(&stopping);
         let dock = dock_rect(frame);
         let worker = thread::Builder::new()
             .name("scrawl-window-log".into())
-            .spawn(move || run(frame, dock, started_at, &request, &stop))
+            .spawn(move || {
+                run(
+                    frame,
+                    mode,
+                    dock,
+                    started_at,
+                    &request,
+                    &stop,
+                    top_changed.as_deref(),
+                )
+            })
             .ok();
         Self { stopping, worker }
     }
@@ -622,12 +648,15 @@ impl Drop for WindowLogger {
 
 fn run(
     frame: TargetFrame,
+    mode: CaptureMode,
     dock: Option<[f64; 4]>,
     started_at: Instant,
     request: &AtomicBool,
     stopping: &AtomicBool,
+    top_changed: Option<&(dyn Fn() + Send)>,
 ) -> ActivityLog {
     let mut log = ActivityLog::default();
+    let mut last_top = None;
     let mut cache = HashMap::new();
     let mut last_snapshot: Option<Instant> = None;
     let mut last_front = None;
@@ -657,6 +686,13 @@ fn run(
                 || since.is_some_and(|s| s >= IDLE_INTERVAL));
         if due {
             take(&mut log, t);
+            let top = log.windows.last().and_then(|last| top_key(last, mode));
+            if top != last_top {
+                last_top = top;
+                if let Some(changed) = top_changed {
+                    changed();
+                }
+            }
             last_snapshot = Some(Instant::now());
             last_front = front;
             cursor_at_snapshot = cursor;
@@ -773,6 +809,38 @@ mod tests {
     }
 
     #[test]
+    fn appshot_trigger_key_changes_with_the_top_window_or_its_title() {
+        let snapshot = |windows: Vec<WindowEntry>| WindowSnapshot { t: 0, windows };
+        let titled = |id, title: &str| WindowEntry {
+            title: title.into(),
+            ..entry(id, 0)
+        };
+        let base = top_key(&snapshot(vec![titled(1, "Inbox"), titled(2, "Notes")]), CaptureMode::Display);
+        assert_eq!(base, Some((1, "Inbox".into())));
+        // The same window moved, or another window behind it changed: no new shot.
+        let mut moved = titled(1, "Inbox");
+        moved.bounds = [50, 50, 400, 300];
+        assert_eq!(
+            top_key(&snapshot(vec![moved, titled(2, "Other")]), CaptureMode::Display),
+            base
+        );
+        // A new title (another tab or document), or another window in front: a new shot.
+        assert_ne!(
+            top_key(&snapshot(vec![titled(1, "Sent"), titled(2, "Notes")]), CaptureMode::Display),
+            base
+        );
+        let mut front = titled(2, "Notes");
+        front.frontmost = true;
+        let mut back = titled(1, "Inbox");
+        back.frontmost = false;
+        assert_eq!(
+            top_key(&snapshot(vec![front, back]), CaptureMode::Display),
+            Some((2, "Notes".into()))
+        );
+        assert_eq!(top_key(&snapshot(Vec::new()), CaptureMode::Display), None);
+    }
+
+    #[test]
     fn window_snapshots_are_stored_only_when_the_list_changes() {
         let mut log = ActivityLog::default();
         assert!(log.push_windows(0, vec![entry(1, 0), entry(2, 100)]));
@@ -793,7 +861,13 @@ mod tests {
     #[test]
     fn logger_snapshots_at_start_and_right_after_a_request() {
         let request = Arc::new(AtomicBool::new(false));
-        let logger = WindowLogger::start(frame(), Instant::now(), Arc::clone(&request));
+        let logger = WindowLogger::start(
+            frame(),
+            CaptureMode::Display,
+            Instant::now(),
+            Arc::clone(&request),
+            None,
+        );
         request.store(true, Ordering::Release);
         // A slow window list (a loaded CI runner) can hold the worker for a while, so wait for
         // the request to be taken instead of sleeping a fixed time. Once it's taken, the snapshot

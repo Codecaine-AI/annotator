@@ -217,8 +217,20 @@ impl Tree for MacTree {
     }
 
     fn children(&self, element: &Owned) -> Vec<Owned> {
+        self.elements(element, "AXChildren")
+    }
+
+    fn key(&self, element: &Owned) -> u64 {
+        unsafe { core_foundation::base::CFHash(element.0) as u64 }
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl MacTree {
+    /// The elements of a list attribute (`AXChildren`, `AXWindows`).
+    pub(crate) fn elements(&self, element: &Owned, name: &'static str) -> Vec<Owned> {
         use core_foundation::array::{CFArray, CFArrayRef};
-        let Some(value) = attribute(element.0, "AXChildren") else {
+        let Some(value) = attribute(element.0, name) else {
             return Vec::new();
         };
         if unsafe { core_foundation::base::CFGetTypeID(value.0) } != CFArray::<CFType>::type_id() {
@@ -235,10 +247,6 @@ impl Tree for MacTree {
                 self.adopt(Owned(child))
             })
             .collect()
-    }
-
-    fn key(&self, element: &Owned) -> u64 {
-        unsafe { core_foundation::base::CFHash(element.0) as u64 }
     }
 }
 
@@ -291,23 +299,6 @@ pub fn hit_test(x: f64, y: f64) -> Option<Hit> {
     )
 }
 
-/// `AXStaticText` → `static text`: a role's name when the app gives no description of it.
-#[cfg_attr(not(any(target_os = "macos", test)), allow(dead_code))]
-pub(crate) fn role_name(role: &str) -> String {
-    let mut name = String::new();
-    for c in role.strip_prefix("AX").unwrap_or(role).chars() {
-        if c.is_uppercase() && !name.is_empty() {
-            name.push(' ');
-        }
-        name.extend(c.to_lowercase());
-    }
-    if name.is_empty() {
-        "element".into()
-    } else {
-        name
-    }
-}
-
 /// What `element` is, as it may be kept (`crate::privacy`). `bundle_id` is its app's. `over`
 /// says the lookup's time is up: it then returns what it has.
 ///
@@ -341,7 +332,7 @@ pub(crate) fn lookup<T: Tree>(
         }
     }
     let role_only = |role: &str| Hit {
-        role: role_name(role),
+        role: crate::appshot::role_name(role),
         ..Hit::default()
     };
     let (_, first_role, _) = chain.first()?;
@@ -368,7 +359,7 @@ pub(crate) fn lookup<T: Tree>(
         role: tree
             .string(element, "AXRoleDescription")
             .and_then(|s| clip(&s))
-            .unwrap_or_else(|| role_name(role)),
+            .unwrap_or_else(|| crate::appshot::role_name(role)),
         ..Hit::default()
     };
     hit.label = node

@@ -851,6 +851,7 @@ mod tests {
             said: (!said.is_empty()).then(|| said.into()),
             mark_id: None,
             cursor: None,
+            appshot: None,
         }
     }
 

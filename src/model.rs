@@ -612,6 +612,9 @@ pub struct Keyframe {
     pub mark_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub cursor: Option<[f32; 2]>,
+    /// The app shot of the window this keyframe shows: a file in `appshots/` (`crate::appshot`).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub appshot: Option<String>,
 }
 
 /// Raw RGBA8 frame buffer in memory used for candidate selection and compositing.

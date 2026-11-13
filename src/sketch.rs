@@ -2161,6 +2161,7 @@ mod tests {
                 said: Some("This row is too dense.".into()),
                 mark_id: Some("m1".into()),
                 cursor: None,
+                appshot: None,
             }],
             contact_sheet: "contact.png".into(),
             video: None,
@@ -2233,6 +2234,7 @@ mod tests {
             said: None,
             mark_id: Some("f1".into()),
             cursor: None,
+            appshot: None,
         });
         phone.events = vec![
             InteractionEvent::AppEvent {
@@ -2289,6 +2291,7 @@ mod tests {
             said: Some("And then I scroll up.".into()),
             mark_id: None,
             cursor: Some([0.50, 0.20]),
+            appshot: None,
         });
         let summary_with_action =
             summary_markdown(&phone, std::path::Path::new("/recordings/phone"));
@@ -2318,6 +2321,7 @@ mod tests {
             said: said.map(str::to_owned),
             mark_id: None,
             cursor: None,
+            appshot: None,
         };
         bundle.keyframes = vec![
             keyframe(

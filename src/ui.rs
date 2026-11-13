@@ -689,6 +689,10 @@ impl ActiveRecording {
         } else {
             telemetry.resume_input();
         }
+        // No app shot is taken while paused; resuming takes one at once.
+        if let Some(walker) = crate::appshot::walker() {
+            walker.set_paused(paused);
+        }
         if let CaptureSource::Screen { session, .. } = &self.source {
             session.set_paused(paused);
             if !paused {
@@ -1455,6 +1459,10 @@ impl ScrawlCoordinator {
     fn discard_recording(&mut self) -> Option<(TargetInfo, Option<LaserOverlay>)> {
         let rec = self.active_recording.take()?;
         let _ = self.telemetry.finish_session();
+        // The app-shot walk in flight is dropped at once; its spool goes with the bundle below.
+        if let Some(walker) = crate::appshot::walker() {
+            walker.cancel();
+        }
         match rec.source {
             CaptureSource::Screen { session, audio, .. } => {
                 let _ = session.stop();
@@ -2718,17 +2726,34 @@ impl ScrawlCoordinator {
             Arc::clone(&self.telemetry.excluded_window_ids),
         );
         start_metric("sck_start_ms", stage);
+        let started_at = *self
+            .telemetry
+            .started_at
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // App shots (`crate::appshot`): the first one now, on the clock the window log uses.
+        let app_shots = crate::appshot::walker().filter(|_| self.telemetry.probing());
+        if let Some(walker) = app_shots {
+            walker.begin(crate::appshot::Session {
+                mode: target.mode,
+                window_id: target.window_id,
+                region: target.frame,
+                started_at,
+                bundle_dir: bundle_dir.clone(),
+            });
+        }
         let window_log =
             matches!(target.mode, CaptureMode::Display | CaptureMode::Region).then(|| {
-                let started_at = *self
-                    .telemetry
-                    .started_at
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
                 crate::windows::WindowLogger::start(
                     target.frame,
+                    target.mode,
                     started_at,
                     Arc::clone(&self.telemetry.window_log_request),
+                    // Another top window, or a new title on it, is a new app shot.
+                    app_shots.map(|walker| {
+                        Box::new(move || walker.request(Duration::ZERO))
+                            as crate::windows::TopChanged
+                    }),
                 )
             });
         self.active_recording = Some(ActiveRecording {
@@ -3045,9 +3070,15 @@ impl ScrawlCoordinator {
                     });
                     activity.stop_started = Some(stop_started);
                     activity.stop_ms = Some(stop_started.elapsed().as_millis() as u64);
+                    // After the sampler and the window log stopped, so nothing asks for another
+                    // app shot: waits at most 400 ms for the walk in flight.
+                    let mut shots = crate::appshot::walker().and_then(|walker| walker.finish());
                     if !cuts.is_empty() {
                         recording.cut(&cuts.on_clock_from(frames_clock_ms));
                         activity.cut(&cuts);
+                        if let Some(shots) = &mut shots {
+                            shots.cut(&cuts);
+                        }
                         recorded_audio = recorded_audio.and_then(|audio| {
                             audio
                                 .cut(&cuts)
@@ -3067,6 +3098,7 @@ impl ScrawlCoordinator {
                         recorded_audio,
                         None,
                         activity,
+                        shots,
                     );
                     (finalized, duration_ms)
                 })
@@ -5921,6 +5953,8 @@ pub fn run_app(
         start_global_input_tap(Arc::clone(&telemetry));
         platform::start_updates();
         crate::retention::start();
+        // Nothing records yet: app-shot spools of captures that never finished go.
+        crate::appshot::sweep_spools(&crate::handoff::default_captures_dir());
         crate::recover::start();
         crate::hex::watch();
         crate::speech_model::ensure();

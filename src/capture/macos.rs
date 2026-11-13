@@ -1051,6 +1051,8 @@ pub(super) fn run_sampler(sampler: Sampler) -> Option<PathBuf> {
     let mut phase = 0_u32;
     let mut last_excluded = initial_excluded.clone();
     let mut prompts = SystemPrompts::new(&sampler_target);
+    // The last candidate's thumbnail, to tell app shots when the picture changes.
+    let mut last_thumbnail: Option<crate::keyframes::Thumbnail> = None;
     while !thread_stopping.load(Ordering::Acquire) {
         let mut cur_excluded = excluded_window_ids
             .lock()
@@ -1104,6 +1106,18 @@ pub(super) fn run_sampler(sampler: Sampler) -> Option<PathBuf> {
             } else {
                 crate::render::render_synthetic_demo_frame(1280, 800, t_ms, phase)
             };
+            // A picture that changed as much as a scene keyframe needs asks for an app shot
+            // (the walker takes one at most every 2 s).
+            if let Some(walker) = crate::appshot::walker().filter(|walker| walker.is_live()) {
+                let thumbnail = crate::keyframes::Thumbnail::of(&frame);
+                if last_thumbnail
+                    .as_ref()
+                    .is_some_and(|last| last.is_scene_change(&thumbnail))
+                {
+                    walker.scene();
+                }
+                last_thumbnail = Some(thumbnail);
+            }
             thread_frames
                 .lock()
                 .unwrap_or_else(std::sync::PoisonError::into_inner)
