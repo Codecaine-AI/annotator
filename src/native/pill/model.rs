@@ -454,6 +454,14 @@ impl ElemId {
     }
 }
 
+/// The keys the recording capsule shows after Cancel and Finish (`esc`, `⌥⇧S`), as Settings ›
+/// Shortcuts has them; an empty one shows no key.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Keys {
+    pub cancel: String,
+    pub finish: String,
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Pres {
     Hidden,
@@ -462,6 +470,7 @@ pub enum Pres {
         has_iphone: bool,
         /// The waveform and the words' row (`live_audio`).
         live: Rows,
+        keys: Keys,
     },
     Selecting {
         mode: SelectionMode,
@@ -486,13 +495,15 @@ impl Pres {
                     chips: a,
                     has_iphone: ia,
                     live: la,
+                    keys: ka,
                 },
                 Self::Recording {
                     chips: b,
                     has_iphone: ib,
                     live: lb,
+                    keys: kb,
                 },
-            ) => a == b && (ia == ib || !*a) && la == lb,
+            ) => a == b && (ia == ib || !*a) && la == lb && ka == kb,
             (
                 Self::Selecting {
                     mode: ma,
@@ -619,11 +630,14 @@ impl Layout {
     }
 }
 
-/// Widths of the Completed island's changing labels, measured as their sprites are drawn.
+/// Widths of the changing labels (the Completed island's, and the recording capsule's keys),
+/// measured as their sprites are drawn.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LabelWidths {
     pub completed: f32,
     pub routes: [f32; 2],
+    /// The keys after Cancel and Finish (`Keys`); 0 shows none.
+    pub keys: [f32; 2],
 }
 
 impl Default for LabelWidths {
@@ -631,8 +645,17 @@ impl Default for LabelWidths {
         Self {
             completed: 46.0,
             routes: [0.0; 2],
+            keys: [0.0; 2],
         }
     }
+}
+
+/// The gap between a chip's label and its key.
+pub const KEY_GAP: f32 = 6.0;
+
+/// How much a key of width `w` widens its chip.
+pub fn key_extra(w: f32) -> f32 {
+    if w > 0.0 { KEY_GAP + w } else { 0.0 }
 }
 
 /// Computes the resting capsule bounds and item boxes for `pres`.
@@ -675,6 +698,7 @@ pub fn layout_of(
             chips,
             has_iphone,
             live,
+            ..
         } => {
             let clock_w = m.clock_width(clock);
             let lead_w = CHIP_H + clock_w + LEAD_TRAIL;
@@ -698,14 +722,14 @@ pub fn layout_of(
             } else {
                 raw.push((
                     ElemId::Cancel,
-                    Metrics::chip_width(m.cancel),
+                    Metrics::chip_width(m.cancel + key_extra(labels.keys[0])),
                     CHIP_CORE_ROUND,
                     0.0,
                     true,
                 ));
                 raw.push((
                     ElemId::Finish,
-                    Metrics::chip_width(m.finish),
+                    Metrics::chip_width(m.finish + key_extra(labels.keys[1])),
                     CHIP_CORE_ROUND,
                     0.0,
                     true,
@@ -1155,9 +1179,13 @@ impl PillModel {
     /// changed and the layout follows them now; otherwise `set_pres` lays it out.
     pub fn set_label_widths(&mut self, labels: LabelWidths, next: &Pres) {
         let changed = (self.labels.completed - labels.completed).abs() > 0.5
-            || (0..2).any(|i| (self.labels.routes[i] - labels.routes[i]).abs() > 0.5);
+            || (0..2).any(|i| (self.labels.routes[i] - labels.routes[i]).abs() > 0.5)
+            || (0..2).any(|i| (self.labels.keys[i] - labels.keys[i]).abs() > 0.5);
         self.labels = labels;
-        if changed && self.pres == *next && matches!(next, Pres::Completed { .. }) {
+        if changed
+            && self.pres == *next
+            && matches!(next, Pres::Completed { .. } | Pres::Recording { .. })
+        {
             self.apply_geometry();
         }
     }
@@ -1768,6 +1796,7 @@ mod tests {
                         chips: true,
                         has_iphone: false,
                         live: Rows::default(),
+                        keys: Default::default(),
                     },
                 ),
                 (
@@ -1787,6 +1816,7 @@ mod tests {
                         chips: true,
                         has_iphone: false,
                         live: Rows::default(),
+                        keys: Default::default(),
                     },
                 ),
                 (
@@ -1806,6 +1836,7 @@ mod tests {
                         chips: true,
                         has_iphone: false,
                         live: Rows::default(),
+                        keys: Default::default(),
                     },
                 ),
                 (
@@ -1814,6 +1845,7 @@ mod tests {
                         chips: false,
                         has_iphone: false,
                         live: Rows::default(),
+                        keys: Default::default(),
                     },
                 ),
                 (2.4, Pres::Hidden),
@@ -1847,6 +1879,7 @@ mod tests {
                         chips: false,
                         has_iphone: false,
                         live: Rows::default(),
+                        keys: Default::default(),
                     },
                 ),
                 (3.9, Pres::Hidden),
@@ -1859,6 +1892,7 @@ mod tests {
                         chips: true,
                         has_iphone: false,
                         live: Rows::default(),
+                        keys: Default::default(),
                     },
                 ),
                 (
@@ -1867,6 +1901,7 @@ mod tests {
                         chips: false,
                         has_iphone: false,
                         live: Rows::default(),
+                        keys: Default::default(),
                     },
                 ),
                 (2.0, Pres::Processing),
@@ -1911,6 +1946,7 @@ mod tests {
             chips: true,
             has_iphone: false,
             live: Rows::default(),
+            keys: Default::default(),
         });
         for _ in 0..8 {
             m.advance(FRAME_DT);
@@ -1943,11 +1979,13 @@ mod tests {
                 chips: true,
                 has_iphone: false,
                 live: Rows::default(),
+                keys: Default::default(),
             },
             Pres::Recording {
                 chips: false,
                 has_iphone: false,
                 live: Rows::default(),
+                keys: Default::default(),
             },
             Pres::Selecting {
                 mode: SelectionMode::Area,
@@ -2012,6 +2050,7 @@ mod tests {
             chips: true,
             has_iphone: false,
             live: Rows::default(),
+            keys: Default::default(),
         });
         let mut saw_sharp_before_opaque = false;
         for _ in 0..120 {
@@ -2032,6 +2071,7 @@ mod tests {
             chips: false,
             has_iphone: false,
             live: Rows::default(),
+            keys: Default::default(),
         });
         let mut peak_travel_blur = 0.0_f32;
         for _ in 0..120 {
@@ -2062,6 +2102,7 @@ mod tests {
             chips: true,
             has_iphone: false,
             live: Rows::default(),
+            keys: Default::default(),
         });
         let target_w = m.r.target - m.l.target;
         m.advance(FRAME_DT);
@@ -2142,6 +2183,7 @@ mod tests {
             chips: true,
             has_iphone: false,
             live: Rows::default(),
+            keys: Default::default(),
         });
         let target_w = m.r.target - m.l.target;
         let mut first: Vec<(ElemId, f32)> = Vec::new();
@@ -2176,6 +2218,7 @@ mod tests {
             chips: false,
             has_iphone: false,
             live: Rows::default(),
+            keys: Default::default(),
         };
         let (layout, items) = layout_of(&pres, "0:00", LabelWidths::default(), &Metrics::default());
         let ids: Vec<ElemId> = items.iter().map(|i| i.id).collect();
@@ -2198,6 +2241,7 @@ mod tests {
             chips: false,
             has_iphone: false,
             live: Rows { wave, caption },
+            keys: Default::default(),
         };
         let m = Metrics::default();
         let (plain, plain_items) =
@@ -2246,6 +2290,7 @@ mod tests {
                 wave: true,
                 caption,
             },
+            keys: Keys::default(),
         };
         m.set_pres(live(false));
         for _ in 0..90 {
@@ -2293,6 +2338,7 @@ mod tests {
             chips: true,
             has_iphone: false,
             live: Rows::default(),
+            keys: Default::default(),
         });
         for _ in 0..60 {
             m.advance(FRAME_DT);
@@ -2315,5 +2361,32 @@ mod tests {
             m.advance(FRAME_DT);
         }
         assert!(m.frame().ghost.is_none());
+    }
+
+    /// The keys after Cancel and Finish widen those chips by the key and a gap, and no key
+    /// leaves them as they were.
+    #[test]
+    fn the_recording_capsule_makes_room_for_the_current_keys() {
+        let pres = Pres::Recording {
+            chips: false,
+            has_iphone: false,
+            live: Rows::default(),
+            keys: Keys {
+                cancel: "esc".into(),
+                finish: "⌥⇧S".into(),
+            },
+        };
+        let m = Metrics::default();
+        let width = |labels: LabelWidths, id: ElemId| {
+            let (_, items) = layout_of(&pres, "0:00", labels, &m);
+            items.iter().find(|i| i.id == id).unwrap().rect[2]
+        };
+        let bare = LabelWidths::default();
+        let keyed = LabelWidths {
+            keys: [20.0, 30.0],
+            ..bare
+        };
+        assert!((width(keyed, ElemId::Cancel) - width(bare, ElemId::Cancel) - (KEY_GAP + 20.0)).abs() < 0.01);
+        assert!((width(keyed, ElemId::Finish) - width(bare, ElemId::Finish) - (KEY_GAP + 30.0)).abs() < 0.01);
     }
 }

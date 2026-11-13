@@ -66,4 +66,6 @@ pub struct PillSnapshot {
     pub clock: String,
     pub reduced_motion: bool,
     pub style: PillStyle,
+    /// The cancel key's code (Settings › Shortcuts): pressed on the pill, it cancels.
+    pub cancel_key: u16,
 }

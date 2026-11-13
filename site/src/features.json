@@ -632,6 +632,19 @@
       "docs": ["README.md#settings"]
     },
     {
+      "id": "shortcuts-pane",
+      "group": "settings",
+      "name": "Shortcuts pane",
+      "says": "Settings › Shortcuts sets Record, Paste, Undo stroke, the draw modifier and the cancel key. Each works on the next recording, a key another row uses is refused with that row named, and the capsule shows the current keys.",
+      "status": "branch:cp4-shortcuts",
+      "platforms": ["mac"],
+      "added": "2026-11-13",
+      "note": "Windows keeps Record, Paste and Undo in General. Its draw modifier and cancel key follow the config but have no menu yet.",
+      "shortcuts": [{ "keys": "Esc", "does": "Cancel the recording from any app (or F1 to F12, set in Settings)" }],
+      "config": [{ "key": "shortcuts", "value": "{\"undo\": …, \"draw\": \"shift\" | \"option\" | \"control\" | \"command\", \"cancel\": \"escape\" | \"f1\" … \"f12\"}", "does": "Undo stroke, the draw modifier and the cancel key" }],
+      "docs": ["docs/onboarding-and-settings.md", "docs/capture.md"]
+    },
+    {
       "id": "launch-at-login",
       "group": "settings",
       "name": "Launch at login",

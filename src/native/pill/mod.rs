@@ -44,6 +44,33 @@ use self::model::{
 };
 use crate::ui::{SelectionMode, motion};
 
+/// The cancel key's code (`PillSnapshot::cancel_key`); pressing it on the pill cancels.
+static CANCEL_KEY: std::sync::atomic::AtomicU16 = std::sync::atomic::AtomicU16::new(53);
+
+/// Draws the changing labels `pres` shows (the Completed island's, the recording keys) and
+/// gives the model their widths.
+fn measure_labels(atlas: &mut GlyphAtlas, model: &mut PillModel, pres: &Pres) {
+    let mut labels = model.labels;
+    match pres {
+        Pres::Completed { label, routes } => {
+            labels.completed = atlas.update_completed(label).size_pt[0];
+            for (i, width) in labels.routes.iter_mut().enumerate() {
+                *width = routes
+                    .get(i)
+                    .map_or(0.0, |route| atlas.update_route(i, route).size_pt[0]);
+            }
+        }
+        Pres::Recording { keys, .. } => {
+            labels.keys = [
+                atlas.update_key(0, &keys.cancel).size_pt[0],
+                atlas.update_key(1, &keys.finish).size_pt[0],
+            ];
+        }
+        _ => return,
+    }
+    model.set_label_widths(labels, pres);
+}
+
 const OFFSCREEN_W_PT: f32 = 960.0;
 const OFFSCREEN_H_PT: f32 = 256.0;
 const TILE_PAD_PT: f32 = 20.0;
@@ -160,7 +187,7 @@ define_class!(
         #[unsafe(method(keyDown:))]
         fn key_down(&self, event: &NSEvent) {
             let key_code: u16 = unsafe { msg_send![event, keyCode] };
-            if key_code == 53 {
+            if key_code == CANCEL_KEY.load(std::sync::atomic::Ordering::Acquire) {
                 let _ = self.ivars().action_tx.try_send(PillAction::Cancel);
             }
         }
@@ -542,20 +569,9 @@ impl NativePill {
                 st.model.set_clock(&snapshot.clock);
                 st.dirty = true;
             }
-            if let Pres::Completed {
-                ref label,
-                ref routes,
-            } = snapshot.pres
-            {
-                let mut labels = st.model.labels;
-                labels.completed = st.pipelines.atlas.update_completed(label).size_pt[0];
-                for (i, width) in labels.routes.iter_mut().enumerate() {
-                    *width = routes.get(i).map_or(0.0, |route| {
-                        st.pipelines.atlas.update_route(i, route).size_pt[0]
-                    });
-                }
-                st.model.set_label_widths(labels, &snapshot.pres);
-            }
+            CANCEL_KEY.store(snapshot.cancel_key, std::sync::atomic::Ordering::Release);
+            let st = &mut *st;
+            measure_labels(&mut st.pipelines.atlas, &mut st.model, &snapshot.pres);
             if st.model.pres != snapshot.pres {
                 let was_hidden = st.model.is_fully_hidden();
                 st.model.set_pres(snapshot.pres);
@@ -1259,6 +1275,25 @@ fn emit_elem_prims(
             sp.size_pt[1],
         ]
     };
+    // A label and the key after it (`model::KEY_GAP`), centred together.
+    let text_and_key = |text: atlas::Sprite, key: atlas::Sprite| -> [[f32; 4]; 2] {
+        let extra = model::key_extra(key.size_pt[0]);
+        let x = ox + (bw - text.size_pt[0] - extra) * 0.5;
+        [
+            [
+                x,
+                oy + (bh - text.size_pt[1]) * 0.5,
+                text.size_pt[0],
+                text.size_pt[1],
+            ],
+            [
+                x + text.size_pt[0] + model::KEY_GAP,
+                oy + (bh - key.size_pt[1]) * 0.5,
+                key.size_pt[0],
+                key.size_pt[1],
+            ],
+        ]
+    };
 
     match elem.id {
         ElemId::ChipArea | ElemId::ChipWindow | ElemId::ChipScreen | ElemId::ChipIphone => {
@@ -1318,7 +1353,14 @@ fn emit_elem_prims(
             let g = (0.361 + 0.059 * elem.hover - 0.04 * elem.press).clamp(0.0, 1.0);
             let b = (0.965 + 0.035 * elem.hover - 0.04 * elem.press).clamp(0.0, 1.0);
             push_shape(out, [ox, oy, bw, bh], bh * 0.5, [r, g, b, 1.0]);
-            push_sprite(out, center_text(tx), tx.uv, [0.95, 0.95, 0.96, 1.0]);
+            if elem.id == ElemId::Finish {
+                let key = atlas.key_sprites[1];
+                let [text, key_rect] = text_and_key(tx, key);
+                push_sprite(out, text, tx.uv, [0.95, 0.95, 0.96, 1.0]);
+                push_sprite(out, key_rect, key.uv, [0.95, 0.95, 0.96, 0.62]);
+            } else {
+                push_sprite(out, center_text(tx), tx.uv, [0.95, 0.95, 0.96, 1.0]);
+            }
         }
         ElemId::Lead => {
             if is_glass {
@@ -1403,7 +1445,14 @@ fn emit_elem_prims(
             } else {
                 0.74 + 0.22 * elem.hover
             };
-            push_sprite(out, center_text(tx), tx.uv, [fg, fg, fg, 1.0]);
+            if elem.id == ElemId::Cancel {
+                let key = atlas.key_sprites[0];
+                let [text, key_rect] = text_and_key(tx, key);
+                push_sprite(out, text, tx.uv, [fg, fg, fg, 1.0]);
+                push_sprite(out, key_rect, key.uv, [fg, fg, fg, 0.55]);
+            } else {
+                push_sprite(out, center_text(tx), tx.uv, [fg, fg, fg, 1.0]);
+            }
         }
         ElemId::Close => {
             if is_glass {
@@ -1608,16 +1657,7 @@ mod tests {
         seconds: f32,
         live: &LiveDraw,
     ) -> crate::model::RgbaFrame {
-        if let Pres::Completed { label, routes } = pres {
-            let mut labels = model.labels;
-            labels.completed = pipelines.atlas.update_completed(label).size_pt[0];
-            for (i, width) in labels.routes.iter_mut().enumerate() {
-                *width = routes.get(i).map_or(0.0, |route| {
-                    pipelines.atlas.update_route(i, route).size_pt[0]
-                });
-            }
-            model.set_label_widths(labels, pres);
-        }
+        super::measure_labels(&mut pipelines.atlas, model, pres);
         model.set_pres(pres.clone());
         let steps = (seconds * 240.0).round() as usize;
         for _ in 0..steps {
@@ -1681,6 +1721,10 @@ mod tests {
             chips,
             has_iphone: false,
             live: model::Rows { wave, caption },
+            keys: model::Keys {
+                cancel: "esc".into(),
+                finish: "⌥⇧S".into(),
+            },
         };
         // Speech with a pause in it.
         let speech: Vec<f32> = (0..WAVE_BARS)

@@ -306,6 +306,9 @@ pub struct GlyphAtlas {
     /// Reserved rows for the Completed island's session chips (`y = 424, 468`).
     route_text: [String; 2],
     pub route_sprites: [Sprite; 2],
+    /// Reserved slots for the recording capsule's keys after Cancel and Finish (`y = 290`).
+    key_text: [String; 2],
+    pub key_sprites: [Sprite; 2],
     caption_text: Vec<String>,
     /// The live words, a line each (`CAPTION_LINES`), drawn in slots of their own.
     pub caption_sprites: Vec<Sprite>,
@@ -353,6 +356,8 @@ impl GlyphAtlas {
             completed_sprite: Sprite::default(),
             route_text: [String::new(), String::new()],
             route_sprites: [Sprite::default(); 2],
+            key_text: [String::new(), String::new()],
+            key_sprites: [Sprite::default(); 2],
             caption_text: Vec::new(),
             caption_sprites: Vec::new(),
         };
@@ -528,6 +533,37 @@ impl GlyphAtlas {
                 self.caption_text.push(text.clone());
             }
         }
+    }
+
+    /// Updates the key after Cancel (`index` 0) or Finish (1) only when `text` changes; an
+    /// empty one has no width.
+    pub fn update_key(&mut self, index: usize, text: &str) -> Sprite {
+        let index = index.min(1);
+        if self.key_text[index] == text {
+            return self.key_sprites[index];
+        }
+        self.key_text[index] = text.to_owned();
+        if text.is_empty() {
+            self.key_sprites[index] = Sprite::default();
+            return self.key_sprites[index];
+        }
+        let (w, h, size_pt, bytes) =
+            rasterize_text(text, HUD_TEXT, WEIGHT_MEDIUM, false, self.scale);
+        // Below the live words' slots (`y = 200 + 44 * CAPTION_LINES`), above the clock's.
+        let (x, y) = (4_u32 + 512 * index as u32, 290_u32);
+        let w = w.min(500);
+        let h = h.min(SLOT_H);
+        self.upload_at(x, y, w, h, &bytes);
+        self.key_sprites[index] = Sprite {
+            size_pt: [w as f32 / self.scale, size_pt[1]],
+            uv: [
+                x as f32 / ATLAS_W as f32,
+                y as f32 / ATLAS_H as f32,
+                (x + w) as f32 / ATLAS_W as f32,
+                (y + h) as f32 / ATLAS_H as f32,
+            ],
+        };
+        self.key_sprites[index]
     }
 
     pub fn route_text(&self, index: usize) -> &str {
