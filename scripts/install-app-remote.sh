@@ -1,4 +1,7 @@
 #!/usr/bin/env bash
+# STALE (Annotator fork): this is upstream's remote installer for Kit's Macs. It expects
+# ~/code/open-source/scrawl and Developer ID signing, and does not know Annotator.app or the
+# pinned local identity in ~/.config/annotator/signing.json. Do not use it until it is ported.
 # Installs the current `main` as /Applications/Scrawl.app on another Mac over SSH (default: pro).
 #
 # Two macOS rules shape this. Signing needs the login keychain, which only processes in the GUI
