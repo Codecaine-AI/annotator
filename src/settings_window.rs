@@ -979,6 +979,8 @@ impl SettingsWindow {
             error.clone()
         } else if kind == ShortcutKind::Paste {
             "Pastes the last capture into the app in front.".to_owned()
+        } else if kind == ShortcutKind::Undo {
+            "Takes back the last stroke while you record.".to_owned()
         } else {
             "Records the screen. Press again to finish.".to_owned()
         };

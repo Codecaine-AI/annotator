@@ -220,6 +220,15 @@ fn clock_template(clock: &str) -> String {
 
 /// Lead text of the Completed island: local captures were copied (or sent, as `note` says);
 /// iPhone ones count the inbox.
+/// The cancel key as the recording capsule shows it: `esc`, `F5`.
+fn pill_key(key: crate::settings::CancelKey) -> String {
+    if key == crate::settings::CancelKey::ESCAPE {
+        "esc".to_owned()
+    } else {
+        key.label()
+    }
+}
+
 fn completed_label(inbox_count: usize, note: Option<&str>) -> String {
     match inbox_count {
         0 => note.unwrap_or("Copied").to_owned(),
@@ -1376,6 +1385,11 @@ impl ScrawlCoordinator {
         !matches!(self.island_phase, IslandPhase::Hidden)
     }
 
+    /// Whether GPUI's `key` ("escape", "f5") is the cancel key (Settings › Shortcuts).
+    fn is_cancel_key(&self, key: &str) -> bool {
+        key == self.telemetry.controls().cancel.id()
+    }
+
     pub fn shortcut_label(&self) -> String {
         self.telemetry
             .shortcut
@@ -1586,8 +1600,8 @@ impl ScrawlCoordinator {
             return false;
         };
         let mods = keystroke.modifiers;
-        // Esc cancels even with ⌥⇧ still held from the shortcut.
-        if keystroke.key == "escape" {
+        // The cancel key cancels even with ⌥⇧ still held from the shortcut.
+        if self.is_cancel_key(&keystroke.key) {
             self.cancel_recording(cx);
             return true;
         }
@@ -1624,7 +1638,6 @@ impl ScrawlCoordinator {
         match keystroke.key.as_str() {
             key if repeat && records(key) => {}
             "space" | " " => self.toggle_selection_mode(cx),
-            "escape" => self.cancel_recording(cx),
             "enter" => self.record_selected_mode(cx),
             key if key.eq_ignore_ascii_case(record_key) => self.record_selected_mode(cx),
             "tab" => self.choose_selection_mode(mode.cycled(!mods.shift, has_iphone), cx),
@@ -1861,7 +1874,11 @@ impl ScrawlCoordinator {
     }
 
     fn pill_snapshot(&self) -> crate::native::pill::PillSnapshot {
-        use crate::native::pill::{PillSnapshot, PillStyle, model::Pres};
+        use crate::native::pill::{
+            PillSnapshot, PillStyle,
+            model::{Keys, Pres},
+        };
+        let controls = self.telemetry.controls();
         let recording_ms = self
             .active_recording
             .as_ref()
@@ -1877,6 +1894,10 @@ impl ScrawlCoordinator {
                 chips: self.reveal.is_open(),
                 has_iphone,
                 live: crate::live_audio::rows(),
+                keys: Keys {
+                    cancel: pill_key(controls.cancel),
+                    finish: controls.record.label.clone(),
+                },
             },
             IslandPhase::Processing => Pres::Processing,
             IslandPhase::Completed { inbox_count, .. } => Pres::Completed {
@@ -1889,6 +1910,7 @@ impl ScrawlCoordinator {
             clock,
             reduced_motion: self.reduced_motion,
             style: PillStyle::current(),
+            cancel_key: controls.cancel.key_code() as u16,
         }
     }
 
@@ -5531,10 +5553,11 @@ pub fn run_app(
                     if loop_coord.read(cx).shortcut.is_pending() {
                         loop_coord.update(cx, |coord, cx| coord.tick_shortcut(cx));
                     } else if loop_coord.read(cx).telemetry.take_escape()
-                        && loop_coord.read(cx).is_selecting()
+                        && (loop_coord.read(cx).is_selecting()
+                            || loop_coord.read(cx).is_recording())
                     {
                         // The picker may not have the keys (another app is active), but the
-                        // key tap sees Esc anyway.
+                        // key tap sees the cancel key anyway; it also throws a recording away.
                         loop_coord.update(cx, |coord, cx| coord.cancel_recording(cx));
                     }
                     if loop_coord.read(cx).gate.is_pending() {

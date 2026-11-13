@@ -19,8 +19,8 @@ use screencapturekit::screenshot_manager::{CGImageExt, SCScreenshotManager};
 use super::{
     CANDIDATE_EDGE, CANDIDATE_EDGE_NO_VIDEO, CARBON_CMD_KEY, CARBON_CONTROL_KEY, CARBON_OPTION_KEY,
     CARBON_SHIFT_KEY, FRAME_SAMPLE_INTERVAL, LiveOverlayEvent, Sampler, SharedCaptureTelemetry,
-    ShortcutConfig, ShortcutKind, capture_size, clean_label, hotkey_combos, pick_display,
-    poll_clicks, scrawl_log, track_shift_ink,
+    ShortcutConfig, ShortcutKind, capture_size, carbon_modifiers, clean_label, draw_in_chord,
+    draws, hotkey_combos, pick_display, poll_clicks, scrawl_log, track_shift_ink,
 };
 use crate::model::{CaptureMode, InteractionEvent, RgbaFrame, TargetInfo};
 
@@ -93,8 +93,7 @@ const FLAG_COMMAND: u64 = 1 << 20;
 
 /// The S key on the ANSI layout (`kVK_ANSI_S`).
 pub const KEY_S: u16 = 1;
-const KEY_ESCAPE: u16 = 53;
-const KEY_Z: u16 = 6;
+pub const KEY_Z: u16 = 6;
 pub const KEY_V: u16 = 9;
 
 // Carbon HIToolbox global hotkey constants (requires zero TCC permissions).
@@ -494,7 +493,7 @@ fn register_shortcuts(
             let id = match (kind, i) {
                 (ShortcutKind::Record, 0) => HOTKEY_ID_TOGGLE,
                 (ShortcutKind::Record, i) => HOTKEY_ID_ALT1 + i as u32,
-                (ShortcutKind::Paste, i) => HOTKEY_ID_PASTE_BASE + i as u32,
+                (ShortcutKind::Paste | ShortcutKind::Undo, i) => HOTKEY_ID_PASTE_BASE + i as u32,
             };
             let rc = unsafe {
                 RegisterEventHotKey(
@@ -1476,12 +1475,13 @@ fn mouse_event(
     }
     let event_type = unsafe { CGEventGetType(event) };
     let flags = unsafe { CGEventGetFlags(event) };
-    let pure_shift =
-        (flags & FLAG_SHIFT) != 0 && (flags & (FLAG_COMMAND | FLAG_CONTROL | FLAG_ALTERNATE)) == 0;
+    // `pure_shift`: the draw modifier alone (⇧ unless Settings changed it).
+    let pure_shift = draws(telemetry.draw_mask(), carbon_flags(flags));
     let t_ms = telemetry.elapsed_ms();
     let loc = unsafe { CGEventGetLocation(event) };
     match event_type {
-        // A ⇧-press is never a click: a ⇧-click drops a pin, a ⇧-drag is ink (the poller's).
+        // A draw-press is never a click: a draw-click drops a pin, a draw-drag is ink (the
+        // poller's).
         EVENT_LEFT_MOUSE_DOWN | EVENT_RIGHT_MOUSE_DOWN if !on_scrawl(loc.x, loc.y) => {
             if !pure_shift {
                 telemetry.pointer_down(t_ms, loc.x, loc.y);
@@ -1631,15 +1631,16 @@ unsafe extern "C" fn key_tap_callback(
         }
         return event;
     }
-    if keycode == KEY_ESCAPE && !cmd && !ctrl {
-        telemetry.escape_pressed.store(true, Ordering::Release);
+    let held = carbon_modifiers(cmd, ctrl, alt, shift);
+    if telemetry.is_cancel(keycode, held) {
+        telemetry.note_cancel();
     }
     if !telemetry.active.load(Ordering::Acquire) {
         return event;
     }
 
     let t_ms = telemetry.elapsed_ms();
-    if cmd && !ctrl && !alt && !shift && (keycode == layout_z_keycode() || keycode == KEY_Z) {
+    if telemetry.is_undo(keycode, held) {
         let _ = telemetry.ui_sender.try_send(LiveOverlayEvent::UndoStroke);
     } else if cmd || ctrl {
         // Only log modifier-chord shortcuts, never ordinary typing or secrets.
@@ -1670,6 +1671,16 @@ unsafe extern "C" fn key_tap_callback(
         }
     }
     event
+}
+
+/// Carbon modifier bits for a `CGEventFlags` word.
+fn carbon_flags(flags: u64) -> u32 {
+    carbon_modifiers(
+        flags & FLAG_COMMAND != 0,
+        flags & FLAG_CONTROL != 0,
+        flags & FLAG_ALTERNATE != 0,
+        flags & FLAG_SHIFT != 0,
+    )
 }
 
 fn current_mouse_location() -> Option<CGPoint> {
@@ -1743,6 +1754,7 @@ pub fn post_synthetic_click(screen_x: f64, screen_y: f64) {
 /// Key codes are never polled: reading them is Input Monitoring's.
 fn run_global_hid_poller(telemetry: Arc<SharedCaptureTelemetry>) {
     let mut prev_shift_ink = false;
+    // The draw modifier came down with another one (a chord such as ⌥⇧S): no ink until it's up.
     let mut await_shift_release = false;
     let mut prev_mod_mask = 0_u8;
     let mut prev_buttons = [false; 2];
@@ -1760,9 +1772,11 @@ fn run_global_hid_poller(telemetry: Arc<SharedCaptureTelemetry>) {
         let ctrl = (flags & FLAG_CONTROL) != 0;
         let alt = (flags & FLAG_ALTERNATE) != 0;
         let shift = (flags & FLAG_SHIFT) != 0;
-        if !shift {
+        let held = carbon_modifiers(cmd, ctrl, alt, shift);
+        let draw = telemetry.draw_mask();
+        if held & draw == 0 {
             await_shift_release = false;
-        } else if cmd || ctrl || alt {
+        } else if draw_in_chord(draw, held) {
             await_shift_release = true;
         }
         let mod_mask =
@@ -1799,12 +1813,12 @@ fn run_global_hid_poller(telemetry: Arc<SharedCaptureTelemetry>) {
             &mut prev_buttons,
             buttons,
             (loc.x, loc.y),
-            shift && !cmd && !ctrl && !alt,
+            draws(draw, held),
             |x, y| telemetry.on_scrawl_window(x, y),
         );
 
-        let pure_shift = shift && !cmd && !ctrl && !alt && !await_shift_release;
-        // Hold Shift + move cursor inside the capture target = draw a persistent stroke.
+        let pure_shift = draws(draw, held) && !await_shift_release;
+        // Hold the draw modifier + move inside the capture target = draw a persistent stroke.
         track_shift_ink(&telemetry, (loc.x, loc.y), pure_shift, prev_shift_ink);
 
         prev_shift_ink = pure_shift;
