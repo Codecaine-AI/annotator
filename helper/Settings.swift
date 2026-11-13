@@ -1131,13 +1131,13 @@ struct SettingsView: View {
             Text("Version \(state.version)").font(.system(size: 12).monospacedDigit()).foregroundStyle(theme.secondary)
           }
           Spacer()
-          SettingsButton(title: "Check for Updates…", enabled: state.updates) { model.act("check-for-updates") }
+          // Annotator.app ships without Sparkle, so the button shows only where updates work.
+          if state.updates {
+            SettingsButton(title: "Check for Updates…") { model.act("check-for-updates") }
+          }
         }
         .padding(.horizontal, 12)
         .frame(height: 64)
-      }
-      if !state.updates {
-        SettingsCaption(text: "Updates work in the installed Scrawl.app.")
       }
       SettingsHeader("Links")
       SettingsGroup {

@@ -637,6 +637,9 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
         item.setKeyEquivalent(&NSString::from_str(","));
     }
     add("Check for Updates…", sel!(checkForUpdates:));
+    if let Some(item) = menu.itemAtIndex(menu.numberOfItems() - 1) {
+        item.setHidden(!crate::sparkle::bundled());
+    }
     add("Quit Scrawl", sel!(quitApp:));
     if let Some(item) = menu.itemAtIndex(menu.numberOfItems() - 1) {
         item.setKeyEquivalent(&NSString::from_str("q"));
