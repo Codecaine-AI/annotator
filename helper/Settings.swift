@@ -156,7 +156,8 @@ struct SettingsState: Decodable, Equatable {
     SettingsShortcut(kind: "paste", title: "Paste last capture", label: "⌥⇧V", key: "V", clearable: true),
   ]
   var microphone = SettingsMicrophone()
-  var liveAudio = false
+  var liveAudio = true
+  var liveWords = false
   var transcriber = SettingsTranscriber()
   var videoExport = false
   var lowerPlayback = false
@@ -962,8 +963,14 @@ struct SettingsView: View {
           SettingsRow(title: "Input level") { LevelMeter(meter: model.meter) }
         }
         SettingsSeparator()
-        SettingsRow(title: "Show live audio while recording") {
+        SettingsRow(title: "Show live audio") {
           SettingsSwitch(on: state.liveAudio) { model.set("liveAudio", $0) }
+        }
+        SettingsSeparator()
+        SettingsRow(title: "Show live words") {
+          SettingsSwitch(on: state.liveAudio && state.liveWords, enabled: state.liveAudio) {
+            model.set("liveWords", $0)
+          }
         }
       }
       if let note = mic.note {
@@ -1659,8 +1666,10 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
     )
     var micNotAllowed = base
     micNotAllowed.microphone.meter = nil
-    var liveAudio = base
-    liveAudio.liveAudio = true
+    var liveAudioOff = base
+    liveAudioOff.liveAudio = false
+    var liveWords = base
+    liveWords.liveWords = true
     let samples: [(String, SettingsPane, SettingsState)] = [
       ("general", .general, base),
       ("general-held", .general, base),
@@ -1679,7 +1688,8 @@ final class SettingsWindow: NSObject, NSApplicationDelegate, NSWindowDelegate {
       ("recording-mic-chosen", .recording, micChosen),
       ("recording-mic-missing", .recording, micMissing),
       ("recording-mic-not-allowed", .recording, micNotAllowed),
-      ("recording-live-audio", .recording, liveAudio),
+      ("recording-live-audio-off", .recording, liveAudioOff),
+      ("recording-live-words", .recording, liveWords),
       ("recording-downloading", .recording, downloading),
       ("recording-ready", .recording, ready),
       ("recording-language", .recording, language),

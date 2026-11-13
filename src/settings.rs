@@ -627,6 +627,8 @@ pub struct View {
     pub microphone: MicrophoneView,
     /// Show what the microphone hears while recording (`liveAudio`).
     pub live_audio: bool,
+    /// Also show the words as they're said (`liveWords`).
+    pub live_words: bool,
     pub transcriber: TranscriberView,
     pub lower_playback: bool,
     pub playback_level: u8,
@@ -963,7 +965,7 @@ fn shortcut_view(
 #[serde(tag = "action", rename_all = "kebab-case")]
 pub enum Action {
     /// A settings control: `launchAtLogin`, `autoSend`, `videoExport`, `lowerPlayback`,
-    /// `liveAudio` (bool),
+    /// `liveAudio`, `liveWords` (bool),
     /// `playbackLevel` (u8), `microphone` ("default" or a device id), `transcriber`
     /// ("apple"/"hex"/"command"), `hexModel` (an id), `hexLanguage` (a code), `appleLocale`
     /// (a locale id or "auto"), `retention` (a preset id).
@@ -1199,7 +1201,7 @@ impl Panel {
                 }
             }
             (
-                "autoSend" | "videoExport" | "lowerPlayback" | "liveAudio",
+                "autoSend" | "videoExport" | "lowerPlayback" | "liveAudio" | "liveWords",
                 serde_json::Value::Bool(on),
             ) => write(key, (*on).into()),
             ("playbackLevel", serde_json::Value::Number(level))
@@ -1354,7 +1356,8 @@ impl Panel {
                 self.inputs.as_ref(),
                 self.status(Permission::Microphone) == Status::Granted,
             ),
-            live_audio: config.live_audio.unwrap_or(false),
+            live_audio: config.shows_live_audio(),
+            live_words: config.shows_live_words(),
             lower_playback: config.lower_playback.unwrap_or(false),
             playback_level: config.recording_volume(),
             transcriber: TranscriberView {
@@ -2319,13 +2322,20 @@ mod tests {
         set(&mut panel, &mut host, "playbackLevel", 0.5.into());
         assert!(Panel::default().view(&host).lower_playback);
         assert_eq!(Panel::default().view(&host).playback_level, 35);
-        assert!(!panel.view(&host).live_audio);
-        set(&mut panel, &mut host, "liveAudio", true.into());
-        assert!(Panel::default().view(&host).live_audio);
-        set(&mut panel, &mut host, "liveAudio", "yes".into());
-        assert!(Panel::default().view(&host).live_audio);
+        assert!(panel.view(&host).live_audio);
+        assert!(!panel.view(&host).live_words);
         set(&mut panel, &mut host, "liveAudio", false.into());
         assert!(!Panel::default().view(&host).live_audio);
+        set(&mut panel, &mut host, "liveAudio", "yes".into());
+        assert!(!Panel::default().view(&host).live_audio);
+        set(&mut panel, &mut host, "liveAudio", true.into());
+        assert!(Panel::default().view(&host).live_audio);
+        set(&mut panel, &mut host, "liveWords", true.into());
+        assert!(Panel::default().view(&host).live_words);
+        set(&mut panel, &mut host, "liveWords", "yes".into());
+        assert!(Panel::default().view(&host).live_words);
+        set(&mut panel, &mut host, "liveWords", false.into());
+        assert!(!Panel::default().view(&host).live_words);
         set(&mut panel, &mut host, "autoSend", false.into());
         set(&mut panel, &mut host, "videoExport", true.into());
         set(&mut panel, &mut host, "transcriber", "hex".into());
