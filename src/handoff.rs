@@ -850,11 +850,6 @@ pub fn live_audio() -> bool {
     config().shows_live_audio()
 }
 
-/// Whether recordings also show the words as they're said (`liveWords`, default off).
-pub fn live_words() -> bool {
-    config().shows_live_words()
-}
-
 impl Config {
     pub fn shows_live_audio(&self) -> bool {
         self.live_audio.unwrap_or(true)
