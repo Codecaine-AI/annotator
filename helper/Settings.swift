@@ -112,13 +112,13 @@ struct SettingsOption: Decodable, Equatable {
 }
 
 struct SettingsRetention: Decodable, Equatable {
-  var preset: String? = "week"
+  var preset: String? = "forever"
   var options: [SettingsOption] = [
     SettingsOption(id: "week", label: "Video for 7 Days"),
     SettingsOption(id: "month", label: "Video for 30 Days"),
     SettingsOption(id: "forever", label: "Forever"),
   ]
-  var note = "Video and audio go to the Trash after 7 days, the rest of each capture after 30 days."
+  var note = ""
 }
 
 struct SettingsPermission: Decodable, Equatable, Identifiable {

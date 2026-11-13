@@ -665,17 +665,17 @@ scrawl export latest --crop 0.1,0.2,0.6,0.5       # x,y,w,h as fractions, or pix
 
 ## Keeping captures small
 
-Captures would otherwise pile up (mostly video). The app cleans up shortly after launch and then
-hourly, at low priority, and logs what it did:
+Captures are kept forever unless you pick a limit. With a limit, the app cleans up shortly after
+launch and then hourly, at low priority, and logs what it did:
 
 - **Video, audio and full-size frames** (`recording.mp4`/`.mov`, `audio.wav`, `frames-full/`),
-  plus the `zoom/` sheets made from them, go to the Trash after 7 days, as one `<bundle> media`
+  plus the `zoom/` sheets made from them, go to the Trash after `mediaDays`, as one `<bundle> media`
   folder. The prompt (`summary.md`, `scrawl.json`, `contact-sheet.png`, `frames/`) stays, so
   pasting and reading still work; `scrawl zoom` says the video was cleaned up.
-- **Whole bundles** go to the Trash after 30 days.
-- **Keep recordings** in Settings › Storage picks Video for 7 Days (bundles 30), Video for 30 Days
-  (bundles 90), or Forever. It's stored as `"retention": {"mediaDays": 7, "bundleDays": 30}` in
-  `~/.config/scrawl/config.json`; `null` keeps forever. The same pane shows how much the captures
+- **Whole bundles** go to the Trash after `bundleDays`.
+- **Keep recordings** in Settings › Storage picks Forever (the default), Video for 7 Days (bundles
+  30) or Video for 30 Days (bundles 90). It's stored as `"retention": {"mediaDays": 7, "bundleDays": 30}` in
+  `~/.config/scrawl/config.json`; `null` or a missing field keeps forever. The same pane shows how much the captures
   take and opens the folder in Finder.
 - Never touched: a bundle under a day old or changed in the last day (a copy just arrived from
   another Mac, a zoom), one whose media is still copying (`.media-pending` there, `.media-sending`

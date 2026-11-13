@@ -644,10 +644,10 @@
       "id": "retention",
       "group": "storage",
       "name": "Keep recordings",
-      "says": "Video and audio go to the Trash after 7 days and whole bundles after 30; Settings › Storage picks 7, 30 days or Forever.",
+      "says": "Recordings are kept forever by default; Settings › Storage can send video and audio to the Trash after 7 or 30 days and whole bundles after 30 or 90.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "config": [{ "key": "retention", "value": "{\"mediaDays\": 7, \"bundleDays\": 30}", "does": "How long to keep media and bundles; null keeps forever" }],
+      "config": [{ "key": "retention", "value": "{\"mediaDays\": null, \"bundleDays\": null}", "does": "How long to keep media and bundles; null or a missing field keeps forever (the default)" }],
       "docs": ["README.md#keeping-captures-small", "docs/export-and-retention.md"]
     },
     {
