@@ -27,6 +27,17 @@ fn main() {
     }
 }
 
+/// The profile folder (`target/debug`) that holds the binary. OUT_DIR is
+/// target/<profile>/build/scrawl-<hash>/out, or build/scrawl/<hash>/out in newer Cargo's
+/// build-dir layout; the profile folder is the parent of `build` in both.
+fn profile_dir(out_dir: &std::path::Path) -> &std::path::Path {
+    out_dir
+        .ancestors()
+        .find(|dir| dir.file_name().is_some_and(|name| name == "build"))
+        .and_then(|build| build.parent())
+        .expect("Unexpected OUT_DIR layout")
+}
+
 /// transcribe.cpp's DLLs (`dynamic-backends`: `transcribe.dll`, `ggml*.dll`) beside `scrawl.exe`
 /// and the test binaries, which load them at start. Its own build script copies them there too,
 /// but only when it runs, and a build restored from CI's cache skips it.
@@ -37,10 +48,7 @@ fn stage_transcribe_dlls() {
         return;
     };
     let out_dir = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
-    // OUT_DIR is <target>/<profile>/build/scrawl-<hash>/out.
-    let Some(profile) = out_dir.ancestors().nth(3) else {
-        return;
-    };
+    let profile = profile_dir(&out_dir);
     let dlls: Vec<PathBuf> = std::fs::read_dir(&runtime)
         .into_iter()
         .flatten()
@@ -176,14 +184,8 @@ fn compile_helper() {
     }
     let plist = helper_dir.join("Info.plist");
     println!("cargo:rerun-if-changed={}", plist.display());
-    // OUT_DIR is target/<profile>/build/scrawl-<hash>/out, or build/scrawl/<hash>/out in newer
-    // Cargo's build-dir layout; the profile folder is the parent of `build` in both.
     let out_dir = PathBuf::from(std::env::var_os("OUT_DIR").unwrap());
-    let profile_dir = out_dir
-        .ancestors()
-        .find(|dir| dir.file_name().is_some_and(|name| name == "build"))
-        .and_then(|build| build.parent())
-        .expect("Unexpected OUT_DIR layout");
+    let profile_dir = profile_dir(&out_dir);
     let arch = match std::env::var("CARGO_CFG_TARGET_ARCH").as_deref() {
         Ok("aarch64") => "arm64",
         Ok(other) => other,
