@@ -1180,7 +1180,9 @@ impl Staged {
     /// `Shared::live`. It makes `appshots/` and the spool, never the bundle's own folder: a
     /// capture that was thrown away stays gone.
     fn write(&self, path: &Path) -> bool {
-        let Some((spool, shots)) = path.parent().and_then(|spool| Some((spool, spool.parent()?)))
+        let Some((spool, shots)) = path
+            .parent()
+            .and_then(|spool| Some((spool, spool.parent()?)))
         else {
             return false;
         };
@@ -1642,7 +1644,11 @@ mod mac {
             let raw = crate::windows::raw_windows();
             let (mut found, mut total) = (0, 0);
             for window in raw.iter().filter(|w| {
-                w.layer == 0 && w.pid != own && w.alpha > 0.01 && w.bounds[2] > 100.0 && w.bounds[3] > 100.0
+                w.layer == 0
+                    && w.pid != own
+                    && w.alpha > 0.01
+                    && w.bounds[2] > 100.0
+                    && w.bounds[3] > 100.0
             }) {
                 let app = tree.adopt(Owned(unsafe { AXUIElementCreateApplication(window.pid) }));
                 let windows = AppWindows {
@@ -1674,7 +1680,11 @@ mod mac {
                     "{} window {} ({}): {detail}",
                     window.owner,
                     window.id,
-                    if window.title.trim().is_empty() { "untitled" } else { "titled" }
+                    if window.title.trim().is_empty() {
+                        "untitled"
+                    } else {
+                        "titled"
+                    }
                 );
                 println!("  window server bounds {:?}", window.bounds);
                 for own in windows.windows() {
@@ -1945,7 +1955,11 @@ mod tests {
 
         fn pair(&self, window: &usize, attribute: &'static str) -> Option<[f64; 2]> {
             let [x, y, w, h] = self.0[*window].0;
-            Some(if attribute == "AXPosition" { [x, y] } else { [w, h] })
+            Some(if attribute == "AXPosition" {
+                [x, y]
+            } else {
+                [w, h]
+            })
         }
 
         fn title(&self, window: &usize) -> Option<String> {
@@ -1969,14 +1983,29 @@ mod tests {
         );
         // A window that moved since the window server was asked is at no known place: the
         // focused window is another window, and is not read for it.
-        let moved = FakeWindows(vec![(SMALL, "Inbox"), ([640.0, 300.0, 800.0, 600.0], "Notes")]);
-        assert_eq!(find_window(&moved, [600.0, 280.0, 800.0, 600.0], "Notes", &never), Err(Miss::NoWindow));
-        assert_eq!(find_window(&FakeWindows(Vec::new()), FULL, "Inbox", &never), Err(Miss::NoWindow));
+        let moved = FakeWindows(vec![
+            (SMALL, "Inbox"),
+            ([640.0, 300.0, 800.0, 600.0], "Notes"),
+        ]);
+        assert_eq!(
+            find_window(&moved, [600.0, 280.0, 800.0, 600.0], "Notes", &never),
+            Err(Miss::NoWindow)
+        );
+        assert_eq!(
+            find_window(&FakeWindows(Vec::new()), FULL, "Inbox", &never),
+            Err(Miss::NoWindow)
+        );
         // The window at the place has another title: it is not the captured one.
-        assert_eq!(find_window(&mail, FULL, "Sent", &never), Err(Miss::OtherTitle));
+        assert_eq!(
+            find_window(&mail, FULL, "Sent", &never),
+            Err(Miss::OtherTitle)
+        );
         // Two windows that nothing tells apart.
         let twins = FakeWindows(vec![(FULL, "New Tab"), (FULL, "New Tab"), (SMALL, "Docs")]);
-        assert_eq!(find_window(&twins, FULL, "New Tab", &never), Err(Miss::Ambiguous));
+        assert_eq!(
+            find_window(&twins, FULL, "New Tab", &never),
+            Err(Miss::Ambiguous)
+        );
         assert_eq!(find_window(&twins, SMALL, "Docs", &never), Ok(2));
         // The window server gave no title: the place alone decides, when one window is there.
         assert_eq!(find_window(&twins, SMALL, "", &never), Ok(2));
@@ -1989,8 +2018,14 @@ mod tests {
             (SMALL, "Docs - Edit - Google Chrome - Kit"),
         ]);
         assert_eq!(find_window(&chrome, FULL, "Drafts", &never), Ok(1));
-        assert_eq!(find_window(&chrome, FULL, "Sent", &never), Err(Miss::OtherTitle));
-        assert_eq!(find_window(&chrome, SMALL, "Docs", &never), Err(Miss::Ambiguous));
+        assert_eq!(
+            find_window(&chrome, FULL, "Sent", &never),
+            Err(Miss::OtherTitle)
+        );
+        assert_eq!(
+            find_window(&chrome, SMALL, "Docs", &never),
+            Err(Miss::Ambiguous)
+        );
         // The exact title wins over one that only begins with it.
         let exact = FakeWindows(vec![(FULL, "Docs - Edit"), (FULL, "Docs")]);
         assert_eq!(find_window(&exact, FULL, "Docs", &never), Ok(1));
@@ -2033,7 +2068,11 @@ mod tests {
 
         fn pair(&self, _: &usize, attribute: &'static str) -> Option<[f64; 2]> {
             self.answer();
-            Some(if attribute == "AXPosition" { [0.0, 25.0] } else { [800.0, 600.0] })
+            Some(if attribute == "AXPosition" {
+                [0.0, 25.0]
+            } else {
+                [800.0, 600.0]
+            })
         }
 
         fn title(&self, window: &usize) -> Option<String> {
@@ -2055,7 +2094,10 @@ mod tests {
         assert!(app.asked.get() <= 7, "{} answers", app.asked.get());
         // A capture that no longer wants the shot costs the app no question.
         let app = SlowWindows::new(60, Duration::ZERO);
-        assert_eq!(find_window(&app, PLACE, "Window 59", &|| true), Err(Miss::Stopped));
+        assert_eq!(
+            find_window(&app, PLACE, "Window 59", &|| true),
+            Err(Miss::Stopped)
+        );
         assert_eq!(app.asked.get(), 0);
         // It is checked before every question: once it fires, nothing more is asked.
         let app = SlowWindows::new(60, Duration::ZERO);
@@ -2715,7 +2757,10 @@ mod tests {
             if cancel {
                 walker.cancel();
                 let waited = began.elapsed();
-                assert!(waited < Duration::from_millis(100), "cancel took {waited:?}");
+                assert!(
+                    waited < Duration::from_millis(100),
+                    "cancel took {waited:?}"
+                );
             } else {
                 let shots = walker.finish().unwrap();
                 let waited = began.elapsed();

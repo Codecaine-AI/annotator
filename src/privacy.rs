@@ -631,13 +631,22 @@ mod tests {
                 "Reset at https://user:SECRET-MARKER@example.test/reset now",
                 "Reset at https://example.test/reset now",
             ),
-            ("https://SECRET-MARKER@example.test/reset", "https://example.test/reset"),
+            (
+                "https://SECRET-MARKER@example.test/reset",
+                "https://example.test/reset",
+            ),
             ("(https://kit:SECRET-MARKER@a.dev/x)", "(https://a.dev/x)"),
             // A login without a scheme is `user:password@`.
-            ("user:SECRET-MARKER@example.test/reset", "example.test/reset"),
+            (
+                "user:SECRET-MARKER@example.test/reset",
+                "example.test/reset",
+            ),
             ("(kit:SECRET-MARKER@a.dev/x)", "(a.dev/x)"),
             // A fragment or a query with no `=`, without a scheme.
-            ("example.test/callback#SECRET-MARKER", "example.test/callback"),
+            (
+                "example.test/callback#SECRET-MARKER",
+                "example.test/callback",
+            ),
             ("a.dev/reset#SECRET-MARKER", "a.dev/reset"),
             ("reset.html?SECRET-MARKER", "reset.html"),
             ("/reset?SECRET-MARKER", "/reset"),
@@ -646,7 +655,10 @@ mod tests {
             ("Go #access_token=SECRET-MARKER", "Go"),
             // A query in front of a URL.
             ("next?to=https://a.dev/x&token=SECRET-MARKER", "next"),
-            ("https://a.dev/x?next=/home&mail=SECRET-MARKER@b.dev", "https://a.dev/x"),
+            (
+                "https://a.dev/x?next=/home&mail=SECRET-MARKER@b.dev",
+                "https://a.dev/x",
+            ),
         ];
         for (raw, kept) in cases {
             let out = text(raw).unwrap();
