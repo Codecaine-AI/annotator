@@ -135,12 +135,19 @@ impl ScreenRecording {
     /// Takes a paused recording's pauses out of the candidate frames, the movie and the
     /// duration. `cuts` are on this recording's clock (the frames'). A movie that can't be cut
     /// is deleted, so nothing recorded during a pause stays in the bundle; the keyframes then
-    /// come from the candidates.
+    /// come from the candidates. When every candidate was taken during a pause (paused before
+    /// the first one and never resumed), none is kept and a blank one of the same size stands
+    /// in, because a bundle needs a frame (as `ScreenCaptureSession::stop` sees to).
     pub fn cut(&mut self, cuts: &crate::pause::Cuts) {
         if cuts.is_empty() {
             return;
         }
+        let size = self.frames.first().map(|frame| (frame.width, frame.height));
         cuts.cut_frames(&mut self.frames);
+        if let (true, Some((width, height))) = (self.frames.is_empty(), size) {
+            let blank = [0, 0, 0, 255].repeat(width as usize * height as usize);
+            self.frames.push(RgbaFrame::new(0, width, height, blank));
+        }
         if let Some(movie) = self.video.take() {
             match cuts.on_clock_from(self.video_offset_ms).cut_movie(&movie) {
                 Ok(()) => self.video = Some(movie),
@@ -2354,6 +2361,47 @@ mod tests {
         // While Settings records a shortcut, the cancel key is the recorder's.
         telemetry.shortcuts_paused.store(true, Ordering::Release);
         assert!(!telemetry.is_cancel(shortcuts.cancel.key_code() as u16, 0));
+    }
+
+    /// Paused before the first candidate frame and finished without resuming: the candidates at
+    /// 300 and 500 ms hold pixels recorded entirely during the pause, so neither is kept. The
+    /// bundle still needs a frame, and gets a blank one of the same size.
+    #[test]
+    fn a_recording_paused_before_its_first_frame_keeps_no_paused_image() {
+        let shown = |t_ms| RgbaFrame::new(t_ms, 2, 1, vec![200, 30, 30, 255, 30, 200, 30, 255]);
+        let mut recording = ScreenRecording {
+            frames: vec![shown(300), shown(500)],
+            video: None,
+            duration_ms: 900,
+            video_offset_ms: 0,
+        };
+        recording.cut(&crate::pause::Cuts::new(vec![crate::pause::Span {
+            start_ms: 100,
+            end_ms: crate::pause::Span::OPEN,
+        }]));
+        assert_eq!(recording.frames.len(), 1);
+        let frame = &recording.frames[0];
+        assert_eq!(
+            frame.rgba,
+            [0, 0, 0, 255, 0, 0, 0, 255],
+            "pixels from the pause stayed"
+        );
+        assert_eq!((frame.t_ms, frame.width, frame.height), (0, 2, 1));
+        assert_eq!(recording.duration_ms, 100);
+
+        // A frame from before the pause is kept as it is, with no blank beside it.
+        let mut recording = ScreenRecording {
+            frames: vec![shown(50), shown(300)],
+            video: None,
+            duration_ms: 900,
+            video_offset_ms: 0,
+        };
+        recording.cut(&crate::pause::Cuts::new(vec![crate::pause::Span {
+            start_ms: 100,
+            end_ms: crate::pause::Span::OPEN,
+        }]));
+        assert_eq!(recording.frames.len(), 1);
+        assert_eq!(recording.frames[0].rgba, shown(50).rgba);
     }
 
     /// With any shortcuts Settings accepts, no key press is both Undo and the cancel key (Undo

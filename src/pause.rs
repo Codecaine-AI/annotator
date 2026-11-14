@@ -376,21 +376,10 @@ impl Cuts {
         });
     }
 
-    /// Candidate frames: those taken during a pause are dropped (never the only one).
+    /// Candidate frames: those taken during a pause are dropped, every one, even when that
+    /// leaves none (their pixels were recorded while paused).
     pub fn cut_frames(&self, frames: &mut Vec<RgbaFrame>) {
-        if self.is_empty() {
-            return;
-        }
-        let only = (!frames.iter().any(|frame| self.map(frame.t_ms).is_some()))
-            .then(|| frames.first().map(|frame| frame.t_ms))
-            .flatten();
-        frames.retain_mut(|frame| {
-            let at = self.map(frame.t_ms);
-            let kept = at.is_some() || only == Some(frame.t_ms);
-            frame.t_ms = at.unwrap_or_else(|| self.shift(frame.t_ms));
-            kept
-        });
-        frames.dedup_by_key(|frame| frame.t_ms);
+        self.cut_moments(frames, |frame| &mut frame.t_ms);
     }
 
     /// Moments with a time (cursor samples): those during a pause are dropped.
@@ -752,19 +741,27 @@ mod tests {
         assert_eq!(strokes[1].pts, [0, 0, 0, 10, 10, 400]);
     }
 
+    /// No frame taken during a pause is kept, even when that leaves none: its pixels were
+    /// recorded entirely while paused. (This test used to keep the first such frame so that
+    /// there was always one; `ScreenRecording::cut` now gives the bundle a blank one instead.)
     #[test]
-    fn frames_from_a_pause_are_dropped_but_never_the_only_one() {
+    fn frames_from_a_pause_are_dropped_even_when_none_is_left() {
         let frame = |t_ms| RgbaFrame::new(t_ms, 1, 1, vec![0, 0, 0, 255]);
-        let cuts = cuts(&[(2_000, 5_000)]);
+        let at = |frames: &[RgbaFrame]| frames.iter().map(|f| f.t_ms).collect::<Vec<u64>>();
+        let closed = cuts(&[(2_000, 5_000)]);
         let mut frames: Vec<RgbaFrame> = [0, 1_000, 2_200, 4_800, 5_000, 6_000].map(frame).into();
-        cuts.cut_frames(&mut frames);
-        let at: Vec<u64> = frames.iter().map(|f| f.t_ms).collect();
-        assert_eq!(at, [0, 1_000, 2_000, 3_000]);
+        closed.cut_frames(&mut frames);
+        assert_eq!(at(&frames), [0, 1_000, 2_000, 3_000]);
 
         let mut paused_throughout: Vec<RgbaFrame> = [2_200, 3_000].map(frame).into();
-        cuts.cut_frames(&mut paused_throughout);
-        let at: Vec<u64> = paused_throughout.iter().map(|f| f.t_ms).collect();
-        assert_eq!(at, [2_000]);
+        closed.cut_frames(&mut paused_throughout);
+        assert_eq!(at(&paused_throughout), [0_u64; 0]);
+
+        // Paused before the first candidate and finished without resuming.
+        let open = cuts(&[(100, Span::OPEN)]);
+        let mut never_resumed: Vec<RgbaFrame> = [300, 500].map(frame).into();
+        open.cut_frames(&mut never_resumed);
+        assert_eq!(at(&never_resumed), [0_u64; 0]);
     }
 
     #[test]
