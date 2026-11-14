@@ -1133,6 +1133,7 @@ mod mac {
             value: CFTypeRef,
         ) -> i32;
         fn AXValueGetValue(value: CFTypeRef, kind: u32, out: *mut std::ffi::c_void) -> bool;
+        fn AXValueGetTypeID() -> usize;
     }
 
     /// Whether Annotator turned an Electron app's accessibility tree on.
@@ -1151,8 +1152,12 @@ mod mac {
         electron: HashMap<i32, Electron>,
     }
 
+    /// A point or size attribute (`AXPosition`, `AXSize`) as two numbers.
     fn pair(element: &Owned, name: &'static str, kind: u32) -> Option<[f64; 2]> {
         let value = crate::ax::attribute(element.0, name)?;
+        if unsafe { core_foundation::base::CFGetTypeID(value.0) } != unsafe { AXValueGetTypeID() } {
+            return None;
+        }
         let mut out = [0.0_f64; 2];
         unsafe { AXValueGetValue(value.0, kind, out.as_mut_ptr().cast()) }.then_some(out)
     }
@@ -1171,6 +1176,13 @@ mod mac {
                     if near(x, bounds[0]) && near(y, bounds[1]) && near(w, bounds[2]) && near(h, bounds[3])
             )
         })
+    }
+
+    /// The app's focused window. Some apps answer `AXFocusedWindow` with the application
+    /// itself when no window has the focus (Chrome does): that is not a window to read.
+    fn focused_window(tree: &MacTree, app: &Owned) -> Option<Owned> {
+        tree.element(app, "AXFocusedWindow")
+            .filter(|window| tree.string(window, "AXRole").as_deref() == Some("AXWindow"))
     }
 
     fn is_electron(pid: i32) -> bool {
@@ -1293,7 +1305,7 @@ mod mac {
             // no window id to its name.
             let (element, window_id) = match window_at(&tree, &app, window.bounds) {
                 Some(element) => (element, Some(window.id)),
-                None => (tree.element(&app, "AXFocusedWindow")?, None),
+                None => (focused_window(&tree, &app)?, None),
             };
             let stop = || began.elapsed() > LIMITS.deadline || dropped();
             let document = tree.url(&element, "AXDocument");
@@ -1338,6 +1350,97 @@ mod mac {
                 }
             }
             self.apps.clear();
+        }
+    }
+
+    /// `cargo test appshot_live -- --ignored --nocapture` prints the app shot of the frontmost
+    /// app's focused window (or of `SCRAWL_APPSHOT_PID`'s), read through the real Accessibility
+    /// API, and what a Screen capture of the main display would take right now. The terminal
+    /// needs Accessibility. It only reads: it never turns an Electron app's tree on.
+    #[cfg(test)]
+    mod live {
+        use super::*;
+
+        #[test]
+        #[ignore = "reads the frontmost app through the Accessibility API"]
+        fn appshot_live_reads_the_frontmost_window() {
+            use objc2_app_kit::{NSRunningApplication, NSWorkspace};
+            // `SCRAWL_APPSHOT_PID=<pid>` reads that app instead of the frontmost one.
+            let front = std::env::var("SCRAWL_APPSHOT_PID")
+                .ok()
+                .and_then(|pid| pid.parse().ok())
+                .and_then(NSRunningApplication::runningApplicationWithProcessIdentifier)
+                .or_else(|| NSWorkspace::sharedWorkspace().frontmostApplication())
+                .expect("a frontmost app");
+            let pid = front.processIdentifier();
+            let bundle_id = front.bundleIdentifier().map(|id| id.to_string());
+            let name = front
+                .localizedName()
+                .map(|name| name.to_string())
+                .unwrap_or_default();
+            let tree = MacTree {
+                timeout_s: MESSAGE_TIMEOUT_S,
+            };
+            let app = tree.adopt(Owned(unsafe { AXUIElementCreateApplication(pid) }));
+            let window = focused_window(&tree, &app)
+                .or_else(|| tree.elements(&app, "AXWindows").into_iter().next())
+                .expect("the app has a window that answers");
+            let began = Instant::now();
+            let outline = walk(&tree, &window, &LIMITS, &|| began.elapsed() > LIMITS.deadline);
+            let took = began.elapsed();
+            println!(
+                "window at {:?} size {:?}",
+                pair(&window, "AXPosition", AX_VALUE_CG_POINT),
+                pair(&window, "AXSize", AX_VALUE_CG_SIZE)
+            );
+            let title = tree.string(&window, "AXTitle").unwrap_or_default();
+            let document = tree.url(&window, "AXDocument");
+            let shot = shot_of(
+                &name,
+                bundle_id.as_deref(),
+                None,
+                &title,
+                document.as_deref(),
+                outline,
+            );
+            println!(
+                "{} ({}) · “{}” · {} · {} nodes · cut: {} · tookMs {}",
+                shot.app,
+                bundle_id.as_deref().unwrap_or("-"),
+                shot.title,
+                shot.url.as_deref().unwrap_or("-"),
+                shot.nodes,
+                shot.truncated.as_deref().unwrap_or("-"),
+                took.as_millis()
+            );
+            for line in &shot.tree {
+                println!("{line}");
+            }
+            let screen = crate::screens::displays()
+                .into_iter()
+                .next()
+                .expect("a display");
+            let taken = MacTaker::default().take(
+                &Session {
+                    mode: CaptureMode::Display,
+                    window_id: None,
+                    region: crate::screens::with_scale(screen.frame, screen.scale),
+                    started_at: Instant::now(),
+                    bundle_dir: std::env::temp_dir(),
+                },
+                &|| false,
+            );
+            match taken {
+                Some(taken) => println!(
+                    "a Screen capture takes: {} “{}” window {:?} at {:?}, {} nodes",
+                    taken.shot.app,
+                    taken.shot.title,
+                    taken.shot.window_id,
+                    taken.frame,
+                    taken.shot.nodes
+                ),
+                None => println!("a Screen capture takes nothing now (no app window is on top)"),
+            }
         }
     }
 }
