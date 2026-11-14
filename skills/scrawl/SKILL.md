@@ -39,7 +39,7 @@ The person can pause a recording (Esc) and resume it. Paused time is cut out of 
 What the drawings mean:
 
 - Red strokes, circles, underlines and arrows are the person's marks, and they point at the problem. Marks drawn on the same screen all show on one keyframe. When there are several, the text numbers them in drawing order (`✎① 0:06 …`, `✎② 0:09 …`); the image shows only the ink, so use `scrawl zoom --mark` to see which ink is which.
-- A red disc in a white ring with a white number is a pin: a deliberate "here". Pins are numbered 1, 2, 3 in the order they were dropped in the whole recording, and the text calls them `pin N` (`scrawl zoom --mark` takes that number too).
+- A red disc in a white ring with a white number is a pin: a deliberate "here". Pins are numbered 1, 2, 3 in the order they were dropped in the whole recording, and the text calls them `pin N`. A pin number is not a mark number: `scrawl inspect --marks` lists each pin's mark id (`m3`), and `scrawl zoom --mark m3` zooms to it.
 - A ripple around the cursor shows a click or tap, and a finger trail shows a swipe.
 - A glowing red trail that tapers off is the laser pointer, used to point without leaving a mark.
 
