@@ -1076,7 +1076,9 @@ impl SharedCaptureTelemetry {
     }
 
     /// Whether a key press is the cancel key. ⌥ and ⇧ may still be down from the record
-    /// shortcut; with ⌘ or ⌃ it's some other app's shortcut.
+    /// shortcut, and ⇧ is down while drawing; with ⌘ or ⌃ it's some other app's shortcut.
+    /// Settings lets no shortcut share the key, whatever its modifiers (`settings::clash`), so
+    /// a press is never Undo as well.
     pub fn is_cancel(&self, keycode: u16, held: u32) -> bool {
         !self.shortcuts_paused.load(Ordering::Acquire)
             && u32::from(keycode) == self.cancel_key.load(Ordering::Acquire)
@@ -2352,6 +2354,57 @@ mod tests {
         // While Settings records a shortcut, the cancel key is the recorder's.
         telemetry.shortcuts_paused.store(true, Ordering::Release);
         assert!(!telemetry.is_cancel(shortcuts.cancel.key_code() as u16, 0));
+    }
+
+    /// With any shortcuts Settings accepts, no key press is both Undo and the cancel key (Undo
+    /// on ⌥F5 with F5 as the cancel key would pause the recording), and the cancel key goes on
+    /// working with ⌥ or ⇧ held: ⇧ is down while drawing.
+    #[test]
+    fn no_undo_settings_accepts_is_also_the_cancel_key() {
+        use crate::settings::{CancelKey, Control, Shortcuts, check};
+        let telemetry = session(1000.0, 1000.0);
+        let all = [
+            CARBON_CMD_KEY,
+            CARBON_SHIFT_KEY,
+            CARBON_OPTION_KEY,
+            CARBON_CONTROL_KEY,
+        ];
+        let masks = || {
+            (0..16_u32).map(|bits| {
+                (0..4)
+                    .filter(|bit| bits >> bit & 1 == 1)
+                    .fold(0, |mask, bit| mask | all[bit])
+            })
+        };
+        for cancel in CancelKey::all() {
+            let key = cancel.key_code() as u16;
+            for undo_modifiers in masks() {
+                let mut shortcuts = Shortcuts::default();
+                shortcuts.cancel = cancel;
+                shortcuts.undo = ShortcutConfig {
+                    key_code: cancel.key_code(),
+                    carbon_modifiers: undo_modifiers,
+                    label: shortcut_label(undo_modifiers, &cancel.label()),
+                };
+                telemetry.set_recording_keys(&shortcuts);
+                for held in [0, CARBON_SHIFT_KEY, CARBON_OPTION_KEY] {
+                    assert!(telemetry.is_cancel(key, held), "{} with {held:#x}", cancel.label());
+                }
+                assert!(!telemetry.is_cancel(key, CARBON_CMD_KEY));
+                assert!(!telemetry.is_cancel(key, CARBON_CONTROL_KEY));
+                if check(&shortcuts, Control::Shortcut(ShortcutKind::Undo)).is_err() {
+                    continue;
+                }
+                for held in masks() {
+                    assert!(
+                        !(telemetry.is_undo(key, held) && telemetry.is_cancel(key, held)),
+                        "Settings accepts Undo {} with cancel key {}, and that press is both",
+                        shortcuts.undo.label,
+                        cancel.label()
+                    );
+                }
+            }
+        }
     }
 
     /// The draw modifier alone draws (laser, ink, pins); with another modifier it is part of a

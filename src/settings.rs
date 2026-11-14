@@ -195,8 +195,9 @@ impl Control {
 }
 
 /// Whether two rows of `shortcuts` answer to the same keys, and the keys they share: a combo
-/// (Record's and Paste's aliases count), the cancel key pressed alone, or a combo whose only
-/// modifier is the draw modifier (holding it would start drawing).
+/// (Record's and Paste's aliases count), a combo on the cancel key (with any modifiers, or
+/// Undo on ⌥F5 would pause a recording whose cancel key is F5), or a combo whose only modifier
+/// is the draw modifier (holding it would start drawing).
 /// `variant`'s aliases count: the live app's defaults have them, Annotator Dev's don't.
 fn clash(variant: Variant, shortcuts: &Shortcuts, a: Control, b: Control) -> Option<String> {
     let combos =
@@ -220,11 +221,16 @@ fn clash(variant: Variant, shortcuts: &Shortcuts, a: Control, b: Control) -> Opt
                     .map(|&(_, mods)| shortcut_label(mods, cx.key_label()))
             }
         }
-        (Control::Shortcut(kind), Control::Cancel) | (Control::Cancel, Control::Shortcut(kind)) => {
-            combos(kind)
-                .contains(&(cancel, 0))
-                .then(|| shortcuts.cancel.label())
-        }
+        // Whatever the combo's modifiers: a press of the cancel key counts with ⌥ or ⇧ held
+        // (`SharedCaptureTelemetry::is_cancel`) and, in the picker, with anything held.
+        (Control::Shortcut(kind), Control::Cancel) => combos(kind)
+            .iter()
+            .any(|&(key, _)| key == cancel)
+            .then(|| shortcuts.cancel.label()),
+        (Control::Cancel, Control::Shortcut(kind)) => combos(kind)
+            .iter()
+            .any(|&(key, _)| key == cancel)
+            .then(|| shortcuts.get(kind).label.clone()),
         (Control::Shortcut(kind), Control::Draw) => (!shortcuts.get(kind).is_unset()
             && shortcuts.get(kind).carbon_modifiers == draw)
             .then(|| shortcuts.draw.symbol()),
@@ -3225,6 +3231,76 @@ mod tests {
             ))
         );
         assert!(host.shortcuts.undo.is_default_for(ShortcutKind::Undo));
+    }
+
+    /// The cancel key still pauses with ⌥ or ⇧ held (`SharedCaptureTelemetry::is_cancel`) and
+    /// closes the picker whatever is held, so no shortcut may sit on that key, whatever its
+    /// modifiers:
+    /// Undo on ⌥F5 with F5 as the cancel key would pause the recording, and discard it on the
+    /// second quick Undo.
+    #[test]
+    fn a_shortcut_on_the_cancel_key_is_refused_whatever_its_modifiers() {
+        let dir = TempDir::new("cancel-key");
+        let mut host = fake(&dir);
+        let mut panel = Panel::default();
+        let undo = Control::Shortcut(ShortcutKind::Undo);
+        let opt_f5 = label(CARBON_OPTION_KEY, "F5");
+
+        // Undo onto the cancel key.
+        panel.on(Action::SetCancel { key: "f5".into() }, &mut host);
+        assert_eq!(host.shortcuts.cancel.label(), "F5");
+        act(&mut panel, &mut host, ShortcutKind::Undo, pressed(F5, CARBON_OPTION_KEY, ""));
+        assert_eq!(
+            error(&panel, &host, undo),
+            Some("F5 is already Cancel recording. Pick another key.".into())
+        );
+        assert!(host.shortcuts.undo.is_default_for(ShortcutKind::Undo));
+
+        // The other order: the cancel key onto Undo's key.
+        panel.on(Action::SetCancel { key: "escape".into() }, &mut host);
+        act(&mut panel, &mut host, ShortcutKind::Undo, pressed(F5, CARBON_OPTION_KEY, ""));
+        assert_eq!(host.shortcuts.undo.label, opt_f5);
+        panel.on(Action::SetCancel { key: "f5".into() }, &mut host);
+        assert_eq!(host.shortcuts.cancel, CancelKey::ESCAPE);
+        assert_eq!(
+            error(&panel, &host, Control::Cancel),
+            Some(format!("{opt_f5} is already Undo stroke. Pick another key."))
+        );
+
+        // Every row and every set of modifiers, the ones the key tap lets through or not.
+        let mut shortcuts = Shortcuts::default();
+        shortcuts.draw = DrawModifier::Control;
+        shortcuts.cancel = CancelKey::parse("f5").unwrap();
+        for kind in ShortcutKind::ALL {
+            for modifiers in [0, CARBON_SHIFT_KEY, CARBON_OPTION_KEY, OPT_SHIFT, CARBON_CMD_KEY, CTRL_OPT] {
+                let on_cancel = shortcuts.with(
+                    kind,
+                    ShortcutConfig {
+                        key_code: F5,
+                        carbon_modifiers: modifiers,
+                        label: label(modifiers, "F5"),
+                    },
+                );
+                let taken = Err(Rejection::Taken {
+                    label: "F5".into(),
+                    by: Control::Cancel,
+                });
+                assert_eq!(
+                    check_in(Variant::Dev, &on_cancel, Control::Shortcut(kind)),
+                    taken,
+                    "{kind:?} on {}",
+                    label(modifiers, "F5")
+                );
+                assert!(check_in(Variant::Dev, &on_cancel, Control::Cancel).is_err());
+            }
+        }
+        // Another key with the same modifiers is free.
+        shortcuts.undo = ShortcutConfig {
+            key_code: F1,
+            carbon_modifiers: CARBON_OPTION_KEY,
+            label: label(CARBON_OPTION_KEY, "F1"),
+        };
+        assert_eq!(check_in(Variant::Dev, &shortcuts, undo), Ok(()));
     }
 
     #[test]
