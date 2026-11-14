@@ -2717,7 +2717,13 @@ impl ScrawlCoordinator {
         });
         start_metric("metal_open_ms", stage);
         let stage = Instant::now();
-        let audio_recorder = AudioRecorder::start().ok();
+        let started_at = *self
+            .telemetry
+            .started_at
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // The microphone opens later than this; the audio notes how much (`offset_ms`).
+        let audio_recorder = AudioRecorder::start(started_at).ok();
         start_metric("audio_start_ms", stage);
         let stage = Instant::now();
         let screen_session = ScreenCaptureSession::start(
@@ -2726,11 +2732,6 @@ impl ScrawlCoordinator {
             Arc::clone(&self.telemetry.excluded_window_ids),
         );
         start_metric("sck_start_ms", stage);
-        let started_at = *self
-            .telemetry
-            .started_at
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
         // App shots (`crate::appshot`): the first one now, on the clock the window log uses.
         let app_shots = crate::appshot::walker().filter(|_| self.telemetry.probing());
         if let Some(walker) = app_shots {

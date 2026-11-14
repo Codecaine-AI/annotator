@@ -1718,7 +1718,7 @@ fn main() -> Result<()> {
             std::fs::create_dir_all(&bundle_dir)?;
             let video_path = bundle_dir.join("recording.mp4");
             let playback = playback::Guard::start();
-            let audio = AudioRecorder::start().ok();
+            let audio = AudioRecorder::start(std::time::Instant::now()).ok();
             let session = ScreenCaptureSession::start(
                 target.clone(),
                 Some(video_path),
