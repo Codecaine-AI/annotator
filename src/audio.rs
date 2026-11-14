@@ -1,6 +1,6 @@
 use std::io::Cursor;
 use std::sync::{Arc, Mutex, OnceLock};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -323,9 +323,9 @@ where
     let mut sum = 0.0_f64;
     Ok(device.build_input_stream::<T, _, _>(
         config,
-        move |data, _| {
+        move |data, info| {
             if !data.is_empty() {
-                heard_at.get_or_init(|| first_heard(Instant::now(), data.len() / channels, rate));
+                heard_at.get_or_init(|| first_heard(Instant::now(), info.timestamp()));
             }
             let Ok(mut output) = samples.lock() else {
                 return;
@@ -366,14 +366,13 @@ where
     )?)
 }
 
-/// When the first sample of the stream's first buffer was heard: the buffer of `frames` frames
-/// at `rate` Hz reached the callback at `delivered`, once its last frame was in.
-fn first_heard(delivered: Instant, frames: usize, rate: u32) -> Instant {
-    delivered
-        .checked_sub(Duration::from_secs_f64(
-            frames as f64 / f64::from(rate.max(1)),
-        ))
-        .unwrap_or(delivered)
+/// When the first sample of the stream's first buffer was heard. The buffer reached the
+/// callback at `delivered`; the stream's own clock says how long before that its first sample
+/// was captured (`stamp.capture`), which is the buffer's length and the device's latency (on
+/// macOS: the I/O buffer, the device latency and its safety offset).
+fn first_heard(delivered: Instant, stamp: cpal::InputStreamTimestamp) -> Instant {
+    let since_capture = stamp.callback.saturating_duration_since(stamp.capture);
+    delivered.checked_sub(since_capture).unwrap_or(delivered)
 }
 
 /// Reads a 16 kHz mono WAV (as written by `scrawl-helper audio`) back into a recording.
@@ -503,6 +502,7 @@ pub fn encode_wav_16k(samples_16k: &[f32]) -> Result<Vec<u8>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::time::Duration;
 
     /// A recording paused from 2 s to 5 s: `audio.wav` is 3 s shorter and the sound at 5 s
     /// follows the sound at 2 s.
@@ -525,21 +525,27 @@ mod tests {
         assert!((kept[79_999] - 0.79).abs() < 0.001, "{}", kept[79_999]);
     }
 
-    /// The microphone opens a little after the capture clock starts (here 200 ms), and the
-    /// pauses are on that clock: a pause from 5 s to 7 s is 4.8 s to 6.8 s into the audio.
-    #[test]
-    fn audio_that_started_late_loses_exactly_the_paused_samples() {
-        // Each sample holds the millisecond on the capture clock it was heard in, from 200 ms
-        // to 9 s.
-        let heard_ms = |index: usize| 200 + index / 16;
+    /// A callback's timestamp for a buffer whose first sample was captured `ago`.
+    fn stamp(ago: Duration) -> cpal::InputStreamTimestamp {
+        let callback = cpal::StreamInstant::from_millis(90_000);
+        cpal::InputStreamTimestamp {
+            callback,
+            capture: callback.checked_sub(ago).unwrap(),
+        }
+    }
+
+    /// Audio heard from 200 ms to 9 s on the capture clock: each sample holds the millisecond
+    /// it was heard in.
+    fn heard_from_200_ms() -> Vec<f32> {
+        (0..8_800 * 16)
+            .map(|index| (200 + index / 16) as f32 / 32_768.0)
+            .collect()
+    }
+
+    /// Takes a pause from 5 s to 7 s on the capture clock out of `audio` (`heard_from_200_ms`)
+    /// and checks that no paused sample stays and no other sample is lost.
+    fn assert_loses_exactly_the_pause(audio: RecordedAudio) {
         let paused = 5_000..7_000;
-        let samples: Vec<f32> = (0..8_800 * 16)
-            .map(|index| heard_ms(index) as f32 / 32_768.0)
-            .collect();
-        let audio = RecordedAudio {
-            offset_ms: 200,
-            ..recorded_audio_from_wav(encode_wav_16k(&samples).unwrap()).unwrap()
-        };
         let cuts = crate::pause::Cuts::new(vec![crate::pause::Span {
             start_ms: paused.start as u64,
             end_ms: paused.end as u64,
@@ -563,7 +569,7 @@ mod tests {
             stayed.last()
         );
         let expected: Vec<usize> = (0..8_800 * 16)
-            .map(heard_ms)
+            .map(|index| 200 + index / 16)
             .filter(|ms| !paused.contains(ms))
             .collect();
         assert_eq!(kept.len(), expected.len(), "kept samples were lost");
@@ -573,6 +579,44 @@ mod tests {
         );
         // It still starts 200 ms into the capture, which is before the pause.
         assert_eq!((cut.duration_ms, cut.offset_ms), (6_800, 200));
+    }
+
+    /// The microphone opens a little after the capture clock starts (here 200 ms), and the
+    /// pauses are on that clock: a pause from 5 s to 7 s is 4.8 s to 6.8 s into the audio.
+    #[test]
+    fn audio_that_started_late_loses_exactly_the_paused_samples() {
+        assert_loses_exactly_the_pause(RecordedAudio {
+            offset_ms: 200,
+            ..recorded_audio_from_wav(encode_wav_16k(&heard_from_200_ms()).unwrap()).unwrap()
+        });
+    }
+
+    /// A buffer reaches the callback after the device's latency as well as its own length:
+    /// 480 frames at 48 kHz (10 ms) heard from 200 ms, through a device that is 200 ms latent,
+    /// arrive at 410 ms. The recorder times the first sample by the stream's capture stamp, so
+    /// the audio starts at 200 ms and a pause comes out of the right samples.
+    #[test]
+    fn a_latent_microphone_s_first_sample_is_timed_by_its_capture_stamp() {
+        let clock_started = Instant::now();
+        let delivered = clock_started + Duration::from_millis(410);
+        let audio = AudioRecorder {
+            worker: None,
+            stop_sender: None,
+            samples: Arc::new(Mutex::new(heard_from_200_ms())),
+            clock_started,
+            heard_at: Arc::new(OnceLock::from(first_heard(
+                delivered,
+                stamp(Duration::from_millis(10 + 200)),
+            ))),
+            error: Arc::new(Mutex::new(None)),
+            live: None,
+            preview: None,
+            shown: None,
+        }
+        .stop()
+        .unwrap();
+        assert_eq!(audio.offset_ms, 200);
+        assert_loses_exactly_the_pause(audio);
     }
 
     #[test]
@@ -597,8 +641,7 @@ mod tests {
             clock_started,
             heard_at: Arc::new(OnceLock::from(first_heard(
                 clock_started + Duration::from_millis(230),
-                480,
-                48_000,
+                stamp(Duration::from_millis(10)),
             ))),
             error: Arc::new(Mutex::new(None)),
             live: None,
@@ -608,8 +651,8 @@ mod tests {
         .stop()
         .unwrap();
         assert_eq!(audio.sample_count, 3);
-        // The first buffer (480 frames at 48 kHz, 10 ms) arrived 230 ms into the capture, so
-        // its first sample was heard at 220 ms.
+        // The first buffer arrived 230 ms into the capture, 10 ms after its first sample was
+        // captured, so that sample was heard at 220 ms.
         assert_eq!(audio.offset_ms, 220);
         assert_eq!(
             hound::WavReader::new(Cursor::new(audio.wav_bytes))
