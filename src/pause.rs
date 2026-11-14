@@ -6,7 +6,9 @@
 //! on recording on the one capture clock, and `Session` only notes when each pause began and
 //! ended. At finish `Cuts` takes those spans out of every timeline (video, audio, candidate
 //! frames, clicks, ink, the window log), so they all lose the same milliseconds and stay in
-//! sync. `docs/capture.md` says why.
+//! sync. A pause the recording is finished in has no end (`Span::OPEN`): each track stops in
+//! its own time after the Finish press, and is cut to wherever it ends. `docs/capture.md` says
+//! why.
 
 use crate::model::{InteractionEvent, RgbaFrame, Stroke};
 
@@ -144,11 +146,12 @@ impl Session {
     }
 
     /// Finish, recording or paused: the paused spans to take out. `None` once the recording is
-    /// over.
-    pub fn finish(&mut self, now_ms: u64) -> Option<Cuts> {
+    /// over. A pause it is finished in stays open: the screen and the microphone stop some
+    /// time after the Finish press, and nothing they took in after the pause began is kept.
+    pub fn finish(&mut self) -> Option<Cuts> {
         match self.state {
             State::Recording => {}
-            State::Paused { since_ms } => self.close(since_ms, now_ms),
+            State::Paused { since_ms } => self.close(since_ms, Span::OPEN),
             State::Finishing | State::Cancelled => return None,
         }
         self.state = State::Finishing;
@@ -181,6 +184,14 @@ pub struct Span {
 }
 
 impl Span {
+    /// The `end_ms` of a pause that never ended (Finish while paused): it runs to the end of
+    /// whatever it is cut from, on any clock.
+    pub const OPEN: u64 = u64::MAX;
+
+    fn is_open(&self) -> bool {
+        self.end_ms == Self::OPEN
+    }
+
     fn len(&self) -> u64 {
         self.end_ms.saturating_sub(self.start_ms)
     }
@@ -221,9 +232,9 @@ impl Cuts {
         &self.spans
     }
 
-    /// The paused time in all.
-    pub fn total_ms(&self) -> u64 {
-        self.spans.iter().map(Span::len).sum()
+    /// How much of the time up to `t` was paused.
+    pub fn paused_before(&self, t: u64) -> u64 {
+        t - self.shift(t)
     }
 
     /// Where the time `t` lands once the pauses are gone; a time inside a pause lands where
@@ -286,7 +297,11 @@ impl Cuts {
                 .iter()
                 .map(|span| Span {
                     start_ms: span.start_ms.saturating_sub(offset_ms),
-                    end_ms: span.end_ms.saturating_sub(offset_ms),
+                    end_ms: if span.is_open() {
+                        Span::OPEN
+                    } else {
+                        span.end_ms.saturating_sub(offset_ms)
+                    },
                 })
                 .collect(),
         )
@@ -391,7 +406,8 @@ impl Cuts {
 
     /// States that hold until the next one (window snapshots): the last one of a pause is what
     /// the recording resumes on, so it moves to where the pause began; the ones before it in
-    /// that pause are dropped.
+    /// that pause are dropped. A pause that never ended (`Span::OPEN`) resumes on nothing, so
+    /// all of its states are dropped.
     pub fn cut_states<T>(&self, items: &mut Vec<T>, time: impl Fn(&mut T) -> &mut u64) {
         if self.is_empty() {
             return;
@@ -402,11 +418,12 @@ impl Cuts {
         let mut index = 0;
         items.retain_mut(|item| {
             let pause = pauses[index];
-            let last_of_pause = pauses.get(index + 1).copied() != Some(pause);
+            let resumed_on = pauses.get(index + 1).copied() != Some(pause)
+                && pause.is_some_and(|pause| !self.spans[pause].is_open());
             index += 1;
             let t = time(item);
             *t = self.shift(*t);
-            pause.is_none() || last_of_pause
+            pause.is_none() || resumed_on
         });
     }
 
@@ -487,7 +504,7 @@ mod tests {
         assert!(s.is_paused());
         assert_eq!(s.press(5_000), Change::Resumed);
         assert_eq!(s.state(), State::Recording);
-        assert_eq!(s.finish(8_000), Some(cuts(&[(2_000, 5_000)])));
+        assert_eq!(s.finish(), Some(cuts(&[(2_000, 5_000)])));
         assert_eq!(s.state(), State::Finishing);
     }
 
@@ -508,7 +525,7 @@ mod tests {
         // A cancelled recording takes no more presses and has nothing to finish.
         assert_eq!(paused.press(61_000), Change::None);
         assert_eq!(paused.toggle(61_000), Change::None);
-        assert_eq!(paused.finish(62_000), None);
+        assert_eq!(paused.finish(), None);
         assert_eq!(paused.state(), State::Cancelled);
     }
 
@@ -522,21 +539,66 @@ mod tests {
         assert_eq!(s.press(2_390), Change::Cancelled);
     }
 
+    /// Paused at 5 s and Finish pressed at 10 s: the screen and the microphone stop a little
+    /// after the press (here at 10.4 s), so the pause runs to the real end of each track, not
+    /// to the press.
     #[test]
-    fn finish_while_paused_finishes_and_ends_the_pause_there() {
+    fn finish_while_paused_cuts_to_the_real_end_of_every_track() {
+        let mut s = Session::default();
+        assert_eq!(s.press(5_000), Change::Paused);
+        let paused = s.finish().unwrap();
+        assert_eq!(s.state(), State::Finishing);
+        assert_eq!(paused.kept(0, 10_400), [(0, 5_000)], "the movie");
+        // A movie whose first frame came 300 ms into the capture, on its own clock.
+        let movie = paused.on_clock_from(300);
+        assert_eq!(movie.kept(0, 10_100), [(0, 4_700)]);
+        assert_eq!(
+            movie.spans()[0].end_ms,
+            Span::OPEN,
+            "still to the end, on any clock"
+        );
+        // The audio: 16 samples a millisecond, each holding the millisecond it was heard in.
+        let samples: Vec<u32> = (0..10_400 * 16).map(|i| i / 16).collect();
+        let heard = paused.cut_samples(&samples, 16_000);
+        assert_eq!((heard.len(), heard.last()), (5_000 * 16, Some(&4_999)));
+        assert_eq!(paused.shift(10_400), 5_000, "the duration");
+        assert_eq!(paused.map(10_200), None, "a frame taken after the press");
+        // The recording never resumed, so the window log keeps nothing it saw in the pause.
+        let mut states = vec![(0_u64, 'a'), (6_000, 'b'), (10_200, 'c')];
+        paused.cut_states(&mut states, |state| &mut state.0);
+        assert_eq!(states, [(0, 'a')]);
+
+        // Nothing moves a finishing recording.
+        assert_eq!(s.press(10_100), Change::None);
+        assert_eq!(s.cancel(), Change::None);
+        assert_eq!(s.finish(), None);
+
+        // Pauses that ended before it come out as they did.
         let mut s = Session::default();
         s.press(1_000);
         s.press(2_000);
         s.press(7_000);
+        let paused = s.finish().unwrap();
+        assert_eq!(paused.kept(0, 9_900), [(0, 1_000), (2_000, 7_000)]);
         assert_eq!(
-            s.finish(9_500),
-            Some(cuts(&[(1_000, 2_000), (7_000, 9_500)]))
+            paused.paused_before(9_500),
+            3_500,
+            "paused when Finish was pressed"
         );
-        assert_eq!(s.state(), State::Finishing);
-        // Nothing moves a finishing recording.
-        assert_eq!(s.press(9_600), Change::None);
-        assert_eq!(s.cancel(), Change::None);
-        assert_eq!(s.finish(9_700), None);
+    }
+
+    /// Finish while recording: only the pauses that ended come out, and what the tracks hold
+    /// after the Finish press (here to 10.4 s) stays.
+    #[test]
+    fn finish_while_recording_keeps_all_that_follows_the_last_pause() {
+        let mut s = Session::default();
+        s.press(2_000);
+        s.press(5_000);
+        let paused = s.finish().unwrap();
+        assert_eq!(paused, cuts(&[(2_000, 5_000)]));
+        assert_eq!(paused.kept(0, 10_400), [(0, 2_000), (5_000, 10_400)]);
+        assert_eq!(paused.shift(10_400), 7_400, "the duration");
+        assert!(Session::default().finish().unwrap().is_empty());
     }
 
     #[test]
@@ -575,7 +637,7 @@ mod tests {
         let mut events = vec![click(1_000), click(6_000)];
         cuts.cut_events(&mut events);
         assert_eq!(times(&events), [1_000, 3_000]);
-        assert_eq!(cuts.total_ms(), 3_000);
+        assert_eq!(cuts.paused_before(8_000), 3_000);
         assert_eq!(cuts.shift(8_000), 5_000, "the duration");
     }
 

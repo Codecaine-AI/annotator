@@ -2948,9 +2948,10 @@ impl ScrawlCoordinator {
         let Some(mut rec) = self.active_recording.take() else {
             return;
         };
-        // Finish works while paused too; the pauses come out of every timeline below.
+        // Finish works while paused too; the pauses come out of every timeline below. A pause
+        // it is pressed in runs to wherever each track ends: they stop later, in the task below.
         let now_ms = self.telemetry.elapsed_ms();
-        let cuts = rec.pause.finish(now_ms).unwrap_or_default();
+        let cuts = rec.pause.finish().unwrap_or_default();
         // The movie and the candidate frames run on the screen session's clock, which started
         // a little after the capture clock the pauses are on.
         let frames_clock_ms = now_ms.saturating_sub(rec.elapsed_ms());
@@ -2960,7 +2961,7 @@ impl ScrawlCoordinator {
         if !cuts.is_empty() {
             scrawl_log(format!(
                 "finish: {} ms paused in {} pauses",
-                cuts.total_ms(),
+                cuts.paused_before(now_ms),
                 cuts.spans().len()
             ));
         }
