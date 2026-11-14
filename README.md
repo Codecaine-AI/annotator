@@ -1,28 +1,32 @@
 # Annotator
 
-Annotator is Codecaine's fork of [kitlangton/scrawl](https://github.com/kitlangton/scrawl), forked at v0.3.14. The app and CLI still use the Scrawl name until the rename lands.
+Annotator is Codecaine's fork of [kitlangton/scrawl](https://github.com/kitlangton/scrawl) by Kit Langton, forked at v0.3.14.
+
+- The app is `Annotator.app` (bundle id `ai.codecaine.annotator`).
+- The command-line tool stays `scrawl`, and captures stay `.scrawl` bundles.
+- Data stays in `~/Library/Application Support/scrawl`, `~/.config/scrawl`, `~/Library/Logs/Scrawl` and `~/Movies/Scrawl`.
+- The rest of this README says "Scrawl" where upstream code and paths still use that name.
 
 Show an agent a problem instead of describing it.
 
-Press a shortcut (`⌥⇧S`) and Scrawl starts recording the screen. Talk, click around, draw on it, and press `⌥⇧S` again to finish. Scrawl records the screen, your voice, and your marks, then packs them into a compact bundle: a contact sheet of annotated keyframes (`contact-sheet.png`), individual full-resolution keyframes (`frames/frame-XX.png`), a time-aligned transcript and interaction timeline (`summary.md`), and a structured manifest (`scrawl.json`).
+Press a shortcut (`⌥⇧S`) and Annotator starts recording the screen. Talk, click around, draw on it, and press `⌥⇧S` again to finish. Scrawl records the screen, your voice, and your marks, then packs them into a compact bundle: a contact sheet of annotated keyframes (`contact-sheet.png`), individual full-resolution keyframes (`frames/frame-XX.png`), a time-aligned transcript and interaction timeline (`summary.md`), and a structured manifest (`scrawl.json`).
 
 ## Install
 
-Scrawl needs an Apple silicon Mac on macOS 15 or later (live transcription and Liquid Glass need
-macOS 26). Download the DMG from [scrawl.kitlangton.com](https://scrawl.kitlangton.com), or use
-Homebrew:
+Annotator needs an Apple silicon Mac on macOS 15 or later (live words and Liquid Glass need
+macOS 26). There is no DMG, Homebrew cask or Sparkle update for the fork. Build it from this repo:
 
-```sh
-brew install --cask kitlangton/tap/scrawl
-```
+1. Run `python3 scripts/setup-local-signing.py` once. It makes the pinned `Annotator Local Development` signing identity and writes `~/.config/annotator/signing.json`.
+2. Run `./scripts/install-app.sh`. It builds, installs and signs `/Applications/Annotator.app`, links `scrawl` into `/usr/local/bin` and `~/bin`, and starts the app.
+3. Run `./scripts/install-app.sh` again after each change. The pinned signature keeps the Screen Recording, Microphone and Accessibility grants across rebuilds.
 
-The app updates itself (Sparkle), so Homebrew leaves updates to it.
+- `scripts/check-signing.sh /Applications/Annotator.app` checks the signature. It passes when the app and its helper are signed by the pinned certificate with no cdhash.
+- `./scripts/install-dev-app.sh` installs **Annotator Dev.app** in `~/Applications` (`ai.codecaine.annotator.dev`). Use it to test changes while the live app runs.
+  - Its shortcuts are `⌃⌥S` and `⌃⌥V`, and its command is `scrawl-dev`.
+  - It keeps its own state: `~/.config/scrawl-dev/`, `~/Library/Application Support/scrawl-dev/captures/`, ingest port `47778`.
+- `install-app.sh` never deletes upstream's `/Applications/Scrawl.app` or its data. It quits a running Scrawl.app so the two apps do not share the shortcut.
 
-On Windows 10 (2004) or later (x64), download the zip from the same page or the
-[latest GitHub release](https://github.com/kitlangton/scrawl/releases/latest), unzip it and run
-`scrawl.exe`. The Windows build is a preview and isn't signed yet, so Windows may say "Windows
-protected your PC": click **More info**, then **Run anyway**. It doesn't update itself yet; see
-[Windows](#windows).
+The Windows build is upstream's (see [Windows](#windows)). The fork does not publish Windows releases.
 
 ## Agents
 
@@ -32,8 +36,11 @@ Install the agent skill for Claude Code, OpenCode, Codex and other agents:
 bunx skills add kitlangton/scrawl
 ```
 
-The `scrawl` command is the binary inside Scrawl.app. The Homebrew cask links it onto your PATH, or click
-**Install** beside Command-line tool in Settings › Agents, which links it into `/opt/homebrew/bin`
+That command installs upstream's copy of the skill. This repo's copy is `skills/scrawl/SKILL.md`, and
+`scrawl skill` prints it.
+
+The `scrawl` command is the binary inside Annotator.app. `install-app.sh` links it into `/usr/local/bin`
+and `~/bin`. **Install** beside Command-line tool in Settings › Agents links it into `/opt/homebrew/bin`
 or `/usr/local/bin` when you can write there, else `~/.local/bin`. The link always runs the app's
 current copy, so it updates with the app.
 
@@ -42,7 +49,8 @@ keyframes the narration points at, and uses the command to look closer: `scrawl 
 0:12` (or `--at "a phrase you said"`, or `--mark 2` for the mark the text shows as ✎②; `scrawl
 inspect --marks` lists them) makes a dense sheet of frames around a moment, `scrawl
 frames` pulls a range, `scrawl send` queues a capture into an OpenCode session, and `scrawl export`
-makes a shareable `.mp4`. `scrawl skill` prints the skill without installing anything.
+makes a shareable `.mp4`. `scrawl appshot` prints the app state saved with a keyframe (see
+[App state and app shots](#app-state-and-app-shots)). `scrawl skill` prints the skill without installing anything.
 
 ## Usage
 
@@ -90,14 +98,18 @@ cargo run -- autocrop latest --serve --open
 # Export a bundle as a shareable .mp4 (crop to the activity, ink burned in, audio; --zoom for auto-zoom)
 cargo run -- export latest --zoom --out /tmp/demo.mp4
 
-# Clean up old captures now (the app does it daily), or keep one forever
+# Print the app state saved with each keyframe, or one keyframe's window as a text outline
+cargo run -- appshot latest
+cargo run -- appshot latest --frame 2
+
+# Clean up old captures now (the app does it hourly when a limit is set), or keep one forever
 cargo run -- clean --dry-run
 cargo run -- pin latest
 ```
 
 ## Welcome and permissions
 
-On first launch Scrawl opens a welcome window with four screens: a welcome, how ⌥⇧S works, one
+On first launch Annotator opens a welcome window with four screens: a welcome, how ⌥⇧S works, one
 screen with every permission Scrawl needs, and a first capture. Each permission is a row with a
 button that shows the macOS prompt (or, once asked, opens System Settings) and a check that appears
 by itself when macOS grants it (the window re-reads the grants every 0.5 s). Screen Recording is
@@ -122,8 +134,8 @@ Screen Recording and Accessibility are lists you drag an app into, so their butt
 prompt: it opens the pane in System Settings, and a card flies from the button to just below the
 Settings window (or, with no room on screen there, over the window's empty lower area), with its
 Scrawl row lined up under the list. Drag that row into the list. The card follows the window,
-steps aside when another app is in front, and shows "Scrawl is allowed" once a fresh process sees
-the grant (a drop alone proves nothing). The row drags the `Scrawl.app` that contains the helper,
+steps aside when another app is in front, and shows "Annotator is allowed" once a fresh process sees
+the grant (a drop alone proves nothing). The row drags the `Annotator.app` that contains the helper,
 the bundle macOS grants. With Reduce Motion on, the card fades in place. Microphone and Camera
 can't be dragged in, so they use the macOS prompt.
 
@@ -140,9 +152,9 @@ A Screen Recording grant may not reach a running app, and macOS offers **Quit & 
 Reopen**, macOS restarts Scrawl and the tour opens on the permissions screen again, Screen
 Recording checked. If you pick **Later** (or nothing), Scrawl checks whether it can capture anyway
 (a one-frame ScreenCaptureKit screenshot, tried only once a fresh helper reports the grant), and if
-it can't, the row shows "Reopening Scrawl" for a second and Scrawl relaunches itself into the same
+it can't, the row shows "Reopening Annotator" for a second and the app relaunches itself into the same
 screen. It only does that once in two minutes (`relaunchedAt` in the config); if a fresh copy
-still can't capture, the row's button becomes **Reopen Scrawl**. The relaunch waits for this copy
+still can't capture, the row's button becomes **Reopen Annotator**. The relaunch waits for this copy
 to exit and opens the app without `-n`, so if macOS's Quit & Reopen got there first there's still
 one Scrawl. `scrawl sck-probe [--watch SECONDS]` and `scrawl-helper sck-probe` try the same
 capture from the command line.
@@ -155,10 +167,12 @@ permissions screen at launch. `SCRAWL_NO_ONBOARDING=1` skips it.
 To replay it from scratch:
 
 ```sh
-tccutil reset All dev.kitlangton.scrawl
-jq 'del(.onboarding)' ~/.config/scrawl/config.json > /tmp/c.json && mv /tmp/c.json ~/.config/scrawl/config.json
-# then quit and reopen Scrawl
+tccutil reset All ai.codecaine.annotator.dev
+jq 'del(.onboarding)' ~/.config/scrawl-dev/config.json > /tmp/c.json && mv /tmp/c.json ~/.config/scrawl-dev/config.json
+# then quit and reopen Annotator Dev.app
 ```
+
+Do this only with Annotator Dev.app. Never reset the live app's grants.
 
 Preview every screen without the app, including the permissions screen with none, some and all
 granted and each on-demand sheet: `target/debug/scrawl-helper onboarding --render /tmp/onboarding
@@ -166,27 +180,51 @@ granted and each on-demand sheet: `target/debug/scrawl-helper onboarding --rende
 
 ## Settings
 
-**Settings…** in the menu bar (⌘, while the menu is open) opens a small window with six panes:
+**Settings…** in the menu bar (⌘, while the menu is open) opens a small window with seven panes:
 
-- **General**: Launch at login, Send dev-site captures to OpenCode, and the two shortcuts, Record
-  (`⌥⇧S`) and Paste last capture (`⌥⇧V`, which can be turned off).
-- **Recording**: the microphone, with its input level and Show live audio while recording, the
-  transcriber (Apple Speech with its language, Hex while it runs, with its model and language, or
-  Command when it's configured) and, under Experimental, Video export.
+- **General**: Launch at login, Send dev-site captures to OpenCode, and Lower other audio while recording.
+- **Recording**: the microphone and its input level, the transcriber (Deepgram nova-3, Apple Speech
+  with its language, Hex while it runs, or Command when it's configured), Show live audio, Show live
+  words, Save app state and, under Experimental, Video export.
+- **Shortcuts**: Record, Paste last capture, Draw, Undo stroke and Cancel recording (see [Shortcuts](#shortcuts)).
 - **Storage**: how long recordings are kept, where new captures go (Change…/Reset on macOS, `"capturesDir"` in
   `~/.config/scrawl/config.json` everywhere; captures already made stay put, and an unusable folder falls back to the built-in one), how much space they take, and Show in Finder.
 - **Permissions**: the onboarding checklist, so a permission can be turned on later.
 - **Agents**: Install or Uninstall the `scrawl` command (see [Agents](#agents)), and the skill's
   install command with Copy. A `scrawl` that belongs to another program is left alone.
-- **About**: the version, Check for Updates…, links, and the welcome tour.
+- **About**: the version, links, and the welcome tour. Annotator has no Sparkle, so About and the
+  menu show no Check for Updates….
 
-To change a shortcut, click its keys and press the new combination; `Esc` cancels. It needs ⌘, ⌥
-or ⌃ (a function key can stand alone), and Scrawl turns down ⌘ with one key, combinations macOS
-uses, the other Scrawl shortcut, and anything another app has already taken. The arrow beside the
-heading puts the default back. While the recorder listens, Scrawl's own shortcuts are paused. They
-are saved as `"shortcuts"` in `~/.config/scrawl/config.json`. The menu keeps Record Screen, Choose
-What to Record…, Open Latest Capture, Export Last Capture as Video… (when on), Settings…, Check
-for Updates… and Quit.
+The menu has Record Screen, Choose What to Record…, Open Latest Capture, History…, Export Last
+Capture as Video… (when on), Settings… and Quit Annotator.
+
+![Settings › Recording pane mockup](docs/images/mockups/30-recording.png)
+
+*Settings › Recording: Deepgram nova-3, live audio on, live words off, Save app state on (approved design mockup).*
+
+### Shortcuts
+
+Settings › Shortcuts has five rows:
+
+| Row | Default | What it takes |
+|---|---|---|
+| Record | `⌥⇧S` | Any combination. Press it again to finish. |
+| Paste last capture | `⌥⇧V` | Any combination, or off (× or Delete). |
+| Draw | `⇧` | One modifier: ⇧, ⌥, ⌃ or ⌘. |
+| Undo stroke | `⌘Z` | Any combination. Works only while you record. |
+| Cancel recording | `Esc` | Esc or F1 to F12. One press pauses or resumes, two cancel. |
+
+To change Record, Paste or Undo, click its keys and press the new combination; `Esc` cancels. Record
+and Paste need ⌘, ⌥ or ⌃ (a function key can stand alone). Annotator turns down ⌘ with one key,
+combinations macOS uses, a key another row has, and anything another app has already taken. A
+refused key names the row that has it ("⌥⇧S is already Record. Pick another key."). The ↺ button
+puts the default back. While the recorder listens, Annotator's own shortcuts are paused. They are
+saved as `"shortcuts"` in `~/.config/scrawl/config.json`, and a change works on the next key press.
+
+![Settings › Shortcuts pane mockup](docs/images/mockups/20-shortcuts.png)
+
+*Settings › Shortcuts with its five rows (approved design mockup). The app's Cancel recording caption
+now reads "Press once to pause or resume. Press twice to cancel."*
 
 **Microphone** lists the connected inputs, with System default first, which follows whatever macOS
 uses as it changes. The list updates as devices are plugged in or out. A chosen device is saved by
@@ -195,12 +233,18 @@ records from the default instead and says so under the popup (and once in the lo
 meter runs only while the Recording pane is on screen and Microphone is allowed. Cabled-iPhone
 narration uses the same microphone.
 
-**Show live audio while recording** (off by default, `"liveAudio": true`) puts a waveform beside
-the timer while you record, so you can see the microphone is hearing you: dim dots are silence,
-and a flat red line means the microphone is sending nothing at all. With Apple Speech on macOS 26,
-the capsule also grows a row under the controls with the words as you say them, about a second
-behind. It's only for you: the transcript is still made from the finished recording. It shows for a
-cabled iPhone too. From the terminal, `scrawl mic list` shows the inputs and the
+**Show live audio** (on by default, `"liveAudio": false` hides it) puts a waveform beside the timer
+while you record, so you can see the microphone is hearing you: dim dots are silence, and a flat red
+line means the microphone has sent nothing for 600 ms. It shows for a cabled iPhone too.
+
+**Show live words** (off by default, `"liveWords": true`) adds a row under the controls with the
+words as you say them, about a second behind. The words come from Apple Speech on macOS 26 whatever
+the transcriber is, and they need the waveform on. They are only for you: the transcript is still
+made from the finished recording.
+
+![Recording capsule mockup](docs/images/mockups/10-capsule.png)
+
+*The recording capsule: waveform on by default, live words as a setting, and the waveform's states (approved design mockup).* From the terminal, `scrawl mic list` shows the inputs and the
 one recordings will use, `scrawl mic set <id|default>` chooses, and `scrawl mic watch` prints the
 list again on every change.
 
@@ -212,7 +256,7 @@ Preview every pane, dark and light, with the recorder listening and a combinatio
 - **Press `⌥⇧S`**: record the display under the pointer as soon as you let go, however long you
   held it, auto-cropped (see below). Press it again to finish; a press within 0.4 s of the start is
   ignored, so a double press doesn't leave an empty capture. `⌃⌥⇧S` also works (only while `⌥⇧S` is the
-  shortcut; see [Settings](#settings) to change it). As it starts, the island opens onto the modes (Area · Window ·
+  shortcut; see [Shortcuts](#shortcuts) to change it). As it starts, the island opens onto the modes (Area · Window ·
   **Screen** · iPhone when one is cabled) for about 3.5 s, or until you click, scroll or draw;
   hovering keeps them. Click Window or Area to retarget (the first seconds are dropped and the
   picker takes over: click a window or drag an area), iPhone to record the phone instead, or just
@@ -221,10 +265,19 @@ Preview every pane, dark and light, with the recorder listening and a combinatio
   the display under the pointer. Click a mode, click a window or drag an area; `Esc` cancels.
 - `⌥⇧V`: Paste both `contact-sheet.png` and `summary.md` into the active app or terminal (`⌃⌥⇧V` also works while it's the default)
 - **Normal pointer**: Clicks and scrolls pass straight through to the app underneath
-- **Hold `⇧` (Shift) + move**: Draw a persistent red marker stroke (`#ff3b30`) on screen that fades out after release
+- **Hold `⇧` (Shift) + move**: Draw a red marker stroke (`#ff3b30`) on screen that fades out after release. `⇧` is the default draw modifier; Settings › Shortcuts can make it ⌥, ⌃ or ⌘
 - **`⇧`-click**: Drop a numbered pin where you click (a press that moves under 12 pt and lets go within 1 s; longer is ink). It shows on screen as a red circle, 22 pt across, with the pin's number in white (1, 2, 3 in the order you drop them): whole for 2 s, then it fades out over 0.5 s (on Windows it is still a brief red pulse). The recorded video never shows it, and the same numbered circle lands on the keyframes, the contact sheet and exported videos. Every `⇧`-click drops a pin, also after you've drawn in the same `⇧` hold: the line stays and ends at the pin. Keep `⇧` down and click more places to drop more pins, with the lines between them; let go of `⇧` between clicks for pins alone
 - **`⌘Z`**: Undo the last stroke
-- **`Esc`**: Close the picker. While recording, one press pauses and the next resumes; two presses within 400 ms cancel the capture. Paused time is cut out of the capture
+- **`Esc`**: Close the picker. While recording, one press pauses and the next resumes; two presses within 400 ms cancel the capture. Esc still reaches the app under the pointer. Paused time is cut out of the video, the audio, the transcript and every timeline at finish
+- **Finish while paused**: `⌥⇧S` or Finish ends a paused recording as usual
+
+While recording, the capsule shows each control's key: Pause or Resume `esc`, Cancel `esc esc`, and
+Finish `⌥⇧S`, with the keys from Settings › Shortcuts. While paused, the dot dims, the timer stops,
+and the waveform and words leave.
+
+![Capsule keys mockup](docs/images/mockups/25-capsule-keys.png)
+
+*The capsule shows the key for each control (approved design mockup).*
 
 While picking a target, the island shows the modes **Area**, **Window**, **Screen**, and **iPhone**
 (when one is cabled). It opens on the mode you used last:
@@ -234,6 +287,59 @@ While picking a target, the island shows the modes **Area**, **Window**, **Scree
   clicking the selected mode again starts recording (`⏎`/`⌥⇧S` record the full screen from Area and
   Window too)
 
+## History and the Review video
+
+**History…** in the menu opens a window with every capture, newest first. Each row shows:
+
+- the date, in local time;
+- the apps: for a Screen capture, every app that was in front, in order (three, then "+N"; the tooltip shows all);
+- the length;
+- "Video cleaned" when the video file is gone.
+
+Double-click a row, or press Return, to open it in Review. Review shows a **Video** tab while the
+capture's video file exists, and a row with its video opens on that tab. The tab plays the movie
+in a native player (`scrawl-helper play`). For a paused recording it plays the cut movie.
+
+![History window mockup](docs/images/mockups/40-history.png)
+
+*The History window and its menu item (approved design mockup).*
+
+![Review Video tab mockup](docs/images/mockups/50-review-video.png)
+
+*The Review window's Video tab (approved design mockup).*
+
+## App state and app shots
+
+**Save app state** in Settings › Recording is on by default on macOS (`"appState"`). It saves what
+is under each click and mark, and an app shot of the window each keyframe shows. An app shot is
+the window's app, bundle id, title, URL and a text outline of its Accessibility tree, one element
+per line (`button "Save" #save`). Shots go in the bundle's `appshots/` folder and stay after the
+video is cleaned.
+
+`summary.md` stays short. When a capture has shots it gets one line:
+`App shots: scrawl appshot <id> --frame N (N is the keyframe number)`.
+
+```sh
+scrawl appshot [BUNDLE] [--frame N] [--json]
+```
+
+- Without `--frame` it lists each keyframe's app, window, URL and node count.
+- With `--frame N` it prints that keyframe's window as a text outline.
+- BUNDLE is a capture id, a path or `latest` (the default).
+
+Everything app state saves goes through one privacy policy (`src/privacy.rs`). It never stores:
+
+- what is typed in a text field, text area, search field or password field;
+- a URL's query, fragment or `user:password@` login;
+- anything from a password manager (1Password, Bitwarden, Keychain Access, Passwords, LastPass) except its name;
+- a browser's own pages (`chrome://`, `about:` and the like).
+
+Details are in `docs/keyframes-and-text.md`.
+
+![App shot CLI mockup](docs/images/mockups/60-appshot.png)
+
+*`scrawl appshot` output and the App shots line (approved design mockup).*
+
 ## Sending captures of a dev site to its session
 
 A capture that ends with a browser in front showing a project's dev site goes straight to that
@@ -241,7 +347,7 @@ project's OpenCode session, the same way iPhone recordings do. It is still copie
 The island says "Sending to SCRAWL…", then "Sent to SCRAWL", or "Copied · couldn't reach SCRAWL"
 when OpenCode didn't take it (the app retries it, as for iPhone recordings). Window captures use the
 captured window's app instead of the one in front. Brave, Chrome, Arc, Edge, Vivaldi, Chromium, and
-Safari work; macOS asks once whether Scrawl may control the browser, so it can read the tab's
+Safari work; macOS asks once whether Annotator may control the browser, so it can read the tab's
 address. If you decline, captures stay on the clipboard.
 
 Scrawl picks the session in this order:
@@ -691,11 +797,18 @@ launch and then hourly, at low priority, and logs what it did:
 
 ## Transcription
 
-Narration is transcribed on device by Apple's SpeechAnalyzer (macOS 26), or on macOS 15 by the
-older on-device `SFSpeechRecognizer`. On macOS 15 onboarding asks for Speech Recognition, and
-Dictation's on-device model has to be on the Mac (System Settings › Keyboard › Dictation); Scrawl
-never falls back to Apple's servers. Both report when every word was spoken. The word timings
-drive two things:
+On macOS, Annotator transcribes narration with **Deepgram nova-3** by default (`"transcriber": "deepgram"`):
+
+- The key is `DEEPGRAM_API_KEY` from the environment, else from `~/.config/codecaine/env` (`KEY=value` lines).
+- The key goes to `curl` on stdin only. It never goes in arguments, a log or an error.
+- No key, no answer within 120 s, an error or an empty result means Apple Speech transcribes that recording. Settings › Recording shows why until the next Deepgram success.
+- The transcript says `"source": "deepgram:nova-3"`, with measured word times.
+
+Apple Speech is the fallback. (Windows uses its on-device engine, Parakeet, by default.) Apple Speech runs on device: Apple's
+SpeechAnalyzer on macOS 26, or the older on-device `SFSpeechRecognizer` on macOS 15. On macOS 15
+onboarding asks for Speech Recognition, and Dictation's on-device model has to be on the Mac (System
+Settings › Keyboard › Dictation); Apple Speech never uses Apple's servers. Every engine reports when
+each word was spoken. The word timings drive two things:
 
 - **Text per keyframe.** Each keyframe's text runs from the start of the clause in progress when
   its moment began (the action, the transition, or the spoken cue) until the next keyframe, so the
@@ -707,9 +820,10 @@ drive two things:
   "there" count only when they coincide with a change, because they are usually filler. Speech
   pauses never cut keyframes.
 
-### Apple or Hex
+### Deepgram, Apple or Hex
 
-Apple's SpeechAnalyzer is the default; Scrawl prepares its language model automatically. If you use Hex
+Pick the engine in Settings › Recording › **Engine**. Apple Speech prepares its language model
+automatically. If you use Hex
 (2.2 or later, running), Scrawl can transcribe with it instead and with whichever model Hex has
 ready: Settings › Recording › **Transcription** → **Hex**, then pick a model under **Hex model**.
 Or in
@@ -719,7 +833,7 @@ Or in
 { "transcriber": "hex", "hexModel": "whisper_large_v3_turbo", "hexLanguage": "nl" }
 ```
 
-`"transcriber"` is `"apple"` (default), `"hex"` or `"command"` (below); `hexModel` defaults to the
+`"transcriber"` is `"deepgram"` (default on macOS), `"apple"`, `"hex"` or `"command"` (below); `hexModel` defaults to the
 first ready one of `parakeet_unified_en`, `parakeet_v3`, `parakeet_v2`, `whisper_large_v3_turbo`.
 Scrawl never downloads or prepares a Hex model: install it in Hex first.
 
@@ -745,7 +859,7 @@ and ignore the hint.
   `"estimated": true`; because those times are approximate, spoken cues ("now", "here") don't cut
   keyframes from a Hex transcript. Marks, clicks, laser and scene changes still do.
 - `scrawl hex status` shows whether Hex is connected, its ready models and what the next recording
-  will use. `scrawl reprocess <bundle> --out … --transcriber hex|apple|command` (also
+  will use. `scrawl reprocess <bundle> --out … --transcriber deepgram|hex|apple|command` (also
   `scrawl import`) picks an engine for one run.
 
 ### Your own model (command)
@@ -815,13 +929,13 @@ microphone to `scrawl-helper transcribe-stream` as it records, so finishing only
 words (tens of milliseconds) instead of transcribing the whole recording. The streamed samples are
 exactly the ones `audio.wav` holds, so word times are on the same clock. If the stream fails, the
 speech model isn't installed yet, or it takes too long, the recording is transcribed afterwards as
-usual; the log says which (`Live transcription: …`). Hex and iPhone recordings are unaffected.
+usual; the log says which (`Live transcription: …`). Deepgram, Hex and iPhone recordings are unaffected.
 `scrawl reprocess <bundle> --out … --bench 1 --live-speed 1` replays a bundle's audio through it.
 
 ## Helper
 
 `scrawl-helper` is a small Swift executable built by `build.rs` from `helper/` and shipped inside
-`Scrawl.app` next to `scrawl`. It owns the Swift-only or unbound Apple frameworks: SpeechAnalyzer,
+`Annotator.app` next to `scrawl`. It owns the Swift-only or unbound Apple frameworks: SpeechAnalyzer,
 CoreMediaIO/AVFoundation iPhone capture with the mirror window, AVFoundation movie decoding, and the
 SwiftUI welcome window (`onboarding`).
 Scrawl runs it as a subprocess (JSON on stdout; `stop`/`cancel` on stdin for the mirror). Run it
@@ -886,11 +1000,12 @@ system owns differ:
   What clicks and marks land on then comes from UI Automation, as it does from the Accessibility
   tree on macOS. App shots (`scrawl appshot`) are macOS only.
 - **Not on Windows:** the cabled iPhone (it needs AVFoundation's screen capture devices), video
-  export, Sparkle updates (**Check for Updates…** opens the releases page) and the dev-site tab URL
-  (`/sdk.js` registrations still route).
-- **Releases:** a `v*` tag builds `Scrawl-<version>-windows-x64.zip` on GitHub Actions
-  (`.github/workflows/release-windows.yml`) and attaches it to the release. It isn't code-signed
-  yet; signing and automatic updates are planned.
+  export, the **History…** menu item, pause and resume (Esc cancels there), and the dev-site tab URL
+  (`/sdk.js` registrations still route). Review's Video tab opens the movie in the default player,
+  and the default transcriber is the on-device engine, not Deepgram. **Check for Updates…** opens upstream's
+  releases page.
+- **Releases:** upstream's `v*` tag builds `Scrawl-<version>-windows-x64.zip` on GitHub Actions
+  (`.github/workflows/release-windows.yml`). The fork does not publish releases.
 
 Build with the MSVC toolchain, CMake and the Windows SDK (Visual Studio Build Tools with the C++
 workload). Release builds also need GPUI's shader compiler: set `GPUI_FXC_PATH` to the SDK's
@@ -905,14 +1020,16 @@ cargo build --release
 
 ```sh
 taskpolicy -c utility cargo test -j 3 --offline -- --test-threads=2
-./scripts/install-app.sh
+./scripts/install-dev-app.sh
 ```
+
+Test in Annotator Dev.app (`⌃⌥S`), never in the live Annotator.app.
 
 On Windows, `cargo test`; then run `scrawl.exe app` and record with `Alt+Shift+S`.
 `SCRAWL_SHOW_OWN_WINDOWS=1` keeps Scrawl's own windows (capsule, overlay, picker) in screenshots,
 which normally leave them out.
 
-- **iPhone:** connect a phone, press `⌥⇧S`, click the iPhone chip, talk, draw over the mirror, press M,
+- **iPhone:** connect a phone, press `⌃⌥S` in Annotator Dev, click the iPhone chip, talk, draw over the mirror, press M,
   Finish. Inspect the bundle's `summary.md`, `scrawl.json` (`source`, `device`), contact sheet, and
   frames.
 - **ScrawlKit:** `scrawl import` on a recording and its timeline (or hand-write a timeline for any
