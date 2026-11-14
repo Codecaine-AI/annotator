@@ -17,6 +17,7 @@ use crate::handoff::{
     ApiGet, OpenCodeSession, Scan, find_root_session, get_session, normalize_slug, query_escape,
 };
 use crate::model::ScrawlBundle;
+use crate::privacy::WholeUrl;
 
 /// Pages of newest root sessions read (100 each), besides the exact-folder and by-ID reads.
 pub const SESSION_PAGES: usize = 2;
@@ -63,10 +64,10 @@ pub struct Live {
 /// Looks at the browser tab or terminal in front (`front`) or captured (`target`), and reads
 /// the open sessions. Runs while the bundle is built.
 pub fn look_live(front: Option<&str>, target: Option<&str>, senses: &Senses) -> Live {
-    let url = super::capture_url(front, target);
-    let mut clues = url
-        .as_deref()
-        .map(|url| url_clues(url, senses, true))
+    let tab = super::capture_url(front, target);
+    let mut clues = tab
+        .as_ref()
+        .map(|tab| url_clues(tab, senses, true))
         .unwrap_or_default();
     if let Some((cwd, title)) = [front, target]
         .into_iter()
@@ -88,9 +89,14 @@ pub fn look_live(front: Option<&str>, target: Option<&str>, senses: &Senses) -> 
         }
     }
     let (mut candidates, error) = read_for(&clues, None, senses);
-    look_at_page(url.as_deref(), &mut clues, &mut candidates, senses);
+    look_at_page(
+        tab.as_ref().map(WholeUrl::whole),
+        &mut clues,
+        &mut candidates,
+        senses,
+    );
     Live {
-        url,
+        url: tab.map(|tab| tab.clean().clone()),
         clues,
         candidates,
         error,
@@ -256,9 +262,9 @@ fn read_for(
 /// The clues a tab gives: its `/sdk.js` registration, and the folder of the process serving
 /// its port when the tab is on this Mac (a loopback host, or with `own_host` this Mac's own
 /// name).
-pub fn url_clues(url: &str, senses: &Senses, own_host: bool) -> Vec<Clue> {
+pub fn url_clues(tab: &WholeUrl, senses: &Senses, own_host: bool) -> Vec<Clue> {
     let mut clues = Vec::new();
-    if let Some(reg) = (senses.hooks.sdk)(url) {
+    if let Some(reg) = (senses.hooks.sdk)(tab.whole()) {
         if let Some(id) = reg.session.clone() {
             clues.push(Clue::new(
                 Source::Page,
@@ -276,7 +282,7 @@ pub fn url_clues(url: &str, senses: &Senses, own_host: bool) -> Vec<Clue> {
             ));
         }
     }
-    let Some(parsed) = parse_url(url) else {
+    let Some(parsed) = parse_url(tab.clean()) else {
         return clues;
     };
     let port = if parsed.is_loopback() {
@@ -724,18 +730,23 @@ pub fn evidence_for_bundle(
         );
         return (evidence, None, true);
     }
-    let url = url
-        .and_then(crate::privacy::CleanUrl::new)
-        .or_else(recorded_url);
-    let mut clues = url
-        .as_deref()
-        .map(|url| url_clues(url, senses, true))
+    let tab = url
+        .and_then(WholeUrl::new)
+        .or_else(|| recorded_url().map(WholeUrl::from));
+    let mut clues = tab
+        .as_ref()
+        .map(|tab| url_clues(tab, senses, true))
         .unwrap_or_default();
     let address = crate::handoff::recorded_destination(dir).map(Address::Recorded);
     let (mut candidates, error) = read_for(&clues, address.as_ref(), senses);
-    look_at_page(url.as_deref(), &mut clues, &mut candidates, senses);
+    look_at_page(
+        tab.as_ref().map(WholeUrl::whole),
+        &mut clues,
+        &mut candidates,
+        senses,
+    );
     let live = Live {
-        url,
+        url: tab.map(|tab| tab.clean().clone()),
         clues,
         candidates,
         error: error.clone(),
@@ -1187,7 +1198,7 @@ mod tests {
             world.sessions = sessions.clone();
             WORLD.with(|w| *w.borrow_mut() = world);
             let today = super::super::route(url, &senses.hooks).ok();
-            let clues = url_clues(url, &senses, false);
+            let clues = url_clues(&WholeUrl::new(url).unwrap(), &senses, false);
             let (candidates, _) = read_for(&clues, None, &senses);
             let evidence = Evidence {
                 address: None,
@@ -1415,8 +1426,9 @@ mod tests {
             ..Senses::default()
         };
         let url = "https://studio.example.ts.net:4948/board";
-        assert!(url_clues(url, &senses, false).is_empty());
-        let clues = url_clues(url, &senses, true);
+        let tab = WholeUrl::new(url).unwrap();
+        assert!(url_clues(&tab, &senses, false).is_empty());
+        let clues = url_clues(&tab, &senses, true);
         assert_eq!(clues.len(), 1);
         assert_eq!(clues[0].source, Source::Port);
         let (candidates, error) = read_for(&clues, None, &senses);

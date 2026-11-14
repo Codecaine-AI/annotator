@@ -6,7 +6,9 @@
 // When Scrawl asks for it (loopback pages only), it also tells Scrawl what's under clicks and
 // marks (element, component, source file:line), video seeks, console errors and failed
 // requests. A mark is a move with the draw modifier held: ⇧, or the one Settings › Shortcuts
-// names. It never sends request bodies, headers, cookies, query strings or typed values.
+// names. It never sends request bodies, headers, cookies, typed values or the query string
+// of a request. A registration carries this page's whole address, which Scrawl uses once to
+// tell this tab from another and keeps without its query and fragment.
 (() => {
   const script = document.currentScript;
   if (!script || window.__scrawlSdk) return;
@@ -43,8 +45,9 @@
       path,
       {
         origin: location.origin,
-        // The page only: never its query, fragment or login.
-        url: location.origin + location.pathname,
+        // The whole address, so Scrawl can tell this tab from another on the same page. It
+        // names the tab with it and keeps only the page: no query, fragment or login.
+        url: location.href,
         title: document.title,
         session: script.dataset.session || undefined,
         directory: script.dataset.directory || undefined,

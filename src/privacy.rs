@@ -332,6 +332,77 @@ impl std::fmt::Display for CleanUrl {
     }
 }
 
+/// A whole URL, with its query, fragment and login, as routing may hold it in memory to tell
+/// one page from another, and nowhere else: it cannot be serialized, and `Debug` and
+/// `Display` show its clean form. `whole` is for a lookup or a file's path, never for a
+/// string that is kept; what is kept is `clean`.
+#[derive(Clone, PartialEq, Eq)]
+pub struct WholeUrl {
+    whole: String,
+    clean: CleanUrl,
+}
+
+impl WholeUrl {
+    /// `None` when nothing is left of `raw` once it is cleaned.
+    pub fn new(raw: &str) -> Option<Self> {
+        Some(Self {
+            whole: raw.trim().to_owned(),
+            clean: CleanUrl::new(raw)?,
+        })
+    }
+
+    pub fn whole(&self) -> &str {
+        &self.whole
+    }
+
+    pub fn clean(&self) -> &CleanUrl {
+        &self.clean
+    }
+}
+
+/// A URL that was stored: its clean form is all there is of it.
+impl From<CleanUrl> for WholeUrl {
+    fn from(clean: CleanUrl) -> Self {
+        Self {
+            whole: clean.to_string(),
+            clean,
+        }
+    }
+}
+
+impl std::fmt::Debug for WholeUrl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_tuple("WholeUrl").field(&self.clean).finish()
+    }
+}
+
+impl std::fmt::Display for WholeUrl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.clean.fmt(f)
+    }
+}
+
+/// A name for a whole URL that shows nothing of it: the same for the same URL, so two pages
+/// that differ only in what `CleanUrl` drops (the query, the fragment, a path past
+/// `MAX_CHARS`) are still told apart by something that may be kept. It is a SipHash of the
+/// URL behind a secret (the ingest token), so it cannot be worked back to the URL, nor checked
+/// against a guess without the secret. It is the same in every process of one build.
+#[derive(
+    Clone, Copy, Debug, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize,
+)]
+pub struct UrlKey(u64);
+
+impl UrlKey {
+    pub fn of(secret: &str, whole: &str) -> Self {
+        use std::hash::Hasher as _;
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        hasher.write(secret.as_bytes());
+        hasher.write_u8(0xff);
+        hasher.write(whole.trim().as_bytes());
+        Self(hasher.finish())
+    }
+}
+
 /// A window's title as the window log and the capture's target may keep it: empty for a
 /// sensitive app.
 pub fn window_title(bundle_id: Option<&str>, title: &str) -> String {
@@ -729,14 +800,23 @@ mod tests {
             ("//user:SECRET-MARKER@a.dev/x", "//a.dev/x"),
             ("(//user:SECRET-MARKER@a.dev/x)", "(//a.dev/x)"),
             ("//SECRET-MARKER@a.dev", "//a.dev"),
-            ("See //user:SECRET-MARKER@a.dev/x?next=1 now", "See //a.dev/x now"),
+            (
+                "See //user:SECRET-MARKER@a.dev/x?next=1 now",
+                "See //a.dev/x now",
+            ),
             // Browsers take a scheme with one slash, with three, and with backslashes.
             ("https:/user:SECRET-MARKER@a.dev/x", "https:/a.dev/x"),
             ("https:///user:SECRET-MARKER@a.dev/x", "https:///a.dev/x"),
-            ("https:\\\\user:SECRET-MARKER@a.dev\\x", "https:\\\\a.dev\\x"),
+            (
+                "https:\\\\user:SECRET-MARKER@a.dev\\x",
+                "https:\\\\a.dev\\x",
+            ),
             ("///user:SECRET-MARKER@a.dev/x", "///a.dev/x"),
             // A file server's login; a file's own path is not a host.
-            ("file://kit:SECRET-MARKER@server/share", "file://server/share"),
+            (
+                "file://kit:SECRET-MARKER@server/share",
+                "file://server/share",
+            ),
         ];
         for (raw, kept) in cases {
             let out = text(raw).unwrap();
