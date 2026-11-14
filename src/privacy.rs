@@ -185,6 +185,9 @@ const CLOSERS: [char; 16] = [
     ')', ']', '}', '>', '"', '\'', '”', '’', '»', '.', ',', ';', ':', '!', '?', '…',
 ];
 
+/// Schemes that are followed by `someone@host` and no slashes (mail, calls, chat, accounts).
+const ADDRESS_SCHEMES: [&str; 7] = ["mailto", "sip", "sips", "xmpp", "acct", "im", "pres"];
+
 /// A word without the secrets of a URL in it: its query, its fragment and its login.
 ///
 /// A `?` or `#` after a scheme (`https://a.dev/x?token=1#top`) always starts one. Anywhere else
@@ -225,7 +228,8 @@ fn url_like(word: &str) -> bool {
 /// `https:/a.dev`, `https:///a.dev` and backslashes for `https://a.dev`, and `//a.dev` takes
 /// its scheme from the page. Only a file has no host there: its path starts at the third
 /// slash. After such an opening anything before `@` is a login (`https://token@a.dev`).
-/// Without one only `user:password@` is: `kit@a.dev` is an address.
+/// Without one only `user:password@` is: `kit@a.dev` is an address, and so is what follows an
+/// address scheme (`mailto:kit@a.dev`, `ADDRESS_SCHEMES`).
 fn host_start(word: &str) -> (usize, bool) {
     let slashes = |at: usize| {
         word[at..]
@@ -240,9 +244,19 @@ fn host_start(word: &str) -> (usize, bool) {
     }
     let lead = word.len() - word.trim_start_matches(OPENERS).len();
     match slashes(lead) {
-        0 | 1 => (lead, false),
-        run => (lead + run, true),
+        0 | 1 => {}
+        run => return (lead + run, true),
     }
+    // `mailto:kit@a.dev` names a person at a host: the scheme is not the user of a login.
+    let scheme = word[lead..].split(':').next().unwrap_or_default();
+    if scheme.len() < word.len() - lead
+        && ADDRESS_SCHEMES
+            .iter()
+            .any(|name| scheme.eq_ignore_ascii_case(name))
+    {
+        return (lead + scheme.len() + 1, false);
+    }
+    (lead, false)
 }
 
 /// A word without the login in front of its host (`host_start`).
@@ -743,6 +757,35 @@ mod tests {
         ] {
             assert_eq!(text(plain).as_deref(), Some(plain));
         }
+    }
+
+    #[test]
+    fn privacy_text_keeps_an_address_behind_its_scheme() {
+        // `mailto:` and its like name a person at a host: no login is in them.
+        for plain in [
+            "mailto:kit@a.dev",
+            "Write to (mailto:kit@a.dev) today",
+            "MAILTO:Kit@A.dev",
+            "sip:kit@a.dev",
+            "xmpp:kit@a.dev",
+            "acct:kit@a.dev",
+        ] {
+            assert_eq!(text(plain).as_deref(), Some(plain));
+        }
+        // Its query still goes, and a password in it still does.
+        assert_eq!(
+            text("mailto:kit@a.dev?subject=SECRET-MARKER").as_deref(),
+            Some("mailto:kit@a.dev")
+        );
+        assert_eq!(
+            text("mailto:kit:SECRET-MARKER@a.dev").as_deref(),
+            Some("mailto:a.dev")
+        );
+        // Any other `name:password@` without slashes is a login, as before.
+        assert_eq!(
+            text("user:SECRET-MARKER@example.test/reset").as_deref(),
+            Some("example.test/reset")
+        );
     }
 
     #[test]
