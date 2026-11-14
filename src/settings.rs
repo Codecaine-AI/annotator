@@ -295,16 +295,67 @@ impl Shortcuts {
     pub fn load() -> Self {
         let path = crate::handoff::default_config_path();
         let legacy = legacy_path();
-        let (shortcuts, migrated) = Self::load_from(&path, &legacy);
+        let (shortcuts, migrated, dropped) = Self::read(&path, &legacy);
         if migrated && save_shortcut_in(&path, ShortcutKind::Record, &shortcuts.record).is_ok() {
             let _ = std::fs::remove_file(&legacy);
         }
+        // The app loads them more than once; the log says it once.
+        static LOGGED: std::sync::Once = std::sync::Once::new();
+        LOGGED.call_once(|| {
+            for dropped in &dropped {
+                crate::capture::scrawl_log(format!(
+                    "Shortcuts: {}",
+                    dropped.note(shortcuts.get(dropped.kind))
+                ));
+            }
+        });
         shortcuts
     }
 
-    /// The shortcuts in `path`, else a custom record shortcut from the old file at `legacy`
-    /// (returning `true` when that one should be moved across).
+    /// The shortcuts in `path` (`read`).
     pub fn load_from(path: &Path, legacy: &Path) -> (Self, bool) {
+        let (shortcuts, migrated, _) = Self::read(path, legacy);
+        (shortcuts, migrated)
+    }
+
+    /// The saved shortcuts in `path` that `load_from` leaves out because they are on the
+    /// cancel key, for Settings to say so.
+    pub fn dropped_in(path: &Path) -> Vec<Dropped> {
+        Self::read(path, Path::new("")).2
+    }
+
+    /// The shortcuts in `path`, else a custom record shortcut from the old file at `legacy`
+    /// (returning `true` when that one should be moved across), and the saved shortcuts that
+    /// were on the cancel key. Nothing is written: the same file reads the same each time.
+    fn read(path: &Path, legacy: &Path) -> (Self, bool, Vec<Dropped>) {
+        let (mut shortcuts, migrated) = Self::stored_in(path, legacy);
+        let dropped = shortcuts.free_cancel_key();
+        (shortcuts, migrated, dropped)
+    }
+
+    /// Takes every shortcut off the cancel key, as `clash` would have refused it: a config
+    /// saved before that rule (Cancel on F6, Undo on ⇧F6) would undo and pause on one press.
+    /// The shortcut goes back to its default, or off when another row has the default and it
+    /// can be off.
+    fn free_cancel_key(&mut self) -> Vec<Dropped> {
+        let mut dropped = Vec::new();
+        for kind in ShortcutKind::ALL {
+            let row = Control::Shortcut(kind);
+            if clash(Variant::current(), self, row, Control::Cancel).is_none() {
+                continue;
+            }
+            let was = self.get(kind).label.clone();
+            self.set(kind, kind.default_config());
+            if kind.can_unset() && check(self, row).is_err() {
+                self.set(kind, ShortcutConfig::unset());
+            }
+            dropped.push(Dropped { kind, was });
+        }
+        dropped
+    }
+
+    /// What `path` holds as it was saved, else the old file's record shortcut.
+    fn stored_in(path: &Path, legacy: &Path) -> (Self, bool) {
         let config = read_json(path);
         let mut shortcuts = Self::default();
         let stored = config.get("shortcuts");
@@ -357,6 +408,42 @@ impl Shortcuts {
             return (shortcuts, true);
         }
         (shortcuts, false)
+    }
+}
+
+/// A saved shortcut that was on the cancel key, so it was not loaded
+/// (`Shortcuts::free_cancel_key`).
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Dropped {
+    pub kind: ShortcutKind,
+    /// Its label as saved (`⇧F6`).
+    pub was: String,
+}
+
+impl Dropped {
+    /// One line for the log and for the row in Settings; `now` is what the row has instead.
+    pub fn note(&self, now: &ShortcutConfig) -> String {
+        let (was, cancel, name) = (&self.was, Control::Cancel.name(), self.kind.name());
+        if now.is_unset() {
+            format!("{was} is the {cancel} key, so {name} is off. Pick another key.")
+        } else {
+            let now = &now.label;
+            format!("{was} is the {cancel} key, so {name} is {now} again. Pick another key.")
+        }
+    }
+
+    /// Writes what each dropped row has now (`shortcuts`) over what `path` saved for it, so
+    /// the file holds what is in use and the note goes. `only`: just that row.
+    fn settle(path: &Path, shortcuts: &Shortcuts, only: Option<Control>) {
+        for dropped in Shortcuts::dropped_in(path) {
+            let row = Control::Shortcut(dropped.kind);
+            if only.is_some_and(|only| only != row) {
+                continue;
+            }
+            if let Err(error) = save_shortcut_in(path, dropped.kind, shortcuts.get(dropped.kind)) {
+                crate::capture::scrawl_log(format!("Saving the shortcut failed: {error:#}"));
+            }
+        }
     }
 }
 
@@ -1473,7 +1560,11 @@ impl Panel {
     /// clashes with another row or macOS refuses it.
     fn apply(&mut self, changed: Control, next: Shortcuts, host: &mut dyn Host) {
         self.error = None;
+        // A shortcut dropped at load (`Shortcuts::free_cancel_key`) is still in the config.
+        // Picking its row's key again keeps what the row has, and any change that is taken
+        // settles every such row, so a later launch can't bring the old one back.
         if host.shortcuts() == next {
+            Dropped::settle(&host.config_path(), &next, Some(changed));
             return;
         }
         if let Err(rejection) = check(&next, changed) {
@@ -1482,6 +1573,7 @@ impl Panel {
         }
         match host.set_shortcuts(&next) {
             Ok(()) => {
+                Dropped::settle(&host.config_path(), &next, None);
                 if let Err(error) = save_control_in(&host.config_path(), changed, &next) {
                     crate::capture::scrawl_log(format!("Saving the shortcut failed: {error:#}"));
                 }
@@ -1619,6 +1711,14 @@ impl Panel {
     pub fn view(&self, host: &dyn Host) -> View {
         let config = crate::handoff::load_config_from(&host.config_path());
         let shortcuts = host.shortcuts();
+        // A saved shortcut that was on the cancel key: its row says what became of it.
+        let dropped = Shortcuts::dropped_in(&host.config_path());
+        let dropped_note = |kind: ShortcutKind| {
+            dropped
+                .iter()
+                .find(|dropped| dropped.kind == kind)
+                .map(|dropped| dropped.note(shortcuts.get(kind)))
+        };
         let hex = crate::hex::cached_status();
         let engine = config
             .transcriber
@@ -1658,7 +1758,10 @@ impl Panel {
                         kind,
                         shortcuts.get(kind),
                         self.recording == Some(kind),
-                        self.error_for(Control::Shortcut(kind)),
+                        self.error_for(Control::Shortcut(kind))
+                            .cloned()
+                            .or_else(|| dropped_note(kind))
+                            .as_ref(),
                     )
                 })
                 .collect(),
@@ -3301,6 +3404,115 @@ mod tests {
             label: label(CARBON_OPTION_KEY, "F1"),
         };
         assert_eq!(check_in(Variant::Dev, &shortcuts, undo), Ok(()));
+    }
+
+    /// A config saved before Settings refused a shortcut on the cancel key is checked when it
+    /// is loaded: Cancel on F6 with Undo on ⇧F6 would undo and pause on one press, and throw
+    /// the recording away on two. The shortcut goes back to its default (or off, when another
+    /// row has the default), and its row in Settings says so until a key is picked there.
+    #[test]
+    fn a_saved_shortcut_on_the_cancel_key_is_dropped_at_load_and_settings_says_so() {
+        let dir = TempDir::new("saved-clash");
+        let mut host = fake(&dir);
+        let legacy = dir.0.join("legacy.json");
+        let f6 = CancelKey::parse("f6").unwrap().key_code();
+        let stored = |cfg: &ShortcutConfig| {
+            serde_json::json!({
+                "keyCode": cfg.key_code, "modifiers": cfg.carbon_modifiers, "label": cfg.label,
+            })
+        };
+        let on_f6 = |modifiers: u32| ShortcutConfig {
+            key_code: f6,
+            carbon_modifiers: modifiers,
+            label: label(modifiers, "F6"),
+        };
+        let undo = Control::Shortcut(ShortcutKind::Undo);
+        let paste = Control::Shortcut(ShortcutKind::Paste);
+        let save = |shortcuts: serde_json::Value| {
+            std::fs::write(
+                dir.0.join("config.json"),
+                serde_json::json!({"ingestToken": "secret", "shortcuts": shortcuts}).to_string(),
+            )
+            .unwrap();
+        };
+        let file = || std::fs::read_to_string(dir.0.join("config.json")).unwrap();
+
+        // Undo on ⇧F6: back to its default, and that press is the cancel key's alone.
+        let shift_f6 = on_f6(CARBON_SHIFT_KEY);
+        save(serde_json::json!({"cancel": "f6", "undo": stored(&shift_f6)}));
+        let (loaded, _) = Shortcuts::load_from(&host.path, &legacy);
+        assert_eq!(loaded.cancel.label(), "F6");
+        assert!(
+            loaded.undo.is_default_for(ShortcutKind::Undo),
+            "{:?}",
+            loaded.undo
+        );
+        let telemetry = crate::capture::SharedCaptureTelemetry::new(flume::unbounded().0);
+        telemetry.set_recording_keys(&loaded);
+        assert!(telemetry.is_cancel(f6 as u16, CARBON_SHIFT_KEY));
+        assert!(!telemetry.is_undo(f6 as u16, CARBON_SHIFT_KEY));
+        // Loading changes nothing on disk, and says the same each time.
+        assert!(file().contains(&shift_f6.label));
+        assert_eq!(Shortcuts::load_from(&host.path, &legacy).0, loaded);
+        host.shortcuts = loaded.clone();
+        let mut panel = Panel::default();
+        let undo_note = format!(
+            "{} is the Cancel recording key, so Undo stroke is {} again. Pick another key.",
+            shift_f6.label,
+            ShortcutConfig::default_undo().label
+        );
+        assert_eq!(error(&panel, &host, undo), Some(undo_note.clone()));
+        assert_eq!(error(&panel, &host, paste), None);
+        // Picking its key again keeps it: the old one leaves the config and the note goes.
+        let z = ShortcutConfig::default_undo();
+        act(
+            &mut panel,
+            &mut host,
+            ShortcutKind::Undo,
+            pressed(z.key_code, z.carbon_modifiers, "z"),
+        );
+        assert_eq!(error(&panel, &host, undo), None);
+        assert!(!file().contains(&shift_f6.label) && file().contains("ingestToken"));
+        assert_eq!(Shortcuts::load_from(&host.path, &legacy).0, loaded);
+
+        // Moving the cancel key away settles it too, rather than bring ⇧F6 back at next launch.
+        save(serde_json::json!({"cancel": "f6", "undo": stored(&shift_f6)}));
+        assert_eq!(error(&panel, &host, undo), Some(undo_note));
+        panel.on(Action::SetCancel { key: "f7".into() }, &mut host);
+        assert_eq!(host.shortcuts.cancel.label(), "F7");
+        assert_eq!(error(&panel, &host, undo), None);
+        assert_eq!(Shortcuts::load_from(&host.path, &legacy).0, host.shortcuts);
+        assert!(host.shortcuts.undo.is_default_for(ShortcutKind::Undo));
+
+        // Paste on ⌃⌥F6 while Record has Paste's default: Paste has nowhere to go, so it is off.
+        let record = ShortcutConfig::default_paste();
+        let ctrl_opt_f6 = on_f6(CTRL_OPT);
+        save(serde_json::json!({
+            "cancel": "f6", "record": stored(&record), "paste": stored(&ctrl_opt_f6),
+        }));
+        let (loaded, _) = Shortcuts::load_from(&host.path, &legacy);
+        assert_eq!(loaded.record.label, record.label);
+        assert!(loaded.paste.is_unset(), "{:?}", loaded.paste);
+        host.shortcuts = loaded;
+        assert_eq!(
+            error(&panel, &host, paste),
+            Some(format!(
+                "{} is the Cancel recording key, so Paste last capture is off. Pick another key.",
+                ctrl_opt_f6.label
+            ))
+        );
+
+        // A shortcut on another key loads as it is, with no note.
+        let opt_f5 = ShortcutConfig {
+            key_code: F5,
+            carbon_modifiers: CARBON_OPTION_KEY,
+            label: label(CARBON_OPTION_KEY, "F5"),
+        };
+        save(serde_json::json!({"cancel": "f6", "undo": stored(&opt_f5)}));
+        let (loaded, _) = Shortcuts::load_from(&host.path, &legacy);
+        assert_eq!(loaded.undo, opt_f5);
+        host.shortcuts = loaded;
+        assert_eq!(error(&panel, &host, undo), None);
     }
 
     #[test]
