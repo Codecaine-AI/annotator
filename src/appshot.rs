@@ -994,25 +994,113 @@ impl Shared {
         let began = Instant::now();
         let taken = taker.take(&session, &|| self.dropped(generation));
         let took_ms = began.elapsed().as_millis() as u64;
-        {
-            // Under the same lock that `finish` and `cancel` take the capture with, so a walk
-            // that ends late never lands in the next capture.
-            let mut live = lock(&self.live);
-            if let (Some(taken), Some(live)) = (
-                taken,
-                live.as_mut()
-                    .filter(|live| live.generation == generation && !self.dropped(generation)),
-            ) {
-                live.spool.add(t, took_ms, taken);
-            }
+        if let Some(staged) = taken.and_then(Staged::new) {
+            self.land(generation, t, took_ms, staged);
         }
         *lock(&self.walking) = false;
         self.walked.notify_all();
     }
+
+    /// The capture a walk of `generation` was started for, while it still wants the shot.
+    fn current<'a>(&self, live: &'a mut Option<Live>, generation: u64) -> Option<&'a mut Live> {
+        live.as_mut()
+            .filter(|live| live.generation == generation && !self.dropped(generation))
+    }
+
+    /// Puts a shot into its capture's spool. `finish` and `cancel` take the capture under
+    /// `live`, so the shot is noted under that lock and a walk that ends late never lands in
+    /// the next capture. The file is written between two short holds of the lock, never under
+    /// it: a write that stalls holds up neither `finish` nor `cancel`. A shot whose capture
+    /// ended while its file was written is dropped, and so is the file.
+    fn land(&self, generation: u64, t: u64, took_ms: u64, staged: Staged) {
+        let plan = {
+            let mut live = lock(&self.live);
+            let Some(live) = self.current(&mut live, generation) else {
+                return;
+            };
+            live.spool.plan(&staged)
+        };
+        let wrote = match &plan {
+            Plan::Capped => return,
+            Plan::Seen => false,
+            Plan::Write(path) => {
+                if !staged.write(path) {
+                    return;
+                }
+                true
+            }
+        };
+        let mut live = lock(&self.live);
+        match self.current(&mut live, generation) {
+            Some(live) => live.spool.note(t, took_ms, staged, wrote),
+            None => {
+                if let Plan::Write(path) = &plan {
+                    Staged::unwrite(path);
+                }
+            }
+        }
+    }
+}
+
+/// A shot ready for the spool: its file's name and bytes, made before any lock is taken.
+struct Staged {
+    file: String,
+    bytes: Vec<u8>,
+    taken: Taken,
+}
+
+impl Staged {
+    fn new(taken: Taken) -> Option<Self> {
+        Some(Self {
+            file: format!("{}.json", taken.shot.key()),
+            bytes: serde_json::to_vec_pretty(&taken.shot).ok()?,
+            taken,
+        })
+    }
+
+    /// Writes the file at `path` in the spool. As slow as the disk: never call it under
+    /// `Shared::live`. It makes `appshots/` and the spool, never the bundle's own folder: a
+    /// capture that was thrown away stays gone.
+    fn write(&self, path: &Path) -> bool {
+        let Some((spool, shots)) = path.parent().and_then(|spool| Some((spool, spool.parent()?)))
+        else {
+            return false;
+        };
+        for dir in [shots, spool] {
+            match std::fs::create_dir(dir) {
+                Err(error) if error.kind() != std::io::ErrorKind::AlreadyExists => return false,
+                _ => {}
+            }
+        }
+        std::fs::write(path, &self.bytes).is_ok()
+    }
+
+    /// Takes back a file written for a capture that ended meanwhile, and the spool with it
+    /// when nothing else is there.
+    fn unwrite(path: &Path) {
+        let _ = std::fs::remove_file(path);
+        if let Some(spool) = path.parent() {
+            let _ = std::fs::remove_dir(spool);
+            if let Some(shots) = spool.parent() {
+                let _ = std::fs::remove_dir(shots);
+            }
+        }
+    }
+}
+
+/// What the spool wants done with a shot's file.
+enum Plan {
+    /// This state is in the spool already.
+    Seen,
+    /// The spool is full: the shot is not kept.
+    Capped,
+    /// Write it here, then `Spool::note` it.
+    Write(PathBuf),
 }
 
 /// A capture's shots while it records: each new one is written to `appshots/.spool/` at once,
-/// so none is held in memory; only when each was seen is.
+/// so none is held in memory; only when each was seen is. The spool itself never writes: it
+/// says what to do with a shot's file (`plan`) and notes the shot once that is done (`note`).
 struct Spool {
     dir: PathBuf,
     /// Shot key to its file.
@@ -1035,22 +1123,23 @@ impl Spool {
         }
     }
 
-    fn add(&mut self, t: u64, took_ms: u64, taken: Taken) {
+    /// What to do with `staged`'s file. Past the cap the spool stays capped.
+    fn plan(&mut self, staged: &Staged) -> Plan {
+        if self.seen.contains(&staged.file) {
+            return Plan::Seen;
+        }
+        if self.capped || self.bytes + staged.bytes.len() as u64 > SPOOL_CAP {
+            self.capped = true;
+            return Plan::Capped;
+        }
+        Plan::Write(self.dir.join(&staged.file))
+    }
+
+    /// Notes that `staged` was seen at `t`; `wrote` when its file was written for this.
+    fn note(&mut self, t: u64, took_ms: u64, staged: Staged, wrote: bool) {
+        let Staged { file, bytes, taken } = staged;
         let Taken { shot, pid, frame } = taken;
-        let file = format!("{}.json", shot.key());
-        if !self.seen.contains(&file) {
-            let Ok(bytes) = serde_json::to_vec_pretty(&shot) else {
-                return;
-            };
-            if self.capped || self.bytes + bytes.len() as u64 > SPOOL_CAP {
-                self.capped = true;
-                return;
-            }
-            if std::fs::create_dir_all(&self.dir).is_err()
-                || std::fs::write(self.dir.join(&file), &bytes).is_err()
-            {
-                return;
-            }
+        if wrote {
             self.bytes += bytes.len() as u64;
             self.seen.insert(file.clone());
         }
@@ -1065,6 +1154,25 @@ impl Spool {
             frame,
             took_ms,
         });
+    }
+
+    /// `plan`, the write and `note` in one go, for tests that fill a spool by hand.
+    #[cfg(test)]
+    fn add(&mut self, t: u64, took_ms: u64, taken: Taken) {
+        let Some(staged) = Staged::new(taken) else {
+            return;
+        };
+        let wrote = match self.plan(&staged) {
+            Plan::Capped => return,
+            Plan::Seen => false,
+            Plan::Write(path) => {
+                if !staged.write(&path) {
+                    return;
+                }
+                true
+            }
+        };
+        self.note(t, took_ms, staged, wrote);
     }
 
     fn into_shots(self) -> Shots {
@@ -2176,6 +2284,97 @@ mod tests {
         walker.request(Duration::ZERO);
         assert!(!walker.is_live());
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// A shot whose file is far larger than a pipe holds (64 KB).
+    fn big_shot() -> Shot {
+        Shot {
+            app: "Safari".into(),
+            window_id: Some(1),
+            nodes: 1,
+            tree: vec!["x".repeat(1024 * 1024)],
+            ..Shot::default()
+        }
+    }
+
+    struct BigTaker(Arc<AtomicU64>);
+
+    impl Taker for BigTaker {
+        fn take(&mut self, _: &Session, _: &dyn Fn() -> bool) -> Option<Taken> {
+            self.0.fetch_add(1, Ordering::AcqRel);
+            Some(Taken {
+                shot: big_shot(),
+                pid: 42,
+                frame: [0, 0, 800, 600],
+            })
+        }
+    }
+
+    /// A disk that stalls: the spool file of `big_shot` is a named pipe that nothing reads for
+    /// `stall`, so the write of the shot blocks that long. Returns the pipe's path and the
+    /// thread that then reads it to its end.
+    #[cfg(unix)]
+    fn stalled_spool_file(dir: &Path, stall: Duration) -> (PathBuf, std::thread::JoinHandle<()>) {
+        use std::os::unix::ffi::OsStrExt as _;
+        use std::os::unix::fs::OpenOptionsExt as _;
+        use std::os::unix::io::AsRawFd as _;
+        let spool = dir.join(DIR).join(SPOOL);
+        std::fs::create_dir_all(&spool).unwrap();
+        let path = spool.join(format!("{}.json", big_shot().key()));
+        let name = std::ffi::CString::new(path.as_os_str().as_bytes()).unwrap();
+        assert_eq!(unsafe { libc::mkfifo(name.as_ptr(), 0o600) }, 0);
+        // Open for reading now, so the writer's open succeeds and its write is what blocks.
+        let mut pipe = std::fs::OpenOptions::new()
+            .read(true)
+            .custom_flags(libc::O_NONBLOCK)
+            .open(&path)
+            .unwrap();
+        let reader = std::thread::spawn(move || {
+            use std::io::Read as _;
+            std::thread::sleep(stall);
+            let fd = pipe.as_raw_fd();
+            unsafe {
+                let flags = libc::fcntl(fd, libc::F_GETFL);
+                libc::fcntl(fd, libc::F_SETFL, flags & !libc::O_NONBLOCK);
+            }
+            let _ = pipe.read_to_end(&mut Vec::new());
+        });
+        (path, reader)
+    }
+
+    #[cfg(unix)]
+    #[test]
+    fn appshot_a_stalled_spool_write_holds_up_neither_finish_nor_cancel() {
+        let stall = Duration::from_millis(900);
+        for cancel in [false, true] {
+            let dir = temp("stalled");
+            let (file, reader) = stalled_spool_file(&dir, stall);
+            let taken = Arc::new(AtomicU64::new(0));
+            let walker = Walker::start(BigTaker(Arc::clone(&taken)));
+            walker.begin(session(&dir));
+            wait_for(|| taken.load(Ordering::Acquire) == 1);
+            // The walker is now writing the shot, and the write is stalled.
+            std::thread::sleep(Duration::from_millis(50));
+            let began = Instant::now();
+            if cancel {
+                walker.cancel();
+                let waited = began.elapsed();
+                assert!(waited < Duration::from_millis(100), "cancel took {waited:?}");
+            } else {
+                let shots = walker.finish().unwrap();
+                let waited = began.elapsed();
+                assert!(
+                    waited < FINISH_WAIT + Duration::from_millis(250),
+                    "finish took {waited:?}"
+                );
+                assert!(shots.timeline.observations.is_empty());
+            }
+            // The write ends after the capture did: its shot lands nowhere and leaves no file.
+            reader.join().unwrap();
+            wait_for(|| !file.exists() && !dir.join(DIR).exists());
+            assert!(!walker.is_live());
+            let _ = std::fs::remove_dir_all(&dir);
+        }
     }
 
     #[test]
