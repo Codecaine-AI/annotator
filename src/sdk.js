@@ -161,9 +161,15 @@
       }
       return {};
     };
-    // A field holds what was typed: its text and its value are never read.
-    const typed =
-      "input, textarea, select, [contenteditable]:not([contenteditable='false' i]), [role=textbox], [role=searchbox], [role=combobox]";
+    // A field holds what was typed: its text and its value are never read. A role counts
+    // wherever it stands in the element's `role` list (`~=`) and in any case (`i`).
+    const typed = [
+      "input",
+      "textarea",
+      "select",
+      "[contenteditable]:not([contenteditable='false' i])",
+      ...["textbox", "searchbox", "combobox", "spinbutton"].map((role) => `[role~=${role} i]`),
+    ].join(", ");
     const fieldOf = (el) => el.closest(typed) || (el.isContentEditable ? el : null);
     const attr = (el, names) => {
       for (const name of names) {

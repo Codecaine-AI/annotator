@@ -935,6 +935,41 @@ mod tests {
         assert!(!format!("{live:?}").contains("SECRET-MARKER"), "{live:?}");
     }
 
+    /// `cargo test sdk_page -- --ignored`: an element is a field by any role in its `role`
+    /// list, in any case.
+    #[test]
+    #[ignore = "runs sdk.js in headless Google Chrome"]
+    fn sdk_page_treats_any_text_entry_role_as_a_field() {
+        let run = run_fixture(
+            PageSettings {
+                context: true,
+                draw: DrawModifier::Shift,
+            },
+            r#"
+    $("role-box").innerHTML = "<i id='inner'>SECRET-MARKER-ROLE</i>";
+    $("spin-box").textContent = "SECRET-MARKER-SPIN";
+    for (const id of ["inner", "role-box", "role-label", "spin-box", "spin-label"]) {
+      fire($(id), "pointerdown");
+    }
+    fire(document.body, "pointermove", Object.assign({ shiftKey: true }, over($("role-box"))));
+"#,
+        );
+        let sent = run.posted("/web/context").join("\n");
+        assert!(!sent.contains("SECRET-MARKER"), "{sent}");
+        assert_eq!(
+            run.seen("pointer"),
+            [
+                "<span#role-box.box>",
+                "<span#role-box.box>",
+                "<label#role-label> “Handle”",
+                "<span#spin-box.box>",
+                "<label#spin-label> “Count”",
+            ]
+        );
+        assert_eq!(run.seen("mark"), ["<span#role-box.box>"]);
+        assert!(!format!("{:?}", run.kept).contains("SECRET-MARKER"));
+    }
+
     #[test]
     fn http_routes_serve_the_script_and_check_registrations() {
         let js = request("GET /sdk.js HTTP/1.1\r\nHost: x\r\n\r\n", "tok");
