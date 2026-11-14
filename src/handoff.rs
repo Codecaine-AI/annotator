@@ -494,7 +494,7 @@ pub struct Config {
     pub pill_style: Option<String>,
     /// Save app state with each capture (`app_state`): what clicks and marks land on, and on
     /// macOS an app shot of the window under each keyframe. Absent follows an older
-    /// `experiments.agentContext`, else it is on for macOS and off elsewhere.
+    /// `experiments.agentContext`, else it is off.
     #[serde(default)]
     pub app_state: Option<bool>,
     /// Behaviour Kit tries locally before it ships (`{"liveTranscribe": true}`); see
