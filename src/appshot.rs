@@ -199,24 +199,30 @@ pub trait Windows {
     type Window;
     /// The app's `AXWindows`.
     fn windows(&self) -> Vec<Self::Window>;
+    /// The window server's id of a window, when the app's element gives it.
+    fn id(&self, window: &Self::Window) -> Option<u32>;
     /// `AXPosition` or `AXSize` of a window.
     fn pair(&self, window: &Self::Window, attribute: &'static str) -> Option<[f64; 2]>;
     /// A window's `AXTitle`.
     fn title(&self, window: &Self::Window) -> Option<String>;
 }
 
-/// An Accessibility window is the captured one when its position and size are this close.
+/// Without its id, an app's only window is the captured one when its position and size are
+/// this close to the window server's.
 const WINDOW_SLOP_PT: f64 = 2.0;
 
 /// Why a window has no shot.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Miss {
-    /// The app has no Accessibility window where the window server puts the captured one.
+    /// None of the app's Accessibility windows has the captured window's id.
     NoWindow,
-    /// The window at that place has another title: it is another window.
+    /// The app's windows do not give their ids, and it has more than one: nothing proves
+    /// which of them is the captured one.
+    NoId,
+    /// The app's only window gives no id and is not where the captured one is.
+    OtherPlace,
+    /// The app's only window gives no id and has another title.
     OtherTitle,
-    /// More than one window is at that place with that title.
-    Ambiguous,
     /// The walk's time ran out, or the capture no longer wants the shot.
     Stopped,
 }
@@ -225,84 +231,84 @@ impl Miss {
     /// For the log.
     pub fn reason(self) -> &'static str {
         match self {
-            Self::NoWindow => "the app has no Accessibility window at its place",
-            Self::OtherTitle => "the Accessibility window at its place has another title",
-            Self::Ambiguous => "more than one Accessibility window fits its place and title",
+            Self::NoWindow => "none of the app's Accessibility windows has its id",
+            Self::NoId => "the app's Accessibility windows give no window id",
+            Self::OtherPlace => "the app's one window gives no id and is at another place",
+            Self::OtherTitle => "the app's one window gives no id and has another title",
             Self::Stopped => "the app did not show its windows in time",
         }
     }
 }
 
-/// The Accessibility window of the window the window server has at `bounds` (global points)
-/// with `title`: the app's one window at that place, within `WINDOW_SLOP_PT`, with that title.
-/// The place alone does not tell two maximized windows of one app apart, so the title decides
-/// between the windows there:
-/// - the one whose `AXTitle` is `title`;
-/// - else the one whose `AXTitle` begins with `title` or the other way round (a browser's
-///   Accessibility title is the window's title and more: `Inbox - Google Chrome - Kit`), or
-///   that has no `AXTitle`.
+/// The Accessibility window of the captured window: the one of the app's windows that gives
+/// the window server's `id`. Nothing else proves it. A window's place and title do not: the
+/// captured window may have moved or closed since the window server was asked, and another
+/// window of the app may be at its old place with a title that begins the same.
 ///
-/// When the window server gave no title, the place decides if one window is there.
+/// When a window gives no id, the place and title are taken as proof only if it is the app's
+/// one window: it must be at `bounds` (global points, within `WINDOW_SLOP_PT`), and its
+/// `AXTitle` must be `title`, begin with it or the other way round (a browser's Accessibility
+/// title is the window's title and more), or be missing on either side.
 ///
-/// There is no second guess. With no such window, or more than one, the answer is a `Miss` and
-/// no shot is taken: the app's focused window may be another window than the captured one, and
-/// a shot must never carry a window id that its tree is not of.
+/// There is no second guess. Any other case is a `Miss` and no shot is taken: the app's
+/// focused window may be another window than the captured one, and a shot must never carry a
+/// window id that its tree is not of.
 ///
 /// `stop` is checked before every question to the app, as `walk` does: an app that hangs
 /// costs the walk's one deadline, not a timeout per window.
 pub fn find_window<W: Windows>(
     app: &W,
+    id: u32,
     bounds: [f64; 4],
     title: &str,
     stop: &dyn Fn() -> bool,
 ) -> Result<W::Window, Miss> {
-    let near = |a: f64, b: f64| (a - b).abs() <= WINDOW_SLOP_PT;
     let ask = || if stop() { Err(Miss::Stopped) } else { Ok(()) };
     ask()?;
-    let mut at_place = Vec::new();
-    for window in app.windows() {
-        // The size is asked for only where the position fits.
+    let mut windows = app.windows();
+    let mut without_id = 0;
+    for at in 0..windows.len() {
         ask()?;
-        let Some([x, y]) = app.pair(&window, "AXPosition") else {
-            continue;
-        };
-        if !near(x, bounds[0]) || !near(y, bounds[1]) {
-            continue;
-        }
-        ask()?;
-        let Some([w, h]) = app.pair(&window, "AXSize") else {
-            continue;
-        };
-        if near(w, bounds[2]) && near(h, bounds[3]) {
-            at_place.push(window);
+        match app.id(&windows[at]) {
+            Some(own) if own == id => return Ok(windows.swap_remove(at)),
+            Some(_) => {}
+            None => without_id += 1,
         }
     }
-    if at_place.is_empty() {
+    if without_id == 0 {
         return Err(Miss::NoWindow);
     }
-    let title = title.trim();
-    let mut found = if title.is_empty() {
-        at_place
-    } else {
-        let (mut same, mut alike) = (Vec::new(), Vec::new());
-        for window in at_place {
-            ask()?;
-            match app.title(&window) {
-                Some(own) if own.trim() == title => same.push(window),
-                Some(own) if !own.trim().starts_with(title) && !title.starts_with(own.trim()) => {}
-                _ => alike.push(window),
-            }
-        }
-        match (same.is_empty(), alike.is_empty()) {
-            (false, _) => same,
-            (true, false) => alike,
-            (true, true) => return Err(Miss::OtherTitle),
-        }
-    };
-    match found.len() {
-        1 => Ok(found.remove(0)),
-        _ => Err(Miss::Ambiguous),
+    if windows.len() != 1 {
+        return Err(Miss::NoId);
     }
+    let window = windows.remove(0);
+    let near = |a: f64, b: f64| (a - b).abs() <= WINDOW_SLOP_PT;
+    ask()?;
+    let at_place = app
+        .pair(&window, "AXPosition")
+        .is_some_and(|[x, y]| near(x, bounds[0]) && near(y, bounds[1]));
+    if !at_place {
+        return Err(Miss::OtherPlace);
+    }
+    ask()?;
+    let sized = app
+        .pair(&window, "AXSize")
+        .is_some_and(|[w, h]| near(w, bounds[2]) && near(h, bounds[3]));
+    if !sized {
+        return Err(Miss::OtherPlace);
+    }
+    let title = title.trim();
+    if !title.is_empty() {
+        ask()?;
+        let other = app.title(&window).is_some_and(|own| {
+            let own = own.trim();
+            !own.starts_with(title) && !title.starts_with(own)
+        });
+        if other {
+            return Err(Miss::OtherTitle);
+        }
+    }
+    Ok(window)
 }
 
 /// One state of one window, as stored in `appshots/shot-NN.json`.
@@ -1360,6 +1366,10 @@ mod mac {
         ) -> i32;
         fn AXValueGetValue(value: CFTypeRef, kind: u32, out: *mut std::ffi::c_void) -> bool;
         fn AXValueGetTypeID() -> usize;
+        /// Private, and what window managers use: the window server's id (`CGWindowID`) of an
+        /// Accessibility window. An error for an element that is no window, and for the apps
+        /// that give none.
+        fn _AXUIElementGetWindow(element: AxElement, id: *mut u32) -> i32;
     }
 
     /// Whether Annotator turned an Electron app's accessibility tree on.
@@ -1390,8 +1400,8 @@ mod mac {
         unsafe { AXValueGetValue(value.0, kind, out.as_mut_ptr().cast()) }.then_some(out)
     }
 
-    /// An app's Accessibility windows (`find_window`), which is how a window-server window id
-    /// finds its Accessibility element.
+    /// An app's Accessibility windows (`find_window`): each gives the window server's id it
+    /// is known by, which is how a captured window finds its Accessibility element.
     struct AppWindows<'a> {
         tree: &'a MacTree,
         app: &'a Owned,
@@ -1402,6 +1412,12 @@ mod mac {
 
         fn windows(&self) -> Vec<Owned> {
             self.tree.elements(self.app, "AXWindows")
+        }
+
+        fn id(&self, window: &Owned) -> Option<u32> {
+            let mut id = 0_u32;
+            let error = unsafe { _AXUIElementGetWindow(window.0, &mut id) };
+            (error == 0 && id != 0).then_some(id)
         }
 
         fn pair(&self, window: &Owned, attribute: &'static str) -> Option<[f64; 2]> {
@@ -1547,13 +1563,14 @@ mod mac {
                 return None;
             }
             let woken = objc2::rc::autoreleasepool(|_| self.wake_electron(pid, &app));
-            // The window by its place on screen and its title, or no shot: never another
-            // window of the app (`find_window`).
+            // The window with the captured window's id, or no shot: never another window of
+            // the app (`find_window`).
             let windows = AppWindows {
                 tree: &tree,
                 app: &app,
             };
-            let element = match find_window(&windows, window.bounds, &window.title, &stop) {
+            let found = find_window(&windows, window.id, window.bounds, &window.title, &stop);
+            let element = match found {
                 Ok(element) => element,
                 Err(miss) => {
                     // An Electron app just asked for its tree has no windows to find yet, and
@@ -1633,7 +1650,7 @@ mod mac {
 
         /// `cargo test appshot_live_finds -- --ignored --nocapture` prints, for each app window
         /// the window server lists, whether `find_window` finds its Accessibility window, and
-        /// why not. It prints no title, only how the two titles of a window differ.
+        /// why not, with the id, place and size each of the app's windows gives. No title.
         #[test]
         #[ignore = "reads every on-screen app through the Accessibility API"]
         fn appshot_live_finds_each_window_on_screen() {
@@ -1655,24 +1672,18 @@ mod mac {
                     tree: &tree,
                     app: &app,
                 };
-                let result = find_window(&windows, window.bounds, &window.title, &|| false);
+                let result =
+                    find_window(&windows, window.id, window.bounds, &window.title, &|| false);
                 total += 1;
                 found += usize::from(result.is_ok());
                 let detail = match result {
                     Ok(_) => "found".to_owned(),
                     Err(miss) => {
-                        let own_title = find_window(&windows, window.bounds, "", &|| false)
-                            .ok()
-                            .and_then(|at_place| windows.title(&at_place))
-                            .unwrap_or_default();
-                        let (server, own_title) = (window.title.trim(), own_title.trim());
+                        let own = windows.windows();
                         format!(
-                            "{miss:?} ({} Accessibility windows; title {} chars by the window server, {} by Accessibility, one starts with the other: {})",
-                            windows.windows().len(),
-                            server.chars().count(),
-                            own_title.chars().count(),
-                            !own_title.is_empty()
-                                && (server.starts_with(own_title) || own_title.starts_with(server))
+                            "{miss:?} ({} Accessibility windows, {} give an id)",
+                            own.len(),
+                            own.iter().filter(|w| windows.id(w).is_some()).count()
                         )
                     }
                 };
@@ -1689,7 +1700,8 @@ mod mac {
                 println!("  window server bounds {:?}", window.bounds);
                 for own in windows.windows() {
                     println!(
-                        "  Accessibility window at {:?} size {:?} role {:?}",
+                        "  Accessibility window id {:?} at {:?} size {:?} role {:?}",
+                        windows.id(&own),
                         windows.pair(&own, "AXPosition"),
                         windows.pair(&own, "AXSize"),
                         tree.string(&own, "AXRole")
@@ -1943,8 +1955,9 @@ mod tests {
         assert_eq!(blank.url.as_deref(), Some("about:blank"));
     }
 
-    /// An app's windows as `[x, y, width, height]` and a title.
-    struct FakeWindows(Vec<([f64; 4], &'static str)>);
+    /// An app's windows: the id each gives (`None` when it gives none), `[x, y, width,
+    /// height]` and a title.
+    struct FakeWindows(Vec<(Option<u32>, [f64; 4], &'static str)>);
 
     impl Windows for FakeWindows {
         type Window = usize;
@@ -1953,8 +1966,12 @@ mod tests {
             (0..self.0.len()).collect()
         }
 
+        fn id(&self, window: &usize) -> Option<u32> {
+            self.0[*window].0
+        }
+
         fn pair(&self, window: &usize, attribute: &'static str) -> Option<[f64; 2]> {
-            let [x, y, w, h] = self.0[*window].0;
+            let [x, y, w, h] = self.0[*window].1;
             Some(if attribute == "AXPosition" {
                 [x, y]
             } else {
@@ -1963,76 +1980,75 @@ mod tests {
         }
 
         fn title(&self, window: &usize) -> Option<String> {
-            Some(self.0[*window].1.to_owned()).filter(|title| !title.is_empty())
+            Some(self.0[*window].2.to_owned()).filter(|title| !title.is_empty())
         }
     }
 
+    const FULL: [f64; 4] = [0.0, 25.0, 1512.0, 957.0];
+    const SMALL: [f64; 4] = [200.0, 100.0, 800.0, 600.0];
+
     #[test]
-    fn appshot_reads_the_window_at_the_captured_place_and_title_or_none() {
-        const FULL: [f64; 4] = [0.0, 25.0, 1512.0, 957.0];
-        const SMALL: [f64; 4] = [200.0, 100.0, 800.0, 600.0];
-        // Two maximized windows of one app: the captured one is the one with its title, not
-        // the first at that place.
-        let mail = FakeWindows(vec![(FULL, "Inbox"), (FULL, "Drafts")]);
-        assert_eq!(find_window(&mail, FULL, "Drafts", &never), Ok(1));
-        assert_eq!(find_window(&mail, FULL, "Inbox", &never), Ok(0));
+    fn appshot_reads_the_window_with_the_captured_id_or_none() {
+        // Two maximized windows of one app with one title: the id tells them apart.
+        let mail = FakeWindows(vec![(Some(7), FULL, "Inbox"), (Some(8), FULL, "Inbox")]);
+        assert_eq!(find_window(&mail, 8, FULL, "Inbox", &never), Ok(1));
+        assert_eq!(find_window(&mail, 7, FULL, "Inbox", &never), Ok(0));
+        // The captured window was closed since the window server was asked: the window at
+        // its place with its title is another window, and is not read for it.
+        assert_eq!(
+            find_window(&mail, 6, FULL, "Inbox", &never),
+            Err(Miss::NoWindow)
+        );
+        assert_eq!(
+            find_window(&FakeWindows(Vec::new()), 7, FULL, "Inbox", &never),
+            Err(Miss::NoWindow)
+        );
+    }
+
+    #[test]
+    fn appshot_never_reads_the_window_at_a_moved_windows_old_place() {
+        // The captured window, "Inbox" (7), moved after the window server was asked. Other
+        // windows of the app are at its old place, with a title that begins the same or none.
+        let app = FakeWindows(vec![
+            (Some(8), FULL, "Inbox - Private"),
+            (Some(9), FULL, ""),
+            (Some(7), SMALL, "Inbox"),
+        ]);
+        assert_eq!(find_window(&app, 7, FULL, "Inbox", &never), Ok(2));
+        // The same app, when its windows give no id: none of them is read.
+        let app = FakeWindows(vec![
+            (None, FULL, "Inbox - Private"),
+            (None, FULL, ""),
+            (None, SMALL, "Inbox"),
+        ]);
+        assert_eq!(find_window(&app, 7, FULL, "Inbox", &never), Err(Miss::NoId));
+        // One window without an id among windows with other ids proves nothing either.
+        let app = FakeWindows(vec![(Some(8), SMALL, "Drafts"), (None, FULL, "Inbox")]);
+        assert_eq!(find_window(&app, 7, FULL, "Inbox", &never), Err(Miss::NoId));
+    }
+
+    #[test]
+    fn appshot_reads_an_apps_only_window_by_place_and_title_when_it_gives_no_id() {
+        // A browser's Accessibility title is the window's title and more.
+        let one = FakeWindows(vec![(None, FULL, "Inbox - Google Chrome - Kit")]);
+        assert_eq!(find_window(&one, 7, FULL, "Inbox", &never), Ok(0));
         // The place is the window server's, within 2 pt.
         assert_eq!(
-            find_window(&mail, [1.5, 24.0, 1513.0, 956.0], "Drafts", &never),
-            Ok(1)
-        );
-        // A window that moved since the window server was asked is at no known place: the
-        // focused window is another window, and is not read for it.
-        let moved = FakeWindows(vec![
-            (SMALL, "Inbox"),
-            ([640.0, 300.0, 800.0, 600.0], "Notes"),
-        ]);
-        assert_eq!(
-            find_window(&moved, [600.0, 280.0, 800.0, 600.0], "Notes", &never),
-            Err(Miss::NoWindow)
+            find_window(&one, 7, [1.5, 24.0, 1513.0, 956.0], "Inbox", &never),
+            Ok(0)
         );
         assert_eq!(
-            find_window(&FakeWindows(Vec::new()), FULL, "Inbox", &never),
-            Err(Miss::NoWindow)
+            find_window(&one, 7, SMALL, "Inbox", &never),
+            Err(Miss::OtherPlace)
         );
-        // The window at the place has another title: it is not the captured one.
         assert_eq!(
-            find_window(&mail, FULL, "Sent", &never),
+            find_window(&one, 7, FULL, "Sent", &never),
             Err(Miss::OtherTitle)
         );
-        // Two windows that nothing tells apart.
-        let twins = FakeWindows(vec![(FULL, "New Tab"), (FULL, "New Tab"), (SMALL, "Docs")]);
-        assert_eq!(
-            find_window(&twins, FULL, "New Tab", &never),
-            Err(Miss::Ambiguous)
-        );
-        assert_eq!(find_window(&twins, SMALL, "Docs", &never), Ok(2));
-        // The window server gave no title: the place alone decides, when one window is there.
-        assert_eq!(find_window(&twins, SMALL, "", &never), Ok(2));
-        assert_eq!(find_window(&twins, FULL, " ", &never), Err(Miss::Ambiguous));
-        // A browser's Accessibility title is the window's title and more.
-        let chrome = FakeWindows(vec![
-            (FULL, "Inbox - Google Chrome - Kit"),
-            (FULL, "Drafts - Google Chrome - Kit"),
-            (SMALL, "Docs - Google Chrome - Kit"),
-            (SMALL, "Docs - Edit - Google Chrome - Kit"),
-        ]);
-        assert_eq!(find_window(&chrome, FULL, "Drafts", &never), Ok(1));
-        assert_eq!(
-            find_window(&chrome, FULL, "Sent", &never),
-            Err(Miss::OtherTitle)
-        );
-        assert_eq!(
-            find_window(&chrome, SMALL, "Docs", &never),
-            Err(Miss::Ambiguous)
-        );
-        // The exact title wins over one that only begins with it.
-        let exact = FakeWindows(vec![(FULL, "Docs - Edit"), (FULL, "Docs")]);
-        assert_eq!(find_window(&exact, FULL, "Docs", &never), Ok(1));
-        // A window without an Accessibility title is told apart by the others' titles.
-        let untitled = FakeWindows(vec![(FULL, ""), (FULL, "Drafts")]);
-        assert_eq!(find_window(&untitled, FULL, "Inbox", &never), Ok(0));
-        assert_eq!(find_window(&untitled, FULL, "Drafts", &never), Ok(1));
+        // Without a title on either side the place decides.
+        assert_eq!(find_window(&one, 7, FULL, " ", &never), Ok(0));
+        let untitled = FakeWindows(vec![(None, FULL, "")]);
+        assert_eq!(find_window(&untitled, 7, FULL, "Inbox", &never), Ok(0));
     }
 
     /// An app with `windows` windows at one place, whose every answer takes `delay`: an app
@@ -2066,6 +2082,11 @@ mod tests {
             (0..self.windows).collect()
         }
 
+        fn id(&self, window: &usize) -> Option<u32> {
+            self.answer();
+            Some(*window as u32 + 1)
+        }
+
         fn pair(&self, _: &usize, attribute: &'static str) -> Option<[f64; 2]> {
             self.answer();
             Some(if attribute == "AXPosition" {
@@ -2088,23 +2109,23 @@ mod tests {
         let app = SlowWindows::new(60, Duration::from_millis(20));
         let deadline = Duration::from_millis(100);
         let began = Instant::now();
-        let found = find_window(&app, PLACE, "Window 59", &|| began.elapsed() > deadline);
+        let found = find_window(&app, 60, PLACE, "Window 59", &|| began.elapsed() > deadline);
         assert_eq!(found, Err(Miss::Stopped));
         // 100 ms is five answers; one more may be on its way when the time runs out.
         assert!(app.asked.get() <= 7, "{} answers", app.asked.get());
         // A capture that no longer wants the shot costs the app no question.
         let app = SlowWindows::new(60, Duration::ZERO);
         assert_eq!(
-            find_window(&app, PLACE, "Window 59", &|| true),
+            find_window(&app, 60, PLACE, "Window 59", &|| true),
             Err(Miss::Stopped)
         );
         assert_eq!(app.asked.get(), 0);
         // It is checked before every question: once it fires, nothing more is asked.
         let app = SlowWindows::new(60, Duration::ZERO);
-        let found = find_window(&app, PLACE, "Window 59", &|| app.asked.get() >= 7);
+        let found = find_window(&app, 60, PLACE, "Window 59", &|| app.asked.get() >= 7);
         assert_eq!((found, app.asked.get()), (Err(Miss::Stopped), 7));
         // An app that answers in time is found as ever.
-        assert_eq!(find_window(&app, PLACE, "Window 59", &never), Ok(59));
+        assert_eq!(find_window(&app, 60, PLACE, "Window 59", &never), Ok(59));
     }
 
     #[test]
