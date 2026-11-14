@@ -346,10 +346,21 @@ impl Shortcuts {
             }
             let was = self.get(kind).label.clone();
             self.set(kind, kind.default_config());
-            if kind.can_unset() && check(self, row).is_err() {
-                self.set(kind, ShortcutConfig::unset());
+            dropped.push(Dropped { kind, was, taken_by: None });
+            match check(self, row) {
+                Ok(()) => {}
+                Err(_) if kind.can_unset() => self.set(kind, ShortcutConfig::unset()),
+                // Record can never be off, so the row saved on its default moves instead.
+                Err(Rejection::Taken { by: Control::Shortcut(other), .. }) => {
+                    let was = self.get(other).label.clone();
+                    self.set(other, other.default_config());
+                    if other.can_unset() && check(self, Control::Shortcut(other)).is_err() {
+                        self.set(other, ShortcutConfig::unset());
+                    }
+                    dropped.push(Dropped { kind: other, was, taken_by: Some(kind) });
+                }
+                Err(_) => {}
             }
-            dropped.push(Dropped { kind, was });
         }
         dropped
     }
@@ -418,12 +429,24 @@ pub struct Dropped {
     pub kind: ShortcutKind,
     /// Its label as saved (`⇧F6`).
     pub was: String,
+    /// The row that took its key back when the cancel key was freed, else `None` (it was on
+    /// the cancel key itself).
+    pub taken_by: Option<ShortcutKind>,
 }
 
 impl Dropped {
     /// One line for the log and for the row in Settings; `now` is what the row has instead.
     pub fn note(&self, now: &ShortcutConfig) -> String {
         let (was, cancel, name) = (&self.was, Control::Cancel.name(), self.kind.name());
+        if let Some(taker) = self.taken_by {
+            let taker = taker.name();
+            return if now.is_unset() {
+                format!("{was} went back to {taker}, so {name} is off. Pick another key.")
+            } else {
+                let now = &now.label;
+                format!("{was} went back to {taker}, so {name} is {now} again. Pick another key.")
+            };
+        }
         if now.is_unset() {
             format!("{was} is the {cancel} key, so {name} is off. Pick another key.")
         } else {
@@ -3404,6 +3427,55 @@ mod tests {
             label: label(CARBON_OPTION_KEY, "F1"),
         };
         assert_eq!(check_in(Variant::Dev, &shortcuts, undo), Ok(()));
+    }
+
+    /// Freeing the cancel key must not make a second clash: a saved Record on the cancel key
+    /// goes back to its default, and when another row was saved on that default, the other
+    /// row moves (to its own default, else off) and its row says why. Record can never be off.
+    #[test]
+    fn a_record_default_taken_by_another_row_moves_that_row_at_load() {
+        let dir = TempDir::new("saved-clash-record");
+        let host = fake(&dir);
+        let legacy = dir.0.join("legacy.json");
+        let f6 = CancelKey::parse("f6").unwrap().key_code();
+        let stored = |cfg: &ShortcutConfig| {
+            serde_json::json!({
+                "keyCode": cfg.key_code, "modifiers": cfg.carbon_modifiers, "label": cfg.label,
+            })
+        };
+        let option_f6 = ShortcutConfig {
+            key_code: f6,
+            carbon_modifiers: CARBON_OPTION_KEY,
+            label: label(CARBON_OPTION_KEY, "F6"),
+        };
+        let record_default = ShortcutKind::Record.default_config();
+        std::fs::write(
+            dir.0.join("config.json"),
+            serde_json::json!({"shortcuts": {
+                "cancel": "f6",
+                "record": stored(&option_f6),
+                "paste": stored(&record_default),
+            }})
+            .to_string(),
+        )
+        .unwrap();
+        let (loaded, _) = Shortcuts::load_from(&host.path, &legacy);
+        assert!(loaded.record.is_default_for(ShortcutKind::Record), "{:?}", loaded.record);
+        assert_ne!(
+            (loaded.paste.key_code, loaded.paste.carbon_modifiers),
+            (record_default.key_code, record_default.carbon_modifiers),
+            "Paste still shares Record's key"
+        );
+        for row in Control::ALL {
+            assert_eq!(check(&loaded, row), Ok(()), "{row:?} clashes after load");
+        }
+        let dropped = Shortcuts::dropped_in(&host.path);
+        let paste = dropped
+            .iter()
+            .find(|d| d.kind == ShortcutKind::Paste)
+            .expect("Paste is reported as moved");
+        let note = paste.note(loaded.get(ShortcutKind::Paste));
+        assert!(note.contains(ShortcutKind::Record.name()), "{note}");
     }
 
     /// A config saved before Settings refused a shortcut on the cancel key is checked when it
