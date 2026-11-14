@@ -170,7 +170,8 @@ pub fn transcribe(wav: Option<&Path>, audio: Option<&RecordedAudio>) -> Transcri
     };
     let live = audio.live.take();
     let engine = Engine::preferred();
-    run(
+    heard(
+        audio,
         engine,
         || match engine {
             Engine::Apple => Ok(None),
@@ -187,6 +188,20 @@ pub fn transcribe(wav: Option<&Path>, audio: Option<&RecordedAudio>) -> Transcri
                 .unwrap_or_else(|| apple(wav))
         },
     )
+}
+
+/// What `engine`, or Apple after it, made of `audio`, on the capture clock. Every engine times
+/// its words from the first sample it is given, and the microphone heard that sample
+/// `audio.offset_ms` into the capture, so this one place moves them all.
+fn heard(
+    audio: &RecordedAudio,
+    engine: Engine,
+    other: impl FnOnce() -> Result<Option<TranscriptData>>,
+    apple: impl FnOnce() -> TranscriptData,
+) -> TranscriptData {
+    let mut transcript = run(engine, other, apple);
+    transcript.delay(audio.offset_ms);
+    transcript
 }
 
 /// The transcript made while recording, or `None` (logged) to transcribe the WAV instead.
@@ -338,9 +353,84 @@ mod tests {
         assert_eq!(Engine::default(), default);
     }
 
+    /// `run` notes Deepgram's outcome in one place for the whole process; tests that go
+    /// through it with Deepgram take turns.
+    static DEEPGRAM_NOTE: Mutex<()> = Mutex::new(());
+
+    /// Every engine times its words from the first sample of the WAV, and the microphone heard
+    /// that sample `offset_ms` into the capture: a word 1 s into a WAV that started 200 ms
+    /// late was said at 1.2 s, where the clicks and the frames of that moment are.
+    #[test]
+    fn every_engine_s_times_are_put_on_the_capture_clock() {
+        use crate::model::{TranscriptSegment, WordTiming};
+        let _turn = DEEPGRAM_NOTE.lock().unwrap_or_else(|e| e.into_inner());
+        let wav = crate::audio::encode_wav_16k(&[0.0; 16]).unwrap();
+        let late = |offset_ms| RecordedAudio {
+            offset_ms,
+            ..crate::audio::recorded_audio_from_wav(wav.clone()).unwrap()
+        };
+        let timed = |source: &str| TranscriptData {
+            source: source.into(),
+            text: "hello".into(),
+            segments: vec![TranscriptSegment {
+                t0: 1_000,
+                t1: 1_400,
+                text: "hello".into(),
+            }],
+            words: vec![WordTiming {
+                t0: 1_000,
+                t1: 1_400,
+                text: "hello".into(),
+            }],
+            ..Default::default()
+        };
+        let times = |transcript: &TranscriptData| {
+            (
+                (transcript.words[0].t0, transcript.words[0].t1),
+                (transcript.segments[0].t0, transcript.segments[0].t1),
+            )
+        };
+        for (engine, source) in [
+            (Engine::Apple, "speech-analyzer"),
+            (Engine::Hex, "hex:parakeet_v3"),
+            (Engine::Command, "command:whisper-scrawl"),
+            (Engine::Deepgram, "deepgram:nova-3"),
+        ] {
+            let transcript = heard(
+                &late(200),
+                engine,
+                || Ok(Some(timed(source))),
+                || timed("speech-analyzer"),
+            );
+            assert_eq!(transcript.source, source);
+            assert_eq!(
+                times(&transcript),
+                ((1_200, 1_600), (1_200, 1_600)),
+                "{source}"
+            );
+            // Audio that began with the capture clock (a WAV read back, an iPhone movie's).
+            let on_time = heard(
+                &late(0),
+                engine,
+                || Ok(Some(timed(source))),
+                || timed("speech-analyzer"),
+            );
+            assert_eq!(times(&on_time), ((1_000, 1_400), (1_000, 1_400)));
+        }
+        // Apple, answering for an engine that failed.
+        let fallback = heard(
+            &late(200),
+            Engine::Hex,
+            || Err(anyhow::anyhow!("took too long")),
+            || timed("speech-analyzer"),
+        );
+        assert_eq!(times(&fallback), ((1_200, 1_600), (1_200, 1_600)));
+    }
+
     #[test]
     fn deepgram_failure_uses_apple_and_names_the_reason_until_a_success() {
         use crate::deepgram::Failure;
+        let _turn = DEEPGRAM_NOTE.lock().unwrap_or_else(|e| e.into_inner());
         for (failure, reason) in [
             (Failure::NoKey, "no DEEPGRAM_API_KEY"),
             (Failure::Timeout, "no answer within 120 s"),

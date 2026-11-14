@@ -355,6 +355,21 @@ pub struct TranscriptData {
     pub missing: Option<MissingTranscript>,
 }
 
+impl TranscriptData {
+    /// Moves every time `ms` later: from the clock of audio that started `ms` into the capture
+    /// (`RecordedAudio::offset_ms`) onto the capture's.
+    pub fn delay(&mut self, ms: u64) {
+        for segment in &mut self.segments {
+            segment.t0 += ms;
+            segment.t1 += ms;
+        }
+        for word in &mut self.words {
+            word.t0 += ms;
+            word.t1 += ms;
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MissingTranscript {
