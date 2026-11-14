@@ -299,9 +299,34 @@ fn respond_json(
     );
 }
 
+/// What the app's settings say to a dev page.
+#[derive(Clone, Copy, Debug)]
+pub struct PageSettings {
+    /// A loopback page may send what it sees (`crate::page`): app state is on.
+    pub context: bool,
+}
+
+impl PageSettings {
+    fn current() -> Self {
+        Self {
+            context: crate::handoff::app_state(),
+        }
+    }
+}
+
 /// Answers the SDK's routes; `false` when the request is for something else (the ScrawlKit
 /// routes, which need the token).
 pub fn handle(stream: &mut TcpStream, header: &str, expected_token: &str) -> Result<bool> {
+    handle_with(stream, header, expected_token, &PageSettings::current)
+}
+
+/// `handle` with the settings a page is told read through `settings`, when a route needs them.
+fn handle_with(
+    stream: &mut TcpStream,
+    header: &str,
+    expected_token: &str,
+    settings: &dyn Fn() -> PageSettings,
+) -> Result<bool> {
     let first = header.lines().next().unwrap_or("");
     let mut parts = first.split_whitespace();
     let (method, path) = (parts.next().unwrap_or(""), parts.next().unwrap_or(""));
@@ -369,7 +394,7 @@ pub fn handle(stream: &mut TcpStream, header: &str, expected_token: &str) -> Res
                 );
                 return Ok(true);
             };
-            let wanted = crate::handoff::app_state();
+            let wanted = settings().context;
             if wanted && let Ok(post) = serde_json::from_slice::<crate::page::Post>(&bytes) {
                 crate::page::record(&page_origin, post);
             }
@@ -411,8 +436,7 @@ pub fn handle(stream: &mut TcpStream, header: &str, expected_token: &str) -> Res
                         reg.directory.as_deref().unwrap_or("-")
                     ));
                     // `context`: the page may send what it sees (`crate::page`); loopback only.
-                    let context = origin.is_some_and(is_loopback_origin)
-                        && crate::handoff::app_state();
+                    let context = origin.is_some_and(is_loopback_origin) && settings().context;
                     registry().register(reg, crate::now_epoch_ms());
                     respond_json(
                         stream,
@@ -615,6 +639,225 @@ mod tests {
         assert!(handle(&mut stream, &header, token).unwrap());
         drop(stream);
         client.join().unwrap()
+    }
+
+    /// Google Chrome, which runs the real `sdk.js` in a real page.
+    fn chrome() -> Option<std::path::PathBuf> {
+        [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Chromium.app/Contents/MacOS/Chromium",
+        ]
+        .into_iter()
+        .map(std::path::PathBuf::from)
+        .find(|path| path.exists())
+    }
+
+    /// What one run of the privacy fixture gave.
+    struct PageRun {
+        origin: String,
+        /// Every body the page posted to `/web/*`, with its path.
+        posts: Vec<(String, String)>,
+        /// What `crate::page` kept of it.
+        kept: Vec<crate::page::Event>,
+    }
+
+    impl PageRun {
+        fn posted(&self, path: &str) -> Vec<&str> {
+            self.posts
+                .iter()
+                .filter(|(to, _)| to == path)
+                .map(|(_, body)| body.as_str())
+                .collect()
+        }
+
+        /// `describe` of what the page saw under each event of `kind`, in order.
+        fn seen(&self, kind: &str) -> Vec<String> {
+            self.kept
+                .iter()
+                .filter(|event| event.kind == kind)
+                .filter_map(|event| event.target.as_ref())
+                .map(crate::page::describe)
+                .collect()
+        }
+    }
+
+    /// Opens `Tests/fixtures/appshot-secret.html` in headless Chrome, with a marker in its
+    /// query and fragment, from a loopback server that answers the SDK's routes through
+    /// `handle_with`. Once the SDK watches the page, `driver` runs (JavaScript; `$` finds an
+    /// element by id, `fire` sends it a pointer event, `over` gives its middle as `clientX` and
+    /// `clientY`). Returns when the page has posted what it saw.
+    fn run_fixture(settings: PageSettings, driver: &str) -> PageRun {
+        let chrome = chrome().expect("Google Chrome in /Applications");
+        let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("Tests/fixtures/appshot-secret.html");
+        let bootstrap = r#"<script>
+(() => {
+  const real = window.fetch.bind(window);
+  const mine = (url, init) => {
+    const pending = real(url, init);
+    if (String(url).endsWith("/web/context")) pending.then(() => real("/done", { method: "POST" }));
+    return pending;
+  };
+  window.fetch = mine;
+  // The SDK watches the page once it has put its own `fetch` in place.
+  const wait = setInterval(() => {
+    if (window.fetch === mine) return;
+    clearInterval(wait);
+    const $ = (id) => document.getElementById(id);
+    const fire = (el, type, init) =>
+      el.dispatchEvent(new PointerEvent(type, Object.assign({ bubbles: true, composed: true }, init)));
+    const over = (el) => {
+      const box = el.getBoundingClientRect();
+      return { clientX: box.left + box.width / 2, clientY: box.top + box.height / 2 };
+    };
+    DRIVER
+  }, 20);
+})();
+</script>
+<script src="/sdk.js" data-session="ses_fixture"></script>
+</body>"#;
+        let html = std::fs::read_to_string(&fixture)
+            .unwrap()
+            .replace("</body>", &bootstrap.replace("DRIVER", driver));
+
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        listener.set_nonblocking(true).unwrap();
+        let origin = format!("http://{}", listener.local_addr().unwrap());
+        let profile = std::env::temp_dir().join(format!(
+            "scrawl-sdk-chrome-{}-{}",
+            std::process::id(),
+            crate::now_epoch_ms()
+        ));
+        let mut browser = std::process::Command::new(chrome)
+            .args([
+                "--headless=new",
+                "--disable-gpu",
+                "--no-first-run",
+                "--no-default-browser-check",
+                "--disable-extensions",
+                "--window-size=900,1100",
+            ])
+            .arg(format!("--user-data-dir={}", profile.display()))
+            .arg(format!(
+                "{origin}/fixture.html?token=SECRET-MARKER-URL#SECRET-MARKER-FRAGMENT"
+            ))
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .unwrap();
+
+        let from = crate::now_epoch_ms();
+        let began = std::time::Instant::now();
+        let mut posts = Vec::new();
+        let mut done = false;
+        while !done && began.elapsed() < Duration::from_secs(40) {
+            let Ok((mut stream, _)) = listener.accept() else {
+                std::thread::sleep(Duration::from_millis(5));
+                continue;
+            };
+            stream.set_nonblocking(false).unwrap();
+            stream
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let mut header = Vec::new();
+            let mut byte = [0_u8; 1];
+            while !header.ends_with(b"\r\n\r\n") && stream.read_exact(&mut byte).is_ok() {
+                header.push(byte[0]);
+            }
+            let header = String::from_utf8_lossy(&header).into_owned();
+            let mut first = header.lines().next().unwrap_or("").split_whitespace();
+            let (method, path) = (first.next().unwrap_or(""), first.next().unwrap_or(""));
+            let path = path.split('?').next().unwrap_or("").to_owned();
+            match (method, path.as_str()) {
+                ("GET", "/fixture.html") => {
+                    respond(
+                        &mut stream,
+                        "200 OK",
+                        "text/html; charset=utf-8",
+                        html.as_bytes(),
+                        None,
+                    );
+                }
+                ("POST", "/done") => {
+                    respond(&mut stream, "200 OK", "text/plain", b"", None);
+                    done = true;
+                }
+                _ if path == "/sdk.js" || path.starts_with("/web/") => {
+                    // The body as the page sent it, read without taking it from the handler.
+                    let len: usize = header_value(&header, "content-length")
+                        .and_then(|v| v.parse().ok())
+                        .unwrap_or(0);
+                    let mut body = vec![0_u8; len];
+                    let waited = std::time::Instant::now();
+                    while stream.peek(&mut body).unwrap_or(0) < len
+                        && waited.elapsed() < Duration::from_secs(5)
+                    {
+                        std::thread::sleep(Duration::from_millis(2));
+                    }
+                    posts.push((path, String::from_utf8_lossy(&body).into_owned()));
+                    handle_with(&mut stream, &header, "tok", &|| settings).unwrap();
+                }
+                _ => respond(&mut stream, "404 Not Found", "text/plain", b"", None),
+            }
+        }
+        let _ = browser.kill();
+        let _ = browser.wait();
+        let _ = std::fs::remove_dir_all(&profile);
+        assert!(done, "the page never posted what it saw: {posts:?}");
+        PageRun {
+            kept: crate::page::between(from, crate::now_epoch_ms()),
+            origin,
+            posts,
+        }
+    }
+
+    /// `cargo test sdk_page -- --ignored`: the real `sdk.js` over the privacy fixture.
+    #[test]
+    #[ignore = "runs sdk.js in headless Google Chrome"]
+    fn sdk_page_sends_and_keeps_no_typed_text() {
+        let run = run_fixture(
+            PageSettings { context: true },
+            r#"
+    $("name").value = "SECRET-MARKER-INPUT";
+    $("password").value = "SECRET-MARKER-PASSWORD";
+    $("notes").value = "SECRET-MARKER-NOTES";
+    $("nick").innerHTML = "<b id='bold'>SECRET-MARKER-NICK</b>";
+    for (const id of ["bold", "nick", "nick-label", "name", "password", "notes", "save"]) {
+      fire($(id), "pointerdown");
+    }
+"#,
+        );
+        // What was typed never leaves the page.
+        let sent = run.posted("/web/context").join("\n");
+        assert!(!sent.contains("SECRET-MARKER"), "{sent}");
+        // Each click names its element; a field gives the name its developer wrote.
+        assert_eq!(
+            run.seen("pointer"),
+            [
+                "<span#nick>",
+                "<span#nick>",
+                "<label#nick-label> “Nickname”",
+                "<input#name> “Your name”",
+                "<input#password>",
+                "<textarea#notes>",
+                "<button#save> “Save”",
+            ]
+        );
+        assert!(!format!("{:?}", run.kept).contains("SECRET-MARKER"));
+        // The registration: the page's query and fragment are not sent, and nothing kept of
+        // its title holds them.
+        for body in run.posted("/web/register") {
+            let body: serde_json::Value = serde_json::from_str(body).unwrap();
+            assert_eq!(body["url"], format!("{}/fixture.html", run.origin));
+        }
+        let live: Vec<Registration> = registry()
+            .live(crate::now_epoch_ms())
+            .into_iter()
+            .filter(|reg| reg.origin == run.origin)
+            .collect();
+        assert_eq!(live.len(), 1);
+        assert!(!format!("{live:?}").contains("SECRET-MARKER"), "{live:?}");
     }
 
     #[test]

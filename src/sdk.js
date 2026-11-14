@@ -147,24 +147,50 @@
       }
       return {};
     };
-    const typed = "input, textarea, select, [contenteditable=''], [contenteditable='true']";
+    // A field holds what was typed: its text and its value are never read.
+    const typed =
+      "input, textarea, select, [contenteditable]:not([contenteditable='false' i]), [role=textbox], [role=searchbox], [role=combobox]";
+    const fieldOf = (el) => el.closest(typed) || (el.isContentEditable ? el : null);
+    const attr = (el, names) => {
+      for (const name of names) {
+        const value = el.getAttribute(name);
+        if (value) return value;
+      }
+      return "";
+    };
+    const labels = ["aria-label", "title", "alt", "data-testid"];
+    // An element's text without the text of the fields inside it.
+    const shown = (el) => {
+      if (!el.querySelector(typed)) return (el.textContent || "").slice(0, 200);
+      let out = "";
+      const texts = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let node = texts.nextNode(); node && out.length < 200; node = texts.nextNode()) {
+        if (!fieldOf(node.parentElement)) out += node.data + " ";
+      }
+      return out;
+    };
     const describe = (el) => {
       if (!(el instanceof Element)) return undefined;
-      el = el.closest("button, a, [role=button], [role=tab], [role=menuitem], [role=link], label, summary") || el;
+      // The field is looked for from the element the pointer is on, before a label or a
+      // button around it takes that element's place.
+      const field = fieldOf(el);
+      el = field || el.closest("button, a, [role=button], [role=tab], [role=menuitem], [role=link], label, summary") || el;
       const target = { tag: el.tagName.toLowerCase() };
       if (el.id) target.id = clip(el.id, 60);
       const cls = [...el.classList].filter((c) => c.length <= 30 && !/[:[\]/]/.test(c)).slice(0, 2);
       if (cls.length) target.cls = cls.join(".");
-      const field = el.closest(typed);
-      let text =
-        el.getAttribute("aria-label") || el.getAttribute("title") || el.getAttribute("alt") || el.getAttribute("data-testid");
-      if (!text && field) {
-        if (field.getAttribute("type") !== "password") text = field.getAttribute("placeholder") || field.getAttribute("name");
-      } else if (!text) {
-        text = (el.textContent || "").slice(0, 200);
+      if (field) {
+        // `field` tells the app to keep no text for it; `name` is what its developer wrote.
+        target.field = true;
+        const name = clip(
+          attr(el, labels) || (el.getAttribute("type") !== "password" ? attr(el, ["placeholder", "name"]) : ""),
+          60,
+        );
+        if (name) target.name = name;
+      } else {
+        const text = clip(attr(el, labels) || shown(el), 60);
+        if (text) target.text = text;
       }
-      const label = clip(text, 60);
-      if (label) target.text = label;
       return Object.assign(target, component(el));
     };
 
