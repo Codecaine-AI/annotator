@@ -252,7 +252,9 @@ fn transcript(response: Response) -> Result<TranscriptData, Failure> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[cfg(unix)]
     use std::io::{BufRead, BufReader, Read};
+    #[cfg(unix)]
     use std::net::TcpListener;
 
     /// The shape of a real nova-3 pre-recorded answer (`smart_format`, `utterances`), trimmed.
@@ -386,7 +388,9 @@ mod tests {
     }
 
     /// Answers one request on a loopback port with `status` and `body` after `delay`, and hands
-    /// back the request's head (request line and headers).
+    /// back the request's head (request line and headers). The `post` tests run where
+    /// `/usr/bin/curl` is, and Windows file names can't hold the quote `wav` puts in one.
+    #[cfg(unix)]
     fn fake_deepgram(
         status: u16,
         body: &'static str,
@@ -429,6 +433,7 @@ mod tests {
     }
 
     /// A WAV whose path has a space and a quote, as curl's config must quote it.
+    #[cfg(unix)]
     fn wav(name: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!(
             "scrawl-deepgram-test-{}-{name}",
@@ -441,6 +446,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn deepgram_post_sends_the_key_as_a_header_and_reads_the_answer() {
         let (url, head) = fake_deepgram(200, FIXTURE, Duration::ZERO);
         let audio = wav("ok");
@@ -454,6 +460,7 @@ mod tests {
     }
 
     #[test]
+    #[cfg(unix)]
     fn deepgram_post_reports_non_200_and_timeout() {
         let audio = wav("fail");
         let (url, _head) = fake_deepgram(402, r#"{"err_msg":"x"}"#, Duration::ZERO);
