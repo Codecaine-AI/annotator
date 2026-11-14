@@ -244,6 +244,58 @@ pub fn url(raw: &str) -> Option<String> {
     clip(raw.split(['?', '#']).next().unwrap_or(raw), MAX_CHARS)
 }
 
+/// A URL as it may be stored or logged: no query, no fragment, no login. Every way to make one
+/// goes through `url`, reading one from JSON included, so a field of this type cannot hold a
+/// secret a page put in its address. Empty when nothing was left of what it was made from.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[serde(from = "String", into = "String")]
+pub struct CleanUrl(String);
+
+impl CleanUrl {
+    /// `None` when nothing is left of `raw`.
+    pub fn new(raw: &str) -> Option<Self> {
+        url(raw).map(Self)
+    }
+}
+
+impl From<&str> for CleanUrl {
+    fn from(raw: &str) -> Self {
+        Self::new(raw).unwrap_or_default()
+    }
+}
+
+impl From<String> for CleanUrl {
+    fn from(raw: String) -> Self {
+        Self::from(raw.as_str())
+    }
+}
+
+impl From<CleanUrl> for String {
+    fn from(url: CleanUrl) -> Self {
+        url.0
+    }
+}
+
+impl std::ops::Deref for CleanUrl {
+    type Target = str;
+
+    fn deref(&self) -> &str {
+        &self.0
+    }
+}
+
+impl PartialEq<&str> for CleanUrl {
+    fn eq(&self, other: &&str) -> bool {
+        self.0 == *other
+    }
+}
+
+impl std::fmt::Display for CleanUrl {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(&self.0)
+    }
+}
+
 /// A window's title as the window log and the capture's target may keep it: empty for a
 /// sensitive app.
 pub fn window_title(bundle_id: Option<&str>, title: &str) -> String {

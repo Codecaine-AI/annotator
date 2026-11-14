@@ -20,6 +20,7 @@ use std::time::Duration;
 use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 
+use crate::privacy::CleanUrl;
 use crate::routing::{is_loopback_host, parse_url};
 
 /// How long a registration lasts after its last heartbeat. The script beats every 30 s.
@@ -31,7 +32,8 @@ const SDK_JS: &str = include_str!("sdk.js");
 #[serde(rename_all = "camelCase")]
 pub struct Registration {
     pub origin: String,
-    pub url: String,
+    /// The page, without its query, fragment and login.
+    pub url: CleanUrl,
     #[serde(default)]
     pub title: String,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -76,10 +78,11 @@ impl Registry {
             .collect()
     }
 
-    /// The live registration for `url`'s origin: the tab on that exact URL, else the most
-    /// recently heard from.
+    /// The live registration for `url`'s origin: the tab on that page (the URL without its
+    /// query and fragment, as registrations are kept), else the most recently heard from.
     pub fn lookup(&self, url: &str, now: u64) -> Option<Registration> {
-        let origin = parse_url(url)?.origin();
+        let url = CleanUrl::from(url);
+        let origin = parse_url(&url)?.origin();
         let live = self
             .live(now)
             .into_iter()
@@ -190,7 +193,8 @@ fn valid_session(id: &str) -> bool {
 }
 
 /// The registration a request describes. Without the token the page's own `Origin` header is
-/// used, whatever the body says.
+/// used, whatever the body says. Its URL and title go through `crate::privacy`: the registry,
+/// the log and `/web/registrations` never see a query, a fragment or a login.
 fn registration_from(
     body: Body,
     header_origin: Option<&str>,
@@ -211,7 +215,8 @@ fn registration_from(
     let url = body
         .url
         .filter(|u| u.len() <= 4096 && parse_url(u).is_some_and(|p| p.origin() == origin))
-        .unwrap_or_else(|| format!("{origin}/"));
+        .and_then(|u| CleanUrl::new(&u))
+        .unwrap_or_else(|| CleanUrl::from(format!("{origin}/")));
     let session = body
         .session
         .map(|s| s.trim().to_owned())
@@ -239,7 +244,8 @@ fn registration_from(
     Ok(Registration {
         origin,
         url,
-        title: body.title.unwrap_or_default().chars().take(200).collect(),
+        // A page's title can hold its whole URL.
+        title: crate::privacy::text(&body.title.unwrap_or_default()).unwrap_or_default(),
         session,
         directory,
         tab,
@@ -496,6 +502,51 @@ mod tests {
         let reg = registration_from(with_token, None, true).unwrap();
         assert_eq!(reg.origin, "https://studio.ts.net:5173");
         assert_eq!(reg.directory.as_deref(), Some("/p/app"));
+    }
+
+    #[test]
+    fn privacy_registrations_keep_no_url_query_fragment_or_login() {
+        let origin = "http://localhost:5173";
+        let body = |url: &str, tab: &str| Body {
+            url: Some(url.into()),
+            title: Some(format!("Fixture {url}")),
+            session: Some(format!("ses_{tab}")),
+            tab: Some(tab.into()),
+            ..Body::default()
+        };
+        for url in [
+            "http://localhost:5173/reset?token=SECRET-MARKER-URL#SECRET-MARKER-FRAG",
+            "http://localhost:5173/reset#SECRET-MARKER-FRAG",
+            "http://localhost:5173/reset?SECRET-MARKER-URL",
+            "http://kit:SECRET-MARKER@localhost:5173/reset",
+        ] {
+            let reg = registration_from(body(url, "t1"), Some(origin), false).unwrap();
+            assert_eq!(reg.url.to_string(), "http://localhost:5173/reset", "{url}");
+            assert_eq!(reg.title, "Fixture http://localhost:5173/reset", "{url}");
+            // What the log line prints, what the registry keeps and what `/web/registrations`
+            // answers.
+            let stored = format!("{reg:?} {}", serde_json::to_string(&reg).unwrap());
+            assert!(!stored.contains("SECRET-MARKER"), "{stored}");
+        }
+        // A registration from another process is cleaned when it is read.
+        let remote: Registration = serde_json::from_value(serde_json::json!({
+            "origin": origin, "url": "http://localhost:5173/a?token=SECRET-MARKER-URL"
+        }))
+        .unwrap();
+        assert_eq!(remote.url.to_string(), "http://localhost:5173/a");
+
+        // The tab's own registration is still found by the tab's whole URL.
+        let mut registry = Registry::default();
+        for (path, tab, at) in [("a", "1", 1_000), ("b", "2", 2_000)] {
+            let url = format!("{origin}/{path}?token=SECRET-MARKER-URL#SECRET-MARKER-FRAG");
+            let reg = registration_from(body(&url, tab), Some(origin), false).unwrap();
+            registry.register(reg, at);
+        }
+        let found = registry
+            .lookup("http://localhost:5173/a?other=1#top", 3_000)
+            .unwrap();
+        assert_eq!(found.session.as_deref(), Some("ses_1"));
+        assert!(!format!("{registry:?}").contains("SECRET-MARKER"));
     }
 
     fn reg(origin: &str, url: &str, tab: &str, session: &str) -> Registration {

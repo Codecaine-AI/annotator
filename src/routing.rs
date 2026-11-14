@@ -26,6 +26,7 @@ use anyhow::Result;
 use crate::capture::scrawl_log;
 use crate::handoff::{ApiGet, OpenCodeSession};
 use crate::model::{Destination, ScrawlBundle};
+use crate::privacy::CleanUrl;
 use crate::web::Registration;
 
 /// The parts of an `http(s)` URL routing needs.
@@ -223,16 +224,18 @@ fn run_with_timeout(command: &mut Command, timeout: Duration) -> Option<std::pro
 }
 
 /// The URL a capture was of: the browser in front when it finished, else the captured window's
-/// browser.
+/// browser. Its query, fragment and login are dropped here, where it enters routing, so no
+/// destination, evidence or log line downstream can hold them.
 pub fn capture_url(
     front_bundle_id: Option<&str>,
     target_bundle_id: Option<&str>,
-) -> Option<String> {
+) -> Option<CleanUrl> {
     [front_bundle_id, target_bundle_id]
         .into_iter()
         .flatten()
         .filter(|id| browser_kind(id).is_some())
         .find_map(browser_tab_url)
+        .and_then(|url| CleanUrl::new(&url))
 }
 
 // MARK: Port → project
@@ -378,14 +381,16 @@ pub fn within(
     }
 }
 
-/// Where a capture of `url` goes, or why it goes nowhere.
+/// Where a capture of `url` goes, or why it goes nowhere. Only the page is used and kept: the
+/// URL's query, fragment and login are dropped first.
 pub fn route(url: &str, hooks: &Hooks) -> std::result::Result<Destination, String> {
+    let url = &CleanUrl::new(url).ok_or("the tab has no URL")?;
     let parsed = parse_url(url).ok_or_else(|| format!("{url} isn't an http(s) URL"))?;
     let destination = |session: &OpenCodeSession, via: &str, dir: Option<&Path>| Destination {
         session: session.id.clone(),
         title: session.label().to_owned(),
         via: via.to_owned(),
-        url: Some(url.to_owned()),
+        url: Some(url.clone()),
         directory: dir.map(|d| d.display().to_string()),
     };
     let mut api = within(hooks.api, SESSIONS_BUDGET);
@@ -405,7 +410,7 @@ pub fn route(url: &str, hooks: &Hooks) -> std::result::Result<Destination, Strin
                 session: id.to_owned(),
                 title,
                 via: "sdk".into(),
-                url: Some(url.to_owned()),
+                url: Some(url.clone()),
                 directory: reg.directory,
             });
         }
@@ -466,7 +471,7 @@ pub fn judge_capture(
     bundle: &ScrawlBundle,
     live: look::Live,
 ) -> (smart::Judgement, Option<String>) {
-    let url = live.url.clone();
+    let url = live.url.clone().map(String::from);
     if let Some(error) = &live.error {
         scrawl_log(format!("routing: {error}"));
     }
@@ -523,7 +528,7 @@ pub fn explain_bundle(bundle: &Path, url: Option<&str>) -> Result<String> {
         loaded.duration_ms / 1000 % 60
     );
     let tab = url
-        .map(str::to_owned)
+        .and_then(CleanUrl::new)
         .or_else(|| loaded.destination.as_ref().and_then(|d| d.url.clone()));
     if replayed {
         let _ = writeln!(
@@ -857,6 +862,80 @@ mod tests {
             (by_dir.session.as_str(), by_dir.via.as_str()),
             ("ses_app", "sdk")
         );
+    }
+
+    #[test]
+    fn privacy_a_destination_keeps_no_url_query_fragment_or_login() {
+        let tab = "http://kit:SECRET-MARKER@localhost:5173/page?token=SECRET-MARKER-URL#SECRET-MARKER-FRAG";
+        let hooks = Hooks {
+            sdk: sdk_session,
+            listener_dir: listener,
+            api,
+        };
+        let sdk = route(
+            "http://localhost:5173/page?token=SECRET-MARKER-URL#SECRET-MARKER-FRAG",
+            &hooks,
+        )
+        .unwrap();
+        assert_eq!(sdk.url.as_deref(), Some("http://localhost:5173/page"));
+        let hooks = Hooks {
+            sdk: no_sdk,
+            ..hooks
+        };
+        let local = route(
+            "http://127.0.0.1:4321/x?token=SECRET-MARKER-URL#SECRET-MARKER-FRAG",
+            &hooks,
+        )
+        .unwrap();
+        assert_eq!(local.url.as_deref(), Some("http://127.0.0.1:4321/x"));
+        // Why a capture stays on the clipboard is logged with its URL.
+        for refused in [
+            "ftp://a.dev/x?token=SECRET-MARKER-URL",
+            "https://kit:SECRET-MARKER@example.com/x#SECRET-MARKER-FRAG",
+            "http://localhost:9999/?SECRET-MARKER-URL",
+        ] {
+            let reason = route(refused, &hooks).unwrap_err();
+            assert!(!reason.contains("SECRET-MARKER"), "{reason}");
+        }
+
+        // A destination written before this rule holds the whole URL: it is cleaned when it is
+        // read, so `scrawl.json` and `summary.md` never get the query.
+        let old: Destination = serde_json::from_value(serde_json::json!({
+            "session": "ses_app", "title": "APP", "via": "sdk", "url": tab
+        }))
+        .unwrap();
+        let dir =
+            std::env::temp_dir().join(format!("scrawl-route-{}.scrawl", crate::make_bundle_id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut bundle: ScrawlBundle = serde_json::from_value(serde_json::json!({
+            "version": 1, "id": "t", "createdAtMs": 0, "durationMs": 1_000,
+            "target": {"mode": "display", "displayId": 1,
+                "frame": {"x": 0.0, "y": 0.0, "width": 10.0, "height": 10.0, "scale": 1.0}},
+            "transcript": {"source": "none", "text": "", "segments": []},
+            "strokes": [], "marks": [], "events": [], "keyframes": [], "contactSheet": "c.png"
+        }))
+        .unwrap();
+        record_destination(&dir, &mut bundle, old).unwrap();
+        let summary = std::fs::read_to_string(dir.join("summary.md")).unwrap();
+        assert!(
+            summary.contains("For session: APP (ses_app) · page http://localhost:5173/page\n"),
+            "{summary}"
+        );
+        for file in ["summary.md", "scrawl.json"] {
+            let stored = std::fs::read_to_string(dir.join(file)).unwrap();
+            assert!(!stored.contains("SECRET-MARKER"), "{file}: {stored}");
+        }
+        // The evidence beside the bundle (`routing.json`).
+        let evidence = smart::Evidence {
+            url: Some(tab.into()),
+            ..smart::Evidence::default()
+        };
+        let judgement = smart::decide(&evidence, smart::Policy::Weigh);
+        write_record(&dir, &evidence, &judgement).unwrap();
+        let stored = std::fs::read_to_string(dir.join(RECORD)).unwrap();
+        assert!(!stored.contains("SECRET-MARKER"), "{stored}");
+        assert!(stored.contains("http://localhost:5173/page"), "{stored}");
+        std::fs::remove_dir_all(dir).unwrap();
     }
 
     #[test]

@@ -42,7 +42,8 @@
       path,
       {
         origin: location.origin,
-        url: location.href,
+        // The page only: never its query, fragment or login.
+        url: location.origin + location.pathname,
         title: document.title,
         session: script.dataset.session || undefined,
         directory: script.dataset.directory || undefined,

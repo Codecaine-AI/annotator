@@ -53,7 +53,7 @@ impl Default for Senses {
 /// What can be seen when a capture finishes, before its bundle exists.
 #[derive(Clone, Debug, Default)]
 pub struct Live {
-    pub url: Option<String>,
+    pub url: Option<crate::privacy::CleanUrl>,
     pub clues: Vec<Clue>,
     pub candidates: Vec<Candidate>,
     /// Why the sessions couldn't be read, when they couldn't.
@@ -724,7 +724,9 @@ pub fn evidence_for_bundle(
         );
         return (evidence, None, true);
     }
-    let url = url.map(str::to_owned).or_else(recorded_url);
+    let url = url
+        .and_then(crate::privacy::CleanUrl::new)
+        .or_else(recorded_url);
     let mut clues = url
         .as_deref()
         .map(|url| url_clues(url, senses, true))
@@ -1060,7 +1062,7 @@ mod tests {
 
         let reg = |origin: &str, session: Option<&str>, directory: Option<&str>| Registration {
             origin: origin.into(),
-            url: format!("{origin}/"),
+            url: format!("{origin}/").into(),
             session: session.map(Into::into),
             directory: directory.map(Into::into),
             ..Registration::default()

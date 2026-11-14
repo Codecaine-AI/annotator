@@ -119,9 +119,9 @@ pub struct Destination {
     /// `"sdk"` (the page registered through `/sdk.js`) or `"localhost"` (matched by the port's
     /// process directory).
     pub via: String,
-    /// The browser tab the capture was of.
+    /// The browser tab the capture was of, without its query, fragment and login.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub url: Option<String>,
+    pub url: Option<crate::privacy::CleanUrl>,
     /// The project directory the session was chosen by, when it was.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub directory: Option<String>,
