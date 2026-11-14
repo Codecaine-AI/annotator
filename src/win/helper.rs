@@ -95,6 +95,11 @@ pub fn export_audio(movie: &Path, wav: &Path) -> Result<()> {
     crate::win::media::export_audio(movie, wav)
 }
 
+/// Windows has no pause (Esc cancels a recording), so nothing calls this there.
+pub fn cut(_movie: &Path, _out: &Path, _keep: &[(u64, u64)]) -> Result<u64> {
+    bail!("cutting a movie needs AVFoundation (macOS)")
+}
+
 pub enum FrameTimes<'a> {
     /// Nearest decodable frame every N ms, stamped with its actual time.
     Every(u64),
