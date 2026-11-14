@@ -117,6 +117,18 @@ impl DrawModifier {
     }
 }
 
+/// The draw modifier as the config file has it now, for a reader outside the app's own state:
+/// the ingest server names it to dev pages (`crate::web`). Tests see the default, never the
+/// config file.
+pub fn draw_modifier() -> DrawModifier {
+    if cfg!(test) {
+        return DrawModifier::default();
+    }
+    Shortcuts::load_from(&crate::handoff::default_config_path(), &legacy_path())
+        .0
+        .draw
+}
+
 /// The key that stops a recording and throws it away: Esc, or F1 to F12.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CancelKey(u8);

@@ -304,12 +304,16 @@ fn respond_json(
 pub struct PageSettings {
     /// A loopback page may send what it sees (`crate::page`): app state is on.
     pub context: bool,
+    /// The modifier held to draw (Settings › Shortcuts): the page names what is under the
+    /// pointer while it is held.
+    pub draw: crate::settings::DrawModifier,
 }
 
 impl PageSettings {
     fn current() -> Self {
         Self {
             context: crate::handoff::app_state(),
+            draw: crate::settings::draw_modifier(),
         }
     }
 }
@@ -436,12 +440,17 @@ fn handle_with(
                         reg.directory.as_deref().unwrap_or("-")
                     ));
                     // `context`: the page may send what it sees (`crate::page`); loopback only.
-                    let context = origin.is_some_and(is_loopback_origin) && settings().context;
+                    // `draw`: the modifier whose moves the page names what is under.
+                    let settings = settings();
+                    let context = origin.is_some_and(is_loopback_origin) && settings.context;
                     registry().register(reg, crate::now_epoch_ms());
                     respond_json(
                         stream,
                         "200 OK",
-                        &serde_json::json!({"ok": true, "ttlMs": TTL_MS, "context": context}),
+                        &serde_json::json!({
+                            "ok": true, "ttlMs": TTL_MS, "context": context,
+                            "draw": settings.draw.id(),
+                        }),
                         origin,
                     );
                 }
@@ -466,6 +475,7 @@ fn handle_with(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::settings::DrawModifier;
 
     #[test]
     fn loopback_origins_register_without_the_token_and_others_need_it() {
@@ -618,6 +628,10 @@ mod tests {
     }
 
     fn request(raw: &str, token: &str) -> String {
+        request_with(raw, token, &PageSettings::current)
+    }
+
+    fn request_with(raw: &str, token: &str, settings: &dyn Fn() -> PageSettings) -> String {
         let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
         let addr = listener.local_addr().unwrap();
         let raw = raw.to_owned();
@@ -636,9 +650,61 @@ mod tests {
             header.push(byte[0]);
         }
         let header = String::from_utf8(header).unwrap();
-        assert!(handle(&mut stream, &header, token).unwrap());
+        assert!(handle_with(&mut stream, &header, token, settings).unwrap());
         drop(stream);
         client.join().unwrap()
+    }
+
+    #[test]
+    fn a_registration_tells_the_page_the_draw_modifier() {
+        let body = r#"{"url":"http://localhost:6124/","session":"ses_draw","tab":"dd"}"#;
+        for draw in DrawModifier::ALL {
+            let reply = request_with(
+                &format!(
+                    "POST /web/register HTTP/1.1\r\nOrigin: http://localhost:6124\r\nContent-Length: {}\r\n\r\n{body}",
+                    body.len()
+                ),
+                "tok",
+                &|| PageSettings {
+                    context: false,
+                    draw,
+                },
+            );
+            assert!(
+                reply.contains(&format!(r#""draw":"{}""#, draw.id())),
+                "{reply}"
+            );
+        }
+    }
+
+    /// `cargo test sdk_page -- --ignored`: with ⌥ as the draw modifier the page names what is
+    /// under ⌥ moves, and ⇧ moves are ordinary moves.
+    #[test]
+    #[ignore = "runs sdk.js in headless Google Chrome"]
+    fn sdk_page_marks_with_the_configured_draw_modifier() {
+        for (draw, held, other) in [
+            (DrawModifier::Option, "altKey", "shiftKey"),
+            (DrawModifier::Shift, "shiftKey", "altKey"),
+            (DrawModifier::Command, "metaKey", "shiftKey"),
+        ] {
+            let driver = r#"
+    fire(document.body, "pointermove", Object.assign({ OTHER: true }, over($("nick-label"))));
+    fire(document.body, "pointermove", Object.assign({ HELD: true, OTHER: true }, over($("reset"))));
+    fire(document.body, "pointermove", Object.assign({ HELD: true }, over($("save"))));
+    fire($("name"), "pointerdown");
+"#
+            .replace("HELD", held)
+            .replace("OTHER", other);
+            let run = run_fixture(
+                PageSettings {
+                    context: true,
+                    draw,
+                },
+                &driver,
+            );
+            assert_eq!(run.seen("mark"), ["<button#save> “Save”"], "{draw:?}");
+            assert_eq!(run.seen("pointer"), ["<input#name> “Your name”"]);
+        }
     }
 
     /// Google Chrome, which runs the real `sdk.js` in a real page.
@@ -687,6 +753,12 @@ mod tests {
     /// element by id, `fire` sends it a pointer event, `over` gives its middle as `clientX` and
     /// `clientY`). Returns when the page has posted what it saw.
     fn run_fixture(settings: PageSettings, driver: &str) -> PageRun {
+        // One page at a time: `crate::page` keeps every page's events in one log, and a run
+        // reads back its own by their time.
+        static ONE_PAGE: Mutex<()> = Mutex::new(());
+        let _one = ONE_PAGE
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
         let chrome = chrome().expect("Google Chrome in /Applications");
         let fixture = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("Tests/fixtures/appshot-secret.html");
@@ -817,7 +889,10 @@ mod tests {
     #[ignore = "runs sdk.js in headless Google Chrome"]
     fn sdk_page_sends_and_keeps_no_typed_text() {
         let run = run_fixture(
-            PageSettings { context: true },
+            PageSettings {
+                context: true,
+                draw: DrawModifier::Shift,
+            },
             r#"
     $("name").value = "SECRET-MARKER-INPUT";
     $("password").value = "SECRET-MARKER-PASSWORD";

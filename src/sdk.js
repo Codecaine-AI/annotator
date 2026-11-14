@@ -4,8 +4,9 @@
 // Registers this tab with Scrawl while it's open, so a Mac capture of it is sent to that
 // session. It does nothing outside localhost unless data-token (the ingest token) is set.
 // When Scrawl asks for it (loopback pages only), it also tells Scrawl what's under clicks and
-// ⇧ marks (element, component, source file:line), video seeks, console errors and failed
-// requests. It never sends request bodies, headers, cookies, query strings or typed values.
+// marks (element, component, source file:line), video seeks, console errors and failed
+// requests. A mark is a move with the draw modifier held: ⇧, or the one Settings › Shortcuts
+// names. It never sends request bodies, headers, cookies, query strings or typed values.
 (() => {
   const script = document.currentScript;
   if (!script || window.__scrawlSdk) return;
@@ -51,8 +52,21 @@
       },
       keepalive,
     ).then((reply) => {
+      if (reply && drawKeys.has(reply.draw)) drawKey = drawKeys.get(reply.draw);
       if (reply && reply.context && loopback) watch();
     });
+
+  // The draw modifier, as each registration's reply names it (`draw`), and the property a
+  // pointer event has for it.
+  const drawKeys = new Map([
+    ["shift", "shiftKey"],
+    ["option", "altKey"],
+    ["control", "ctrlKey"],
+    ["command", "metaKey"],
+  ]);
+  let drawKey = "shiftKey";
+  // Only the draw modifier alone draws: with another modifier it is part of a shortcut.
+  const drawing = (e) => [...drawKeys.values()].every((key) => e[key] === (key === drawKey));
 
   const beat = () => {
     if (document.visibilityState !== "hidden") send("/web/register");
@@ -202,7 +216,7 @@
     addEventListener(
       "pointermove",
       (e) => {
-        if (!e.shiftKey || e.buttons) return;
+        if (!drawing(e) || e.buttons) return;
         const now = Date.now();
         if (now - lastMark < 250) return;
         lastMark = now;
