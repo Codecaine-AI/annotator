@@ -412,9 +412,9 @@
       "status": "main",
       "platforms": ["mac", "windows"],
       "added": "2026-10-19",
-      "note": "On by default on macOS (Settings › Recording › Save app state) and off by default on Windows, which has no app shots. No typed value, password or URL query is stored. An older experiments.agentContext value still counts while appState is not set.",
+      "note": "Off by default (Settings › Recording › Save app state), because an app shot can store the text of a Safari AutoFill popup. Windows has no app shots. No typed value, password or URL query is stored. An older experiments.agentContext value still counts while appState is not set.",
       "config": [
-        { "key": "appState", "value": "true | false", "does": "Save app state with captures (on by default on macOS, off on Windows)" }
+        { "key": "appState", "value": "true | false", "does": "Save app state with captures (off by default)" }
       ],
       "docs": ["docs/keyframes-and-text.md", "docs/windows.md"]
     },

@@ -2818,11 +2818,7 @@ mod tests {
         assert!(Panel::default().view(&host).live_words);
         set(&mut panel, &mut host, "liveWords", false.into());
         assert!(!Panel::default().view(&host).live_words);
-        assert_eq!(
-            panel.view(&host).app_state,
-            cfg!(target_os = "macos"),
-            "Save app state starts on for macOS only"
-        );
+        assert!(!panel.view(&host).app_state, "Save app state starts off");
         set(&mut panel, &mut host, "appState", false.into());
         assert!(!Panel::default().view(&host).app_state);
         set(&mut panel, &mut host, "appState", "yes".into());

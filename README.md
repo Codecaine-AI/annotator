@@ -200,7 +200,7 @@ Capture as Video… (when on), Settings… and Quit Annotator.
 
 ![Settings › Recording pane mockup](docs/images/mockups/30-recording.png)
 
-*Settings › Recording: Deepgram nova-3, live audio on, live words off, Save app state on (approved design mockup).*
+*Settings › Recording: Deepgram nova-3, live audio on, live words off, Save app state shown on in the approved design mockup. It is off by default.*
 
 ### Shortcuts
 
@@ -310,7 +310,7 @@ in a native player (`scrawl-helper play`). For a paused recording it plays the c
 
 ## App state and app shots
 
-**Save app state** in Settings › Recording is on by default on macOS (`"appState"`). It saves what
+**Save app state** in Settings › Recording is off by default (`"appState"`). It saves what
 is under each click and mark, and an app shot of the window each keyframe shows. An app shot is
 the window's app, bundle id, title, URL and a text outline of its Accessibility tree, one element
 per line (`button "Save" #save`). Shots go in the bundle's `appshots/` folder and stay after the

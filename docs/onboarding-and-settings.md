@@ -52,7 +52,7 @@ Render every pane (dark, light, each shortcut state on the Shortcuts pane: held,
 
 ![Settings › Recording pane mockup](images/mockups/30-recording.png)
 
-*Settings › Recording: Deepgram nova-3, live audio on, live words off, Save app state on (approved design mockup).*
+*Settings › Recording: Deepgram nova-3, live audio on, live words off, Save app state shown on in the approved design mockup. It is off by default.*
 
 On by default. Recording › Show live audio (`"liveAudio"`, `false` hides it) shows what the microphone hears in the recording capsule, so a dead, muted or wrong microphone shows while there's still time to fix it. `AudioRecorder::start` reads the setting once and publishes its 16 kHz buffer (`live_audio::begin`, taken down at stop or drop; a newer recording replaces an older one), and the native capsule reads it as it draws: `Levels` makes one bar per 50 ms (`BUCKET`, RMS mapped from −54 to −12 dBFS), newest at the right, scrolling as the next fills, redrawn at most every 16 ms. Silence is a row of dim dots; no samples at all for 600 ms (unplugged, stuck, never opened) turns them into a flat red line (`Levels::stalled`). The waveform is `ElemId::Wave` beside the timer (`WAVE_W`).
 

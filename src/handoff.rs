@@ -882,11 +882,12 @@ pub fn live_audio() -> bool {
 }
 
 impl Config {
-    /// `appState` when set, else an older `experiments.agentContext`, else on for macOS only.
+    /// `appState` when set, else an older `experiments.agentContext`, else off: app shots can
+    /// store the text of a Safari AutoFill popup, so nobody gets them without asking.
     pub fn saves_app_state(&self) -> bool {
         self.app_state
             .or_else(|| self.experiments.get(AGENT_CONTEXT).copied())
-            .unwrap_or(cfg!(target_os = "macos"))
+            .unwrap_or(false)
     }
 
     pub fn shows_live_audio(&self) -> bool {
@@ -2159,12 +2160,11 @@ mod tests {
     }
 
     #[test]
-    fn app_state_is_on_for_macos_and_the_setting_beats_the_old_experiment() {
+    fn app_state_is_off_by_default_and_the_setting_beats_the_old_experiment() {
         let config = |json: &str| config_from_value(serde_json::from_str(json).unwrap());
-        assert_eq!(
-            config("{}").saves_app_state(),
-            cfg!(target_os = "macos"),
-            "an empty config saves app state on macOS only"
+        assert!(
+            !config("{}").saves_app_state(),
+            "an empty config saves no app state"
         );
         assert!(config(r#"{"appState": true}"#).saves_app_state());
         assert!(!config(r#"{"appState": false}"#).saves_app_state());
@@ -2183,10 +2183,7 @@ mod tests {
             "an older choice to keep it off still holds"
         );
         // A value that isn't true or false is dropped, so the default applies.
-        assert_eq!(
-            config(r#"{"appState": "maybe"}"#).saves_app_state(),
-            cfg!(target_os = "macos")
-        );
+        assert!(!config(r#"{"appState": "maybe"}"#).saves_app_state());
     }
 
     #[test]
