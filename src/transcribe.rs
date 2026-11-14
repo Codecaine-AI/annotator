@@ -177,11 +177,9 @@ pub fn transcribe(wav: Option<&Path>, audio: Option<&RecordedAudio>) -> Transcri
             Engine::Apple => Ok(None),
             Engine::Hex => try_hex(audio),
             Engine::Command => try_command(wav, audio),
-            Engine::Deepgram => {
-                crate::deepgram::transcribe(wav, &crate::handoff::hex_language())
-                    .map(Some)
-                    .map_err(anyhow::Error::from)
-            }
+            Engine::Deepgram => crate::deepgram::transcribe(wav, &crate::handoff::hex_language())
+                .map(Some)
+                .map_err(anyhow::Error::from),
         },
         || {
             live.and_then(|live| finish_live(live, audio))

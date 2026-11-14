@@ -1833,7 +1833,7 @@ mod tests {
                         has_iphone: false,
                         live: Rows::default(),
                         keys: Default::default(),
-            paused: false,
+                        paused: false,
                     },
                 ),
                 (
@@ -1854,7 +1854,7 @@ mod tests {
                         has_iphone: false,
                         live: Rows::default(),
                         keys: Default::default(),
-            paused: false,
+                        paused: false,
                     },
                 ),
                 (
@@ -1875,7 +1875,7 @@ mod tests {
                         has_iphone: false,
                         live: Rows::default(),
                         keys: Default::default(),
-            paused: false,
+                        paused: false,
                     },
                 ),
                 (
@@ -1885,7 +1885,7 @@ mod tests {
                         has_iphone: false,
                         live: Rows::default(),
                         keys: Default::default(),
-            paused: false,
+                        paused: false,
                     },
                 ),
                 (2.4, Pres::Hidden),
@@ -1920,7 +1920,7 @@ mod tests {
                         has_iphone: false,
                         live: Rows::default(),
                         keys: Default::default(),
-            paused: false,
+                        paused: false,
                     },
                 ),
                 (3.9, Pres::Hidden),
@@ -1934,7 +1934,7 @@ mod tests {
                         has_iphone: false,
                         live: Rows::default(),
                         keys: Default::default(),
-            paused: false,
+                        paused: false,
                     },
                 ),
                 (
@@ -1944,7 +1944,7 @@ mod tests {
                         has_iphone: false,
                         live: Rows::default(),
                         keys: Default::default(),
-            paused: false,
+                        paused: false,
                     },
                 ),
                 (2.0, Pres::Processing),
@@ -2024,14 +2024,14 @@ mod tests {
                 has_iphone: false,
                 live: Rows::default(),
                 keys: Default::default(),
-            paused: false,
+                paused: false,
             },
             Pres::Recording {
                 chips: false,
                 has_iphone: false,
                 live: Rows::default(),
                 keys: Default::default(),
-            paused: false,
+                paused: false,
             },
             Pres::Selecting {
                 mode: SelectionMode::Area,
@@ -2301,7 +2301,8 @@ mod tests {
         let m = Metrics::default();
         let (running, running_items) =
             layout_of(&recording(false), "0:12", LabelWidths::default(), &m);
-        let (paused, paused_items) = layout_of(&recording(true), "0:12", LabelWidths::default(), &m);
+        let (paused, paused_items) =
+            layout_of(&recording(true), "0:12", LabelWidths::default(), &m);
         let ids = |items: &[LayoutItem]| items.iter().map(|i| i.id).collect::<Vec<_>>();
         assert_eq!(ids(&running_items), ids(&paused_items));
         let item = |items: &[LayoutItem], id: ElemId| *items.iter().find(|i| i.id == id).unwrap();
@@ -2478,8 +2479,17 @@ mod tests {
             keys: [20.0, 30.0, 12.0],
             ..bare
         };
-        assert!((width(keyed, ElemId::Pause) - width(bare, ElemId::Pause) - (KEY_GAP + 12.0)).abs() < 0.01);
-        assert!((width(keyed, ElemId::Cancel) - width(bare, ElemId::Cancel) - (KEY_GAP + 20.0)).abs() < 0.01);
-        assert!((width(keyed, ElemId::Finish) - width(bare, ElemId::Finish) - (KEY_GAP + 30.0)).abs() < 0.01);
+        assert!(
+            (width(keyed, ElemId::Pause) - width(bare, ElemId::Pause) - (KEY_GAP + 12.0)).abs()
+                < 0.01
+        );
+        assert!(
+            (width(keyed, ElemId::Cancel) - width(bare, ElemId::Cancel) - (KEY_GAP + 20.0)).abs()
+                < 0.01
+        );
+        assert!(
+            (width(keyed, ElemId::Finish) - width(bare, ElemId::Finish) - (KEY_GAP + 30.0)).abs()
+                < 0.01
+        );
     }
 }

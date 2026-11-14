@@ -442,7 +442,11 @@ mod tests {
     #[test]
     fn privacy_page_events_keep_no_url_query() {
         let now = 1_000_000;
-        let marked = |text: &str| Some(format!("{text} http://localhost:3000/x?token=SECRET-MARKER-URL#SECRET-MARKER"));
+        let marked = |text: &str| {
+            Some(format!(
+                "{text} http://localhost:3000/x?token=SECRET-MARKER-URL#SECRET-MARKER"
+            ))
+        };
         let kept = sanitize(
             Event {
                 message: marked("Failed to load"),

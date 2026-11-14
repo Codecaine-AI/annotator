@@ -111,7 +111,11 @@ fn hex_status() {
     }
     if preferred == transcribe::Engine::Deepgram {
         // Whether a key is there, never the key.
-        let key = if deepgram::key().is_some() { "found" } else { "missing" };
+        let key = if deepgram::key().is_some() {
+            "found"
+        } else {
+            "missing"
+        };
         println!("Deepgram key: {key}");
         if let Some(reason) = transcribe::deepgram_fallback() {
             println!("Last Deepgram fallback: {reason}");

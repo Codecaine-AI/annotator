@@ -1256,7 +1256,8 @@ impl SharedCaptureTelemetry {
             return;
         }
         let was_active = self.active.swap(false, Ordering::AcqRel);
-        self.active_before_pause.store(was_active, Ordering::Release);
+        self.active_before_pause
+            .store(was_active, Ordering::Release);
         self.end_gestures();
     }
 
@@ -2436,7 +2437,11 @@ mod tests {
                 };
                 telemetry.set_recording_keys(&shortcuts);
                 for held in [0, CARBON_SHIFT_KEY, CARBON_OPTION_KEY] {
-                    assert!(telemetry.is_cancel(key, held), "{} with {held:#x}", cancel.label());
+                    assert!(
+                        telemetry.is_cancel(key, held),
+                        "{} with {held:#x}",
+                        cancel.label()
+                    );
                 }
                 assert!(!telemetry.is_cancel(key, CARBON_CMD_KEY));
                 assert!(!telemetry.is_cancel(key, CARBON_CONTROL_KEY));

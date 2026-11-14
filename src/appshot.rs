@@ -460,7 +460,11 @@ impl Shots {
     /// Moves the shots into `bundle_dir/appshots/` as `shot-NN.json` (in the order first seen)
     /// with `timeline.json`, and gives each keyframe its shot. Nothing is written when there
     /// is no shot.
-    pub fn store(mut self, bundle_dir: &Path, bundle: &mut crate::model::ScrawlBundle) -> Result<()> {
+    pub fn store(
+        mut self,
+        bundle_dir: &Path,
+        bundle: &mut crate::model::ScrawlBundle,
+    ) -> Result<()> {
         let dest = bundle_dir.join(DIR);
         let mut names: HashMap<String, String> = HashMap::new();
         let mut files: Vec<(String, Vec<u8>)> = Vec::new();
@@ -473,7 +477,10 @@ impl Shots {
                 return false;
             };
             let name = format!("shot-{:02}.json", files.len() + 1);
-            names.insert(std::mem::replace(&mut seen.shot, name.clone()), name.clone());
+            names.insert(
+                std::mem::replace(&mut seen.shot, name.clone()),
+                name.clone(),
+            );
             files.push((name, bytes));
             true
         });
@@ -496,12 +503,21 @@ impl Shots {
         for (keyframe, pick) in bundle.keyframes.iter_mut().zip(picks) {
             keyframe.appshot = pick.map(|i| self.timeline.observations[i].shot.clone());
         }
-        let slowest = self.timeline.observations.iter().map(|seen| seen.took_ms).max();
+        let slowest = self
+            .timeline
+            .observations
+            .iter()
+            .map(|seen| seen.took_ms)
+            .max();
         crate::capture::scrawl_log(format!(
             "App shots: {} taken, {} states, {} of {} keyframes have one, slowest {} ms{}",
             self.timeline.observations.len(),
             files.len(),
-            bundle.keyframes.iter().filter(|k| k.appshot.is_some()).count(),
+            bundle
+                .keyframes
+                .iter()
+                .filter(|k| k.appshot.is_some())
+                .count(),
             bundle.keyframes.len(),
             slowest.unwrap_or(0),
             if self.timeline.capped { ", capped" } else { "" }
@@ -712,7 +728,10 @@ fn row(
         window,
         url: shot.as_ref().and_then(|shot| shot.url.clone()),
         shot: shot.as_ref().and(keyframe.appshot.clone()),
-        age_ms: shot.as_ref().and(seen).map(|seen| seen.t.abs_diff(keyframe.t)),
+        age_ms: shot
+            .as_ref()
+            .and(seen)
+            .map(|seen| seen.t.abs_diff(keyframe.t)),
         took_ms: shot.as_ref().and(seen).map(|seen| seen.took_ms),
         nodes: shot.as_ref().map(|shot| shot.nodes),
         truncated: shot.as_ref().and_then(|shot| shot.truncated.clone()),
@@ -758,7 +777,8 @@ pub fn report(
             });
             return (format!("{value:#}\n"), 0);
         }
-        let mut table = vec![["#", "time", "app", "window", "url", "age", "nodes"].map(String::from)];
+        let mut table =
+            vec![["#", "time", "app", "window", "url", "age", "nodes"].map(String::from)];
         for row in &rows {
             table.push([
                 row.frame.to_string(),
@@ -771,8 +791,13 @@ pub fn report(
                 row.nodes.map_or("-".into(), thousands),
             ]);
         }
-        let width =
-            |column: usize| table.iter().map(|r| r[column].chars().count()).max().unwrap_or(0);
+        let width = |column: usize| {
+            table
+                .iter()
+                .map(|r| r[column].chars().count())
+                .max()
+                .unwrap_or(0)
+        };
         let widths: Vec<usize> = (0..7).map(width).collect();
         let mut out = String::new();
         for (i, cells) in table.iter().enumerate() {
@@ -806,7 +831,9 @@ pub fn report(
             }
         }
         if shots.timeline.capped {
-            out.push_str("App shots stopped at 32 MB for this capture: later states are missing.\n");
+            out.push_str(
+                "App shots stopped at 32 MB for this capture: later states are missing.\n",
+            );
         }
         return (out, 0);
     };
@@ -1098,8 +1125,7 @@ impl Walker {
 
 impl Shared {
     fn dropped(&self, generation: u64) -> bool {
-        self.generation.load(Ordering::Acquire) != generation
-            || self.paused.load(Ordering::Acquire)
+        self.generation.load(Ordering::Acquire) != generation || self.paused.load(Ordering::Acquire)
     }
 
     fn walk(&self, generation: u64, taker: &mut impl Taker) {
@@ -1740,7 +1766,9 @@ mod mac {
                 .or_else(|| tree.elements(&app, "AXWindows").into_iter().next())
                 .expect("the app has a window that answers");
             let began = Instant::now();
-            let outline = walk(&tree, &window, &LIMITS, &|| began.elapsed() > LIMITS.deadline);
+            let outline = walk(&tree, &window, &LIMITS, &|| {
+                began.elapsed() > LIMITS.deadline
+            });
             let took = began.elapsed();
             println!(
                 "window at {:?} size {:?}",
@@ -1820,10 +1848,16 @@ mod tests {
             Some(window),
             &[
                 ("AXRole", "AXWebArea"),
-                ("AXURL", "file:///f/appshot-secret.html?token=SECRET-MARKER-URL#SECRET-MARKER-FRAG"),
+                (
+                    "AXURL",
+                    "file:///f/appshot-secret.html?token=SECRET-MARKER-URL#SECRET-MARKER-FRAG",
+                ),
             ],
         );
-        tree.add(Some(web), &[("AXRole", "AXHeading"), ("AXTitle", "Settings")]);
+        tree.add(
+            Some(web),
+            &[("AXRole", "AXHeading"), ("AXTitle", "Settings")],
+        );
         tree.add(
             Some(web),
             &[
@@ -1841,7 +1875,10 @@ mod tests {
         );
         tree.add(
             Some(field),
-            &[("AXRole", "AXStaticText"), ("AXValue", "SECRET-MARKER-INPUT")],
+            &[
+                ("AXRole", "AXStaticText"),
+                ("AXValue", "SECRET-MARKER-INPUT"),
+            ],
         );
         let password = tree.add(
             Some(web),
@@ -1854,13 +1891,19 @@ mod tests {
         );
         tree.add(
             Some(password),
-            &[("AXRole", "AXStaticText"), ("AXValue", "SECRET-MARKER-PASSWORD")],
+            &[
+                ("AXRole", "AXStaticText"),
+                ("AXValue", "SECRET-MARKER-PASSWORD"),
+            ],
         );
         tree.add(
             Some(web),
             &[
                 ("AXRole", "AXLink"),
-                ("AXTitle", "Reset https://a.dev/reset?token=SECRET-MARKER-URL"),
+                (
+                    "AXTitle",
+                    "Reset https://a.dev/reset?token=SECRET-MARKER-URL",
+                ),
                 ("AXValue", "SECRET-MARKER-LINK-VALUE"),
             ],
         );
@@ -2159,7 +2202,9 @@ mod tests {
             let mut next = Vec::new();
             for parent in &level {
                 for _ in 0..width {
-                    next.push(tree.add(Some(*parent), &[("AXRole", "AXGroup"), ("AXTitle", "Row")]));
+                    next.push(
+                        tree.add(Some(*parent), &[("AXRole", "AXGroup"), ("AXTitle", "Row")]),
+                    );
                 }
             }
             level = next;
@@ -2188,7 +2233,10 @@ mod tests {
         let window = tree.add(None, &[("AXRole", "AXWindow")]);
         let long = "x".repeat(190);
         for _ in 0..1_000 {
-            tree.add(Some(window), &[("AXRole", "AXStaticText"), ("AXValue", &long)]);
+            tree.add(
+                Some(window),
+                &[("AXRole", "AXStaticText"), ("AXValue", &long)],
+            );
         }
         let outline = walk(&tree, &window, &LIMITS, &never);
         assert_eq!(outline.truncated, Some("bytes"));
@@ -2212,10 +2260,16 @@ mod tests {
             ..LIMITS
         };
         let began = Instant::now();
-        let outline = walk(&tree, &window, &limits, &|| began.elapsed() > limits.deadline);
+        let outline = walk(&tree, &window, &limits, &|| {
+            began.elapsed() > limits.deadline
+        });
         let took = began.elapsed();
         assert_eq!(outline.truncated, Some("timeout"));
-        assert!(outline.nodes > 0 && outline.nodes < 400, "{}", outline.nodes);
+        assert!(
+            outline.nodes > 0 && outline.nodes < 400,
+            "{}",
+            outline.nodes
+        );
         assert!(took < Duration::from_secs(5), "{took:?}");
         // What it read before the deadline is kept.
         assert_eq!(outline.lines[0], "window");
@@ -2338,7 +2392,10 @@ mod tests {
             {"t": 2_000, "windows": [entry(1, "Safari", true)]},
         ]);
         let b = bundle("display", &[1_000], &[], log);
-        assert_eq!(picks(&b, vec![seen(2_100, "later", Some(1), "Safari")]), [None]);
+        assert_eq!(
+            picks(&b, vec![seen(2_100, "later", Some(1), "Safari")]),
+            [None]
+        );
     }
 
     #[test]
@@ -2405,7 +2462,10 @@ mod tests {
         );
         assert_eq!(expected_window(&b, 500).unwrap().title, "Safari 1");
         let xcode = expected_window(&b, 2_500).unwrap();
-        assert_eq!((xcode.app.as_str(), xcode.from, xcode.until), ("Xcode", 2_000, u64::MAX));
+        assert_eq!(
+            (xcode.app.as_str(), xcode.from, xcode.until),
+            ("Xcode", 2_000, u64::MAX)
+        );
     }
 
     #[test]
@@ -2943,7 +3003,10 @@ mod tests {
         let shots = Shots::load(&dir).unwrap();
         assert_eq!(shots.timeline.observations.len(), 3);
         assert_eq!(shots.timeline.observations[2].shot, "shot-01.json");
-        assert_eq!(shots.shot("shot-02.json").unwrap().tree, ["window \"detail\""]);
+        assert_eq!(
+            shots.shot("shot-02.json").unwrap().tree,
+            ["window \"detail\""]
+        );
         let mut names: Vec<String> = std::fs::read_dir(dir.join(DIR))
             .unwrap()
             .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
@@ -2963,7 +3026,10 @@ mod tests {
 
         // A capture with no shot gets no folder.
         let empty = temp("store-empty");
-        Spool::new(&empty).into_shots().store(&empty, &mut b).unwrap();
+        Spool::new(&empty)
+            .into_shots()
+            .store(&empty, &mut b)
+            .unwrap();
         assert!(!empty.join(DIR).exists());
         for dir in [dir, copy, empty] {
             let _ = std::fs::remove_dir_all(&dir);
@@ -2981,10 +3047,20 @@ mod tests {
             Some("dev.safari"),
             Some(1),
             "Fixture",
-            Some("file:///Users/kit/annotator/tests/fixtures/appshot-secret.html?token=SECRET-MARKER-URL"),
+            Some(
+                "file:///Users/kit/annotator/tests/fixtures/appshot-secret.html?token=SECRET-MARKER-URL",
+            ),
             walk(&tree, &window, &LIMITS, &never),
         );
-        spool.add(3_700, 12, Taken { shot: safari, pid: 1, frame: [0, 0, 800, 600] });
+        spool.add(
+            3_700,
+            12,
+            Taken {
+                shot: safari,
+                pid: 1,
+                frame: [0, 0, 800, 600],
+            },
+        );
         let t3 = Shot {
             app: "T3 Code".into(),
             bundle_id: Some("dev.t3code".into()),
@@ -2995,7 +3071,15 @@ mod tests {
             tree: vec!["window \"Annotator plan\"".into()],
             ..Shot::default()
         };
-        spool.add(19_800, 310, Taken { shot: t3, pid: 2, frame: [0, 0, 800, 600] });
+        spool.add(
+            19_800,
+            310,
+            Taken {
+                shot: t3,
+                pid: 2,
+                frame: [0, 0, 800, 600],
+            },
+        );
         let log = serde_json::json!([
             {"t": 0, "windows": [entry(1, "Safari", true)]},
             {"t": 15_000, "windows": [entry(2, "T3 Code", true)]},
@@ -3029,14 +3113,20 @@ mod tests {
         assert_eq!(json["capture"], "scrawl-1-test");
         let rows = json["keyframes"].as_array().unwrap();
         assert_eq!(rows.len(), 3);
-        assert_eq!(rows[0]["url"], "file:///Users/kit/annotator/tests/fixtures/appshot-secret.html");
+        assert_eq!(
+            rows[0]["url"],
+            "file:///Users/kit/annotator/tests/fixtures/appshot-secret.html"
+        );
         assert_eq!(rows[0]["ageMs"], 300);
         assert_eq!(rows[0]["tookMs"], 12);
         assert_eq!(rows[1]["truncated"], "nodes");
         assert_eq!(rows[1]["nodes"], 1_500);
         assert_eq!(rows[2]["app"], "Xcode");
         assert!(rows[2].get("shot").is_none());
-        assert!(!out.contains("tree") && !out.contains("button"), "metadata only: {out}");
+        assert!(
+            !out.contains("tree") && !out.contains("button"),
+            "metadata only: {out}"
+        );
         assert!(!out.contains(MARKER));
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -3081,7 +3171,10 @@ window \"Fixture\"
         let (out, code) = report(&dir, &b, Some(3), false);
         assert_eq!(
             (out.as_str(), code),
-            ("no app shot for keyframe 3 (0:31): expected Xcode “Xcode 3”\n", 0)
+            (
+                "no app shot for keyframe 3 (0:31): expected Xcode “Xcode 3”\n",
+                0
+            )
         );
         // Out of range, at both ends.
         for n in [0, 4, 99] {

@@ -2157,7 +2157,10 @@ mod tests {
         );
         assert!(!summary.contains("SECRET-MARKER"), "{summary}");
         let vault = summary_markdown(&bundle("com.1password.1password"), dir);
-        assert!(vault.starts_with("[scrawl 0:14 · Safari · /recordings/test]"), "{vault}");
+        assert!(
+            vault.starts_with("[scrawl 0:14 · Safari · /recordings/test]"),
+            "{vault}"
+        );
     }
 
     #[test]

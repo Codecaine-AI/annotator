@@ -340,7 +340,10 @@ mod tests {
             reply(Some(0), &answered(200, r#"{"results":{"channels":[]}}"#)),
             Err(Failure::Empty)
         );
-        let refused = answered(401, r#"{"err_code":"INVALID_AUTH","err_msg":"secret detail"}"#);
+        let refused = answered(
+            401,
+            r#"{"err_code":"INVALID_AUTH","err_msg":"secret detail"}"#,
+        );
         let failure = reply(Some(0), &refused).unwrap_err();
         assert_eq!(failure, Failure::Status(401));
         assert_eq!(failure.to_string(), "Deepgram answered HTTP 401");
@@ -376,7 +379,10 @@ mod tests {
         assert!(query("nl").ends_with("&language=nl"));
         assert!(query("auto").ends_with("&detect_language=true"));
         assert!(query("bad value!").ends_with("&language=en"));
-        assert!(query("en").starts_with("model=nova-3&smart_format=true&punctuate=true&utterances=true"));
+        assert!(
+            query("en")
+                .starts_with("model=nova-3&smart_format=true&punctuate=true&utterances=true")
+        );
     }
 
     /// Answers one request on a loopback port with `status` and `body` after `delay`, and hands

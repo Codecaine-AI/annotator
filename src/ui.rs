@@ -2040,10 +2040,7 @@ impl ScrawlCoordinator {
             PillAction::SwitchRecording(mode) => self.switch_recording(mode, cx),
             PillAction::RecordSelected => self.record_selected_mode(cx),
             PillAction::Cancel => {
-                let change = self
-                    .active_recording
-                    .as_mut()
-                    .map(|rec| rec.pause.cancel());
+                let change = self.active_recording.as_mut().map(|rec| rec.pause.cancel());
                 match change {
                     Some(change) => self.apply_pause_change(change, cx),
                     None => self.cancel_recording(cx),
@@ -3056,20 +3053,21 @@ impl ScrawlCoordinator {
                         }
                     };
                     let stop_started = Instant::now();
-                    let (mut recording, mut recorded_audio, mut activity) = std::thread::scope(|s| {
-                        let screen_handle = s.spawn(|| screen_session.stop());
-                        let win_handle = s.spawn(|| {
-                            window_log
-                                .map(crate::windows::WindowLogger::stop)
-                                .unwrap_or_default()
+                    let (mut recording, mut recorded_audio, mut activity) =
+                        std::thread::scope(|s| {
+                            let screen_handle = s.spawn(|| screen_session.stop());
+                            let win_handle = s.spawn(|| {
+                                window_log
+                                    .map(crate::windows::WindowLogger::stop)
+                                    .unwrap_or_default()
+                            });
+                            let audio = audio_recorder.and_then(|r| r.stop().ok());
+                            (
+                                screen_handle.join().unwrap(),
+                                audio,
+                                win_handle.join().unwrap_or_default(),
+                            )
                         });
-                        let audio = audio_recorder.and_then(|r| r.stop().ok());
-                        (
-                            screen_handle.join().unwrap(),
-                            audio,
-                            win_handle.join().unwrap_or_default(),
-                        )
-                    });
                     activity.stop_started = Some(stop_started);
                     activity.stop_ms = Some(stop_started.elapsed().as_millis() as u64);
                     // After the sampler and the window log stopped, so nothing asks for another

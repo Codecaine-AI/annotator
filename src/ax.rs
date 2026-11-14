@@ -288,15 +288,11 @@ pub fn hit_test(x: f64, y: f64) -> Option<Hit> {
     let tree = MacTree {
         timeout_s: MESSAGE_TIMEOUT_S,
     };
-    let bundle_id = pid_of(element.0).and_then(|pid| {
-        objc2::rc::autoreleasepool(|_| crate::windows::app_meta_of(pid).bundle_id)
-    });
-    lookup(
-        &tree,
-        tree.adopt(element),
-        bundle_id.as_deref(),
-        &|| started.elapsed() > LOOKUP_BUDGET,
-    )
+    let bundle_id = pid_of(element.0)
+        .and_then(|pid| objc2::rc::autoreleasepool(|_| crate::windows::app_meta_of(pid).bundle_id));
+    lookup(&tree, tree.adopt(element), bundle_id.as_deref(), &|| {
+        started.elapsed() > LOOKUP_BUDGET
+    })
 }
 
 /// What `element` is, as it may be kept (`crate::privacy`). `bundle_id` is its app's. `over`
@@ -366,7 +362,11 @@ pub(crate) fn lookup<T: Tree>(
         .title
         .or(node.description)
         .or(node.value)
-        .or_else(|| (!over()).then(|| tree.string(element, "AXPlaceholderValue")).flatten())
+        .or_else(|| {
+            (!over())
+                .then(|| tree.string(element, "AXPlaceholderValue"))
+                .flatten()
+        })
         .and_then(|s| clip(&s));
     if !over() {
         hit.identifier = node
@@ -635,8 +635,14 @@ mod tests {
             None,
             &[
                 ("AXRole", "AXWindow"),
-                ("AXTitle", "Fixture file:///f/appshot-secret.html?token=SECRET-MARKER-URL"),
-                ("AXDocument", "file:///f/appshot-secret.html?token=SECRET-MARKER-URL#SECRET-MARKER-FRAG"),
+                (
+                    "AXTitle",
+                    "Fixture file:///f/appshot-secret.html?token=SECRET-MARKER-URL",
+                ),
+                (
+                    "AXDocument",
+                    "file:///f/appshot-secret.html?token=SECRET-MARKER-URL#SECRET-MARKER-FRAG",
+                ),
             ],
         );
         let web = tree.add(Some(window), &[("AXRole", "AXWebArea")]);
@@ -675,7 +681,10 @@ mod tests {
             Some(web),
             &[
                 ("AXRole", "AXStaticText"),
-                ("AXValue", "Reset at https://a.dev/reset?token=SECRET-MARKER-URL today"),
+                (
+                    "AXValue",
+                    "Reset at https://a.dev/reset?token=SECRET-MARKER-URL today",
+                ),
             ],
         );
         Page {
@@ -764,7 +773,10 @@ mod tests {
         let mut tree = FakeTree::default();
         let orphan = tree.add(
             None,
-            &[("AXRole", "AXStaticText"), ("AXValue", "SECRET-MARKER-INPUT")],
+            &[
+                ("AXRole", "AXStaticText"),
+                ("AXValue", "SECRET-MARKER-INPUT"),
+            ],
         );
         let hit = lookup(&tree, orphan, None, &never).unwrap();
         assert_eq!(hit.label, None);
@@ -807,7 +819,10 @@ mod tests {
         );
         assert!(!stored.contains(MARKER), "{stored}");
         assert!(stored.contains("text field"), "{stored}");
-        assert_eq!(strokes[0].on.as_deref(), Some("text field “Name” in appshot-secret.html"));
+        assert_eq!(
+            strokes[0].on.as_deref(),
+            Some("text field “Name” in appshot-secret.html")
+        );
     }
 
     #[test]

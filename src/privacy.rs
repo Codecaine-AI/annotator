@@ -555,14 +555,26 @@ mod tests {
         );
         let never = || false;
         let (kept, descend) = read(&tree, &field, "AXTextField", "", &never).unwrap();
-        assert_eq!((kept.title.as_deref(), kept.value, descend), (Some("Name"), None, false));
+        assert_eq!(
+            (kept.title.as_deref(), kept.value, descend),
+            (Some("Name"), None, false)
+        );
         let (kept, descend) =
             read(&tree, &secure, "AXTextField", "AXSecureTextField", &never).unwrap();
         assert_eq!((kept.value, descend), (None, false));
         let (kept, descend) = read(&tree, &label, "AXStaticText", "", &never).unwrap();
-        assert_eq!((kept.value.as_deref(), descend), (Some("Open the settings"), true));
-        assert!(!tree.was_read(field, "AXValue"), "a text field's value is never read");
-        assert!(!tree.was_read(secure, "AXValue"), "a secure field's value is never read");
+        assert_eq!(
+            (kept.value.as_deref(), descend),
+            (Some("Open the settings"), true)
+        );
+        assert!(
+            !tree.was_read(field, "AXValue"),
+            "a text field's value is never read"
+        );
+        assert!(
+            !tree.was_read(secure, "AXValue"),
+            "a secure field's value is never read"
+        );
         assert!(tree.was_read(label, "AXValue"));
         // A read that is stopped gives nothing rather than half a node.
         assert!(read(&tree, &label, "AXStaticText", "", &|| true).is_none());
@@ -717,7 +729,10 @@ mod tests {
                 "(see https://a.dev/x?k=SECRET-MARKER-URL)",
                 "(see https://a.dev/x",
             ),
-            ("http://localhost:3000/#SECRET-MARKER", "http://localhost:3000/"),
+            (
+                "http://localhost:3000/#SECRET-MARKER",
+                "http://localhost:3000/",
+            ),
         ];
         for (raw, kept) in cases {
             let out = text(raw).unwrap();
@@ -883,7 +898,13 @@ mod tests {
             Some("file:///Users/k/My%20Notes.md")
         );
         assert_eq!(url("  "), None);
-        assert!(url(&format!("https://a.dev/{}", "p".repeat(900))).unwrap().chars().count() <= MAX_CHARS);
+        assert!(
+            url(&format!("https://a.dev/{}", "p".repeat(900)))
+                .unwrap()
+                .chars()
+                .count()
+                <= MAX_CHARS
+        );
     }
 
     #[test]
@@ -897,7 +918,10 @@ mod tests {
         assert!(!is_sensitive_app(Some("com.apple.Safari")));
         assert!(!is_sensitive_app(None));
         assert_eq!(
-            window_title(Some("com.apple.Safari"), "Fixture https://a.dev/?t=SECRET-MARKER"),
+            window_title(
+                Some("com.apple.Safari"),
+                "Fixture https://a.dev/?t=SECRET-MARKER"
+            ),
             "Fixture https://a.dev/"
         );
         assert_eq!(window_title(None, "  Notes  "), "Notes");
@@ -929,7 +953,10 @@ mod tests {
         );
         let mut vault = make("com.1password.1password");
         target(&mut vault);
-        assert_eq!(vault.window_title, None, "a password manager's title is dropped");
+        assert_eq!(
+            vault.window_title, None,
+            "a password manager's title is dropped"
+        );
         assert_eq!(vault.app.as_deref(), Some("App"));
     }
 
@@ -944,7 +971,11 @@ mod tests {
         ] {
             assert!(is_internal_url(internal), "{internal}");
         }
-        for page in ["https://a.dev/about:", "file:///a.html", "http://chrome.dev"] {
+        for page in [
+            "https://a.dev/about:",
+            "file:///a.html",
+            "http://chrome.dev",
+        ] {
             assert!(!is_internal_url(page), "{page}");
         }
     }

@@ -1376,7 +1376,8 @@ fn emit_elem_prims(
             let paused = elem.active;
             let cycle = 1.6_f32;
             let ripple = (t / cycle).fract();
-            let breath = 1.0 - (1.0 - paused) * (0.5 - 0.5 * (std::f32::consts::TAU * t / cycle).cos());
+            let breath =
+                1.0 - (1.0 - paused) * (0.5 - 0.5 * (std::f32::consts::TAU * t / cycle).cos());
             let halo_r = 4.0 + 6.0 * ripple;
             let halo_a = 0.34 * (1.0 - ripple).powi(2) * (1.0 - paused);
             push_shape(
@@ -1394,7 +1395,12 @@ fn emit_elem_prims(
                 out,
                 [ox + 12.0, oy + 12.0, 8.0, 8.0],
                 4.0,
-                [0.941, 0.267, 0.220, (0.78 + 0.22 * breath) * (1.0 - 0.45 * paused)],
+                [
+                    0.941,
+                    0.267,
+                    0.220,
+                    (0.78 + 0.22 * breath) * (1.0 - 0.45 * paused),
+                ],
             );
             push_sprite(
                 out,
@@ -1912,7 +1918,10 @@ mod tests {
         let states = [
             ("pause-1-recording", recording(false, "esc", false)),
             ("pause-2-paused", recording(true, "esc", false)),
-            ("pause-3-recording-live-audio", recording(false, "esc", true)),
+            (
+                "pause-3-recording-live-audio",
+                recording(false, "esc", true),
+            ),
             ("pause-4-paused-live-audio", recording(true, "esc", true)),
             ("pause-5-paused-f5", recording(true, "F5", false)),
         ];
@@ -1940,7 +1949,10 @@ mod tests {
                 ids.ends_with(&[ElemId::Pause, ElemId::Cancel, ElemId::Finish]),
                 "{name}: {ids:?}"
             );
-            assert_eq!(ids.contains(&ElemId::Wave), !paused && name.contains("live"));
+            assert_eq!(
+                ids.contains(&ElemId::Wave),
+                !paused && name.contains("live")
+            );
             // The dot is red, running or paused.
             let lead = items[0].rect;
             let [r, g, _] = px(&frame, lead[0] + 16.0, lead[1] + 16.0);
@@ -1956,7 +1968,10 @@ mod tests {
             assert_eq!(pulses, !paused, "{name}: {halo:?}");
             if paused {
                 let [r, g, _] = halo[0];
-                assert!(r < g.saturating_add(12), "{name}: a halo while paused, {halo:?}");
+                assert!(
+                    r < g.saturating_add(12),
+                    "{name}: a halo while paused, {halo:?}"
+                );
             }
             if let Some(dir) = &out {
                 crate::render::save_png(&frame, &dir.join(format!("{name}.png"))).unwrap();

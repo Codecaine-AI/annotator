@@ -779,7 +779,11 @@ mod tests {
             alpha: 1.0,
         };
         let raw = [
-            window(1, 10, "Fixture file:///f/appshot-secret.html?token=SECRET-MARKER-URL"),
+            window(
+                1,
+                10,
+                "Fixture file:///f/appshot-secret.html?token=SECRET-MARKER-URL",
+            ),
             window(2, 11, "appshot-secret.html?token=SECRET-MARKER-URL"),
             window(3, 12, "Login SECRET-MARKER — 1Password"),
             window(4, 13, "Notes"),
@@ -805,7 +809,11 @@ mod tests {
                 "Notes"
             ]
         );
-        assert!(!serde_json::to_string(&entries).unwrap().contains("SECRET-MARKER"));
+        assert!(
+            !serde_json::to_string(&entries)
+                .unwrap()
+                .contains("SECRET-MARKER")
+        );
     }
 
     #[test]
@@ -815,18 +823,27 @@ mod tests {
             title: title.into(),
             ..entry(id, 0)
         };
-        let base = top_key(&snapshot(vec![titled(1, "Inbox"), titled(2, "Notes")]), CaptureMode::Display);
+        let base = top_key(
+            &snapshot(vec![titled(1, "Inbox"), titled(2, "Notes")]),
+            CaptureMode::Display,
+        );
         assert_eq!(base, Some((1, "Inbox".into())));
         // The same window moved, or another window behind it changed: no new shot.
         let mut moved = titled(1, "Inbox");
         moved.bounds = [50, 50, 400, 300];
         assert_eq!(
-            top_key(&snapshot(vec![moved, titled(2, "Other")]), CaptureMode::Display),
+            top_key(
+                &snapshot(vec![moved, titled(2, "Other")]),
+                CaptureMode::Display
+            ),
             base
         );
         // A new title (another tab or document), or another window in front: a new shot.
         assert_ne!(
-            top_key(&snapshot(vec![titled(1, "Sent"), titled(2, "Notes")]), CaptureMode::Display),
+            top_key(
+                &snapshot(vec![titled(1, "Sent"), titled(2, "Notes")]),
+                CaptureMode::Display
+            ),
             base
         );
         let mut front = titled(2, "Notes");
