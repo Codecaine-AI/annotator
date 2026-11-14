@@ -137,8 +137,10 @@ pub fn resolve_bundle_dir(path_or_id: &Path) -> Result<PathBuf> {
         path.canonicalize()
             .with_context(|| format!("Could not resolve {}", path.display()))?,
     );
+    // A folder with a manifest is a bundle whatever it is called: `scrawl reprocess --out` takes
+    // any name.
     ensure!(
-        path.extension().is_some_and(|ext| ext == "scrawl"),
+        path.extension().is_some_and(|ext| ext == "scrawl") || path.join("scrawl.json").is_file(),
         "Expected a .scrawl directory: {}",
         path.display()
     );
@@ -1833,6 +1835,13 @@ mod tests {
         );
         assert!(resolve_bundle_dir(&fixture.0).is_err());
         assert!(resolve_bundle_dir(&fixture.0.join("missing.scrawl")).is_err());
+        // A bundle rebuilt into a folder of another name (`scrawl reprocess --out /tmp/again`).
+        let renamed = fixture.0.join("again");
+        fs::rename(&older, &renamed).unwrap();
+        assert_eq!(
+            resolve_bundle_dir(&renamed).unwrap(),
+            plain_path(renamed.canonicalize().unwrap())
+        );
     }
 
     #[test]
