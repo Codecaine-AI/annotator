@@ -62,7 +62,7 @@ An app shot is the state of the window a keyframe shows: its app, bundle id, win
 Everything app state stores goes through `src/privacy.rs` first: the click and mark lookups, the window log's titles, the capture's window title (`target.windowTitle`, which the summary's first line prints), dev-page events, and app shots. So it holds for `scrawl.json`, `summary.md`, the clipboard, `appshots/` and what `scrawl appshot` prints.
 
 - **No typed value.** A value is kept only for static text. A text field, text area, combo box, search field or secure field keeps its role and its names, and its value is never asked for (`privacy::read` is the only place that reads `AXValue`). Nothing under an input is read either: text under an input is that input's value.
-- **No URL query.** Every string is one line of at most 200 characters (60 for a click or mark label), and a URL inside it loses its query and fragment. A stored URL also loses any `user:password@`.
+- **No URL query.** Every string is one line of at most 200 characters (60 for a click or mark label), and a URL inside it loses its query, its fragment and any `user:password@`, with a scheme or without one (`reset.html?…`, `a.dev/callback#…`). Prose keeps its `?` and `#` ("why?", "#42").
 - **Nothing from a password manager.** 1Password, Bitwarden, Keychain Access, Passwords and LastPass (`privacy::SENSITIVE_APPS`, exact bundle ids) give their app name only: no title, URL, tree, label, identifier or document. They are never sent an Accessibility message.
 - **No tree from a browser's own pages** (`chrome://`, `edge://`, `about:`, `safari-resource:`).
 - **Kept on purpose:** text an app shows as static text, such as a code in a message. It is on the keyframe image too.

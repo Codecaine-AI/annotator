@@ -7,8 +7,8 @@
 //! - A value is kept only for static text. A text field, text area, combo box, search field or
 //!   secure field keeps its role and name, and its value and everything under it are dropped:
 //!   text under an input is that input's value.
-//! - Every string is one line of at most `MAX_CHARS`, and a URL inside it loses its query and
-//!   fragment.
+//! - Every string is one line of at most `MAX_CHARS`, and a URL inside it loses its query, its
+//!   fragment and its `user:password@`, with a scheme or without one.
 //! - A password manager (`SENSITIVE_APPS`) gives its app name and nothing else.
 //! - A browser's own pages (`chrome://`, `about:`) give no tree.
 //!
@@ -153,7 +153,7 @@ pub fn input_over(chain: &[(String, String)]) -> Option<usize> {
 }
 
 /// One line of at most `max` characters (never more than `MAX_CHARS`), URLs in it without
-/// their query and fragment. `None` when nothing is left.
+/// their query, fragment and login (`bare_token`). `None` when nothing is left.
 pub fn clip(raw: &str, max: usize) -> Option<String> {
     let max = max.clamp(1, MAX_CHARS);
     let compact = raw
@@ -178,39 +178,70 @@ pub fn text(raw: &str) -> Option<String> {
     clip(raw, MAX_CHARS)
 }
 
-/// A word without the query and fragment of a URL in it. A word with a scheme
-/// (`https://a.dev/x?token=1#top`) is cut at its first `?` or `#`. One without
-/// (`page.html?token=1`, `a.dev/x#access_token=1`) is cut there only when a `key=value` follows,
-/// so "why?" and "#42" stay.
-fn bare_token(token: &str) -> &str {
-    let cut = match token.find("://") {
-        Some(scheme) => token[scheme..].find(['?', '#']).map(|at| scheme + at),
-        None => token
-            .char_indices()
-            .find(|&(at, c)| at > 0 && matches!(c, '?' | '#') && token[at..].contains('='))
-            .map(|(at, _)| at),
-    };
-    cut.map_or(token, |at| &token[..at])
+/// What may stand in front of a URL in a word: `(a.dev/x)`.
+const OPENERS: [char; 9] = ['(', '[', '{', '<', '"', '\'', '“', '‘', '«'];
+/// What may end a word of prose after its `?` or `#`: `(why?)`.
+const CLOSERS: [char; 16] = [
+    ')', ']', '}', '>', '"', '\'', '”', '’', '»', '.', ',', ';', ':', '!', '?', '…',
+];
+
+/// A word without the secrets of a URL in it: its query, its fragment and its login.
+///
+/// A `?` or `#` after a scheme (`https://a.dev/x?token=1#top`) always starts one. Anywhere else
+/// it starts one when something follows it and either that holds a `=` (`?token=1`) or the word
+/// up to there reads as an address (`url_like`: `page.html?1`, `a.dev/x#1`). So "why?", "#42"
+/// and "C#" stay.
+fn bare_token(token: &str) -> String {
+    let scheme = token.find("://");
+    let cut = token.char_indices().find(|&(at, c)| {
+        matches!(c, '?' | '#')
+            && (scheme.is_some_and(|scheme| scheme < at)
+                || is_query(&token[..at], &token[at + 1..]))
+    });
+    without_login(cut.map_or(token, |(at, _)| &token[..at]))
 }
 
-/// A URL as it may be stored: no query, no fragment, no `user:password@`.
+/// Whether the `?` or `#` between `before` and `after` starts a query or a fragment.
+fn is_query(before: &str, after: &str) -> bool {
+    after.chars().any(|c| !CLOSERS.contains(&c)) && (after.contains('=') || url_like(before))
+}
+
+/// Whether a word reads as an address without a scheme: it has a path (`/reset`), a dotted
+/// name (`a.dev`, `page.html`) or a port (`localhost:3000`).
+fn url_like(word: &str) -> bool {
+    let chars: Vec<char> = word.trim_start_matches(OPENERS).chars().collect();
+    chars.contains(&'/')
+        || chars.windows(3).any(|w| {
+            w[0].is_alphanumeric()
+                && ((w[1] == '.' && w[2].is_alphanumeric())
+                    || (w[1] == ':' && w[2].is_ascii_digit()))
+        })
+}
+
+/// A word without the login in front of its host. After a scheme whatever stands before `@` is
+/// one (`https://token@a.dev`). Without a scheme only `user:password@` is: `kit@a.dev` is an
+/// address.
+fn without_login(word: &str) -> String {
+    let (host_at, any) = match word.find("://") {
+        Some(scheme) => (scheme + 3, true),
+        None => (word.len() - word.trim_start_matches(OPENERS).len(), false),
+    };
+    let host_end = word[host_at..]
+        .find('/')
+        .map_or(word.len(), |at| host_at + at);
+    match word[host_at..host_end].rfind('@') {
+        Some(at) if any || word[host_at..host_at + at].contains(':') => {
+            format!("{}{}", &word[..host_at], &word[host_at + at + 1..])
+        }
+        _ => word.to_owned(),
+    }
+}
+
+/// A URL as it may be stored: no query, no fragment, no `user:password@` (`clip` takes the
+/// login off).
 pub fn url(raw: &str) -> Option<String> {
     let raw = raw.trim();
-    let bare = raw.split(['?', '#']).next().unwrap_or(raw);
-    let bare = match bare.find("://") {
-        Some(scheme) => {
-            let host_at = scheme + 3;
-            let host_end = bare[host_at..]
-                .find('/')
-                .map_or(bare.len(), |at| host_at + at);
-            match bare[host_at..host_end].rfind('@') {
-                Some(at) => format!("{}{}", &bare[..host_at], &bare[host_at + at + 1..]),
-                None => bare.to_owned(),
-            }
-        }
-        None => bare.to_owned(),
-    };
-    clip(&bare, MAX_CHARS)
+    clip(raw.split(['?', '#']).next().unwrap_or(raw), MAX_CHARS)
 }
 
 /// A window's title as the window log and the capture's target may keep it: empty for a
@@ -536,6 +567,57 @@ mod tests {
         }
         // Ordinary punctuation is not a URL.
         for plain in ["Why? Because a=b.", "Issue #42 is fixed", "What is 2+2=?"] {
+            assert_eq!(text(plain).as_deref(), Some(plain));
+        }
+    }
+
+    #[test]
+    fn privacy_text_strips_every_login_query_and_fragment_scheme_or_not() {
+        let cases = [
+            // A login, with a scheme: whatever stands before `@`.
+            (
+                "Reset at https://user:SECRET-MARKER@example.test/reset now",
+                "Reset at https://example.test/reset now",
+            ),
+            ("https://SECRET-MARKER@example.test/reset", "https://example.test/reset"),
+            ("(https://kit:SECRET-MARKER@a.dev/x)", "(https://a.dev/x)"),
+            // A login without a scheme is `user:password@`.
+            ("user:SECRET-MARKER@example.test/reset", "example.test/reset"),
+            ("(kit:SECRET-MARKER@a.dev/x)", "(a.dev/x)"),
+            // A fragment or a query with no `=`, without a scheme.
+            ("example.test/callback#SECRET-MARKER", "example.test/callback"),
+            ("a.dev/reset#SECRET-MARKER", "a.dev/reset"),
+            ("reset.html?SECRET-MARKER", "reset.html"),
+            ("/reset?SECRET-MARKER", "/reset"),
+            ("localhost:3000?SECRET-MARKER", "localhost:3000"),
+            ("Open ?token=SECRET-MARKER now", "Open now"),
+            ("Go #access_token=SECRET-MARKER", "Go"),
+            // A query in front of a URL.
+            ("next?to=https://a.dev/x&token=SECRET-MARKER", "next"),
+            ("https://a.dev/x?next=/home&mail=SECRET-MARKER@b.dev", "https://a.dev/x"),
+        ];
+        for (raw, kept) in cases {
+            let out = text(raw).unwrap();
+            assert_eq!(out, kept, "{raw}");
+            assert!(!out.contains(MARKER), "{out}");
+        }
+        assert_eq!(text("?token=SECRET-MARKER"), None);
+        // Ordinary prose stays as it is written.
+        for plain in [
+            "Is the build done?",
+            "Fix #1 first",
+            "See step #1.",
+            "Really?!",
+            "Is it in config.json?",
+            "(why?)",
+            "“Ready?” she said",
+            "C# and F#",
+            "and/or?",
+            "Mail kit@a.dev",
+            "git@github.com:kit/annotator.git",
+            "[#12](https://a.dev/pull/12)",
+            "src/App.tsx:4",
+        ] {
             assert_eq!(text(plain).as_deref(), Some(plain));
         }
     }
