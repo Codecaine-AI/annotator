@@ -28,7 +28,13 @@ Shortcuts are `RegisterHotKey` plus low-level hooks and a key-state poller (inje
 
 ## Not on Windows
 
-The cabled iPhone, video export, Sparkle (**Check for Updates…** opens the releases page) and reading the browser tab URL (the `sdk.js` page bridge still works).
+The cabled iPhone, video export, Sparkle (**Check for Updates…** opens upstream's releases page) and reading the browser tab URL (the `sdk.js` page bridge still works).
+
+These Annotator features differ on Windows:
+
+- The cancel key cancels a recording at once. There is no pause and resume (`docs/capture.md`).
+- The notification area menu has no **History…** item. Review's Video tab opens the movie in the default player (`win/helper.rs`, `play`).
+- The default transcriber is the on-device engine (`Engine::Apple`, Parakeet here), not Deepgram (`Engine::default`).
 
 ## Building and testing
 

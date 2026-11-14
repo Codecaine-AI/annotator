@@ -54,11 +54,19 @@ Annotator only watches input: the app under the pointer still gets every key and
 
 ## Live audio and live words while recording (`src/live_audio.rs`, `src/audio.rs`)
 
+![Recording capsule mockup](images/mockups/10-capsule.png)
+
+*The recording capsule: waveform on by default, live words as a setting, and the waveform's states (approved design mockup).*
+
+![Capsule keys mockup](images/mockups/25-capsule-keys.png)
+
+*The capsule shows the key for each control (approved design mockup).*
+
 Two settings in Settings › Recording control what the capsule shows while a recording runs. Both are read once per recording (`live_audio::wanted`, `live_audio::captions_possible`).
 
 - **Show live audio** (`"liveAudio"`, on by default): a waveform beside the timer, so a dead, muted or wrong microphone shows at once. Set `"liveAudio": false` to hide it.
 - **Show live words** (`"liveWords"`, off by default): the words as they're said, in a row under the waveform. The words need the waveform on.
-- The words come from an Apple Speech `transcribe-stream` of their own (`Live::preview`), so they show with any transcriber (Apple Speech, Hex or a command). That stream starts only when live words are on, and it is dropped at stop, so the final transcript is unchanged.
+- The words come from an Apple Speech `transcribe-stream` of their own (`Live::preview`), so they show with any transcriber (Deepgram, Apple Speech, Hex or a command). That stream starts only when live words are on, and it is dropped at stop, so the final transcript is unchanged.
 - With the `liveTranscribe` experiment and Apple Speech, the experiment's stream shows the words instead of a second stream.
 
 `cargo test live_audio` covers the defaults, the `liveWords` switch and the words with a non-Apple transcriber. The capsule details are in `docs/onboarding-and-settings.md`.

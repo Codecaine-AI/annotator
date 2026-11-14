@@ -34,9 +34,12 @@ When you answer, refer to moments the same way, as in "#3 (0:10)", so the person
 2. Read the transcript lines next to it. Speech recognition mishears names and code terms, so trust the screen when the two disagree.
 3. Open `frames/frame-NN.png` for any keyframe you need at full size (`frame-03.png` is #3). When the summary says `Cropped to:`, the uncropped screens are in `frames-full/`.
 
+The person can pause a recording (Esc) and resume it. Paused time is cut out of the video, the audio, the transcript and every time in the bundle, so times run on without a gap. A sudden change between two keyframes can be a pause.
+
 What the drawings mean:
 
 - Red strokes, circles, underlines and arrows are the person's marks, and they point at the problem. Marks drawn on the same screen all show on one keyframe. When there are several, the text numbers them in drawing order (`✎① 0:06 …`, `✎② 0:09 …`); the image shows only the ink, so use `scrawl zoom --mark` to see which ink is which.
+- A red disc in a white ring with a white number is a pin: a deliberate "here". Pins are numbered 1, 2, 3 in the order they were dropped in the whole recording, and the text calls them `pin N` (`scrawl zoom --mark` takes that number too).
 - A ripple around the cursor shows a click or tap, and a finger trail shows a swipe.
 - A glowing red trail that tapers off is the laser pointer, used to point without leaving a mark.
 
@@ -44,7 +47,7 @@ Other files: `scrawl.json` is the full manifest (keyframes, `marks` with shape a
 
 ## The scrawl CLI
 
-`scrawl` is the Scrawl app's own binary. If `command -v scrawl` finds nothing, use `/Applications/Scrawl.app/Contents/MacOS/scrawl` (or the same path under `~/Applications`), and tell the person they can put it on PATH with Install in Scrawl's Settings › Agents. It runs only on the Mac with Scrawl installed. Anywhere else, read `contact-sheet.png`, `frames/` and `scrawl.json` directly. Every command takes a bundle path, and most default to `latest`, the newest capture. Quote the path, because it usually contains `Application Support`.
+`scrawl` is the app's own binary (Annotator.app, or upstream's Scrawl.app). If `command -v scrawl` finds nothing, use `/Applications/Annotator.app/Contents/MacOS/scrawl` (or `/Applications/Scrawl.app/Contents/MacOS/scrawl`), and tell the person they can put it on PATH with Install in the app's Settings › Agents. Annotator Dev.app's command is `scrawl-dev`, with its own captures. It runs only on the Mac with Scrawl installed. Anywhere else, read `contact-sheet.png`, `frames/` and `scrawl.json` directly. Every command takes a bundle path, and most default to `latest`, the newest capture. Quote the path, because it usually contains `Application Support`.
 
 ### Look closer at a moment
 
@@ -80,5 +83,5 @@ scrawl export <bundle> [--out demo.mp4] [--zoom] [--crop auto|full|x,y,w,h] [--s
 - `zoom` and `frames` write into `<bundle>/zoom/`. Leave the rest of the bundle as it is, because Scrawl manages those files and cleans them up.
 - `send` without `--session` goes to the session the capture was addressed to (the `For session:` line), and otherwise to the most recently active session. With a recorded destination it refuses a different `--session` unless you pass `--reroute`, so check with the person before rerouting.
 - `export` writes one `.mp4` with the ink and clicks burned in and the audio in sync (default `~/Movies/Scrawl/<bundle>.mp4`). `--zoom` eases in toward the activity. `--no-ink`, `--no-clicks`, `--hevc` and `--fps` are also available.
-- Video and audio go to the Trash 7 days after a capture unless the person changed that in Settings. After that `zoom`, `frames` and `export` can't read the video, but `frames/`, the contact sheet and `scrawl.json` remain.
+- Captures are kept forever unless the person set a limit in Settings › Storage. Once video and audio are cleaned, `zoom`, `frames` and `export` can't read the video, but `frames/`, the contact sheet, `scrawl.json` and `appshots/` remain.
 - `scrawl <command> --help` lists every flag, and `scrawl skill` prints this guide as the installed version knows it.

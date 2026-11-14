@@ -12,6 +12,10 @@ The app's `retention` worker (utility QoS) runs a pass 90 s after launch and hou
 
 ## History and the Video tab (`src/history.rs`, `helper/Player.swift`)
 
+![History window mockup](images/mockups/40-history.png)
+
+*The History window and its menu item (approved design mockup).*
+
 **History…** in the menu opens `HistoryWindow` (`src/ui.rs`). `history::scan` reads every `*.scrawl` folder in `handoff::default_captures_dir`, skips one without a readable `scrawl.json`, and sorts newest first. Each row has:
 
 - the date: `createdAtMs` in local time (`localtime_r`), with the year only when it is not this year.
@@ -32,4 +36,8 @@ A Screen or Area capture with no app in its window log uses `target.app`. Captur
 
 The summary keeps window open and close lines for Screen captures only.
 
-Double-click or Return on a row opens it in Review. The Review window shows a **Video** tab only while `history::playable_video` finds the file `scrawl.json` names in `video` (resolved by `handoff::bundle_video`). For a paused recording, that file is the cut one. A row with its video opens on that tab. The tab starts `scrawl-helper play MOVIE --title T --frame X,Y,W,H`: an AVPlayerView window that plays at once, fitted to the movie's shape inside the Review stage. The Review window kills it when the tab, the capture or the window changes. Closing the player leaves the tab on a **Play** button. A cleaned capture opens on its contact sheet, with its keyframes and transcript.
+Double-click or Return on a row opens it in Review. The Review window shows a **Video** tab only while `history::playable_video` finds the file `scrawl.json` names in `video` (resolved by `handoff::bundle_video`). For a paused recording, that file is the cut one. A row with its video opens on that tab. The tab starts `scrawl-helper play MOVIE --title T --frame X,Y,W,H`: an AVPlayerView window that plays at once, fitted to the movie's shape inside the Review stage. The Review window kills it when the tab, the capture or the window changes. Closing the player leaves the tab on a **Play** button.
+
+![Review Video tab mockup](images/mockups/50-review-video.png)
+
+*The Review window's Video tab (approved design mockup).* A cleaned capture opens on its contact sheet, with its keyframes and transcript.
