@@ -218,16 +218,38 @@ fn url_like(word: &str) -> bool {
         })
 }
 
-/// A word without the login in front of its host. After a scheme whatever stands before `@` is
-/// one (`https://token@a.dev`). Without a scheme only `user:password@` is: `kit@a.dev` is an
-/// address.
-fn without_login(word: &str) -> String {
-    let (host_at, any) = match word.find("://") {
-        Some(scheme) => (scheme + 3, true),
-        None => (word.len() - word.trim_start_matches(OPENERS).len(), false),
+/// Where the host of the address in a word starts, and whether whatever stands before an `@`
+/// there is a login.
+///
+/// The host is behind the slashes that open the address, however many there are: browsers take
+/// `https:/a.dev`, `https:///a.dev` and backslashes for `https://a.dev`, and `//a.dev` takes
+/// its scheme from the page. Only a file has no host there: its path starts at the third
+/// slash. After such an opening anything before `@` is a login (`https://token@a.dev`).
+/// Without one only `user:password@` is: `kit@a.dev` is an address.
+fn host_start(word: &str) -> (usize, bool) {
+    let slashes = |at: usize| {
+        word[at..]
+            .chars()
+            .take_while(|c| matches!(c, '/' | '\\'))
+            .count()
     };
+    if let Some(colon) = word.find(":/").or_else(|| word.find(":\\")) {
+        let run = slashes(colon + 1);
+        let file = word[..colon].to_ascii_lowercase().ends_with("file");
+        return (colon + 1 + if file { run.min(2) } else { run }, true);
+    }
+    let lead = word.len() - word.trim_start_matches(OPENERS).len();
+    match slashes(lead) {
+        0 | 1 => (lead, false),
+        run => (lead + run, true),
+    }
+}
+
+/// A word without the login in front of its host (`host_start`).
+fn without_login(word: &str) -> String {
+    let (host_at, any) = host_start(word);
     let host_end = word[host_at..]
-        .find('/')
+        .find(['/', '\\'])
         .map_or(word.len(), |at| host_at + at);
     match word[host_at..host_end].rfind('@') {
         Some(at) if any || word[host_at..host_at + at].contains(':') => {
@@ -681,6 +703,43 @@ mod tests {
             "git@github.com:kit/annotator.git",
             "[#12](https://a.dev/pull/12)",
             "src/App.tsx:4",
+        ] {
+            assert_eq!(text(plain).as_deref(), Some(plain));
+        }
+    }
+
+    #[test]
+    fn privacy_text_strips_a_login_however_the_address_starts() {
+        let cases = [
+            // An address that takes its scheme from the page.
+            ("//user:SECRET-MARKER@a.dev/x", "//a.dev/x"),
+            ("(//user:SECRET-MARKER@a.dev/x)", "(//a.dev/x)"),
+            ("//SECRET-MARKER@a.dev", "//a.dev"),
+            ("See //user:SECRET-MARKER@a.dev/x?next=1 now", "See //a.dev/x now"),
+            // Browsers take a scheme with one slash, with three, and with backslashes.
+            ("https:/user:SECRET-MARKER@a.dev/x", "https:/a.dev/x"),
+            ("https:///user:SECRET-MARKER@a.dev/x", "https:///a.dev/x"),
+            ("https:\\\\user:SECRET-MARKER@a.dev\\x", "https:\\\\a.dev\\x"),
+            ("///user:SECRET-MARKER@a.dev/x", "///a.dev/x"),
+            // A file server's login; a file's own path is not a host.
+            ("file://kit:SECRET-MARKER@server/share", "file://server/share"),
+        ];
+        for (raw, kept) in cases {
+            let out = text(raw).unwrap();
+            assert_eq!(out, kept, "{raw}");
+            assert!(!out.contains(MARKER), "{out}");
+        }
+        assert_eq!(
+            url("//user:SECRET-MARKER@a.dev/x?token=SECRET-MARKER-URL").as_deref(),
+            Some("//a.dev/x")
+        );
+        for plain in [
+            "// a comment",
+            "file:///Users/k/a@b/x.md",
+            "PATH:/usr/local/bin",
+            "C:\\Users\\kit",
+            "either/or",
+            "git@github.com:/kit/annotator.git",
         ] {
             assert_eq!(text(plain).as_deref(), Some(plain));
         }
