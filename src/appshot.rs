@@ -217,6 +217,8 @@ pub enum Miss {
     OtherTitle,
     /// More than one window is at that place with that title.
     Ambiguous,
+    /// The walk's time ran out, or the capture no longer wants the shot.
+    Stopped,
 }
 
 impl Miss {
@@ -226,6 +228,7 @@ impl Miss {
             Self::NoWindow => "the app has no Accessibility window at its place",
             Self::OtherTitle => "the Accessibility window at its place has another title",
             Self::Ambiguous => "more than one Accessibility window fits its place and title",
+            Self::Stopped => "the app did not show its windows in time",
         }
     }
 }
@@ -244,21 +247,29 @@ impl Miss {
 /// There is no second guess. With no such window, or more than one, the answer is a `Miss` and
 /// no shot is taken: the app's focused window may be another window than the captured one, and
 /// a shot must never carry a window id that its tree is not of.
+///
+/// `stop` is checked before every question to the app, as `walk` does: an app that hangs
+/// costs the walk's one deadline, not a timeout per window.
 pub fn find_window<W: Windows>(
     app: &W,
     bounds: [f64; 4],
     title: &str,
+    stop: &dyn Fn() -> bool,
 ) -> Result<W::Window, Miss> {
     let near = |a: f64, b: f64| (a - b).abs() <= WINDOW_SLOP_PT;
+    let ask = || if stop() { Err(Miss::Stopped) } else { Ok(()) };
+    ask()?;
     let mut at_place = Vec::new();
     for window in app.windows() {
         // The size is asked for only where the position fits.
+        ask()?;
         let Some([x, y]) = app.pair(&window, "AXPosition") else {
             continue;
         };
         if !near(x, bounds[0]) || !near(y, bounds[1]) {
             continue;
         }
+        ask()?;
         let Some([w, h]) = app.pair(&window, "AXSize") else {
             continue;
         };
@@ -275,6 +286,7 @@ pub fn find_window<W: Windows>(
     } else {
         let (mut same, mut alike) = (Vec::new(), Vec::new());
         for window in at_place {
+            ask()?;
             match app.title(&window) {
                 Some(own) if own.trim() == title => same.push(window),
                 Some(own) if !own.trim().starts_with(title) && !title.starts_with(own.trim()) => {}
@@ -427,8 +439,14 @@ impl Shots {
         serde_json::from_slice(&std::fs::read(self.dir.join(file)).ok()?).ok()
     }
 
-    /// Takes a paused recording's pauses out (`crate::pause`).
+    /// Takes a paused recording's pauses out (`crate::pause`). A walk reads its window from `t`
+    /// for `took_ms`: one that a pause fell in read a window the recording does not show at
+    /// `t`, so its shot goes. That drops the walk that began before a pause and ended after it,
+    /// which would otherwise be kept under its time before the pause.
     pub fn cut(&mut self, cuts: &crate::pause::Cuts) {
+        self.timeline
+            .observations
+            .retain(|seen| !cuts.overlaps(seen.t, seen.t + seen.took_ms));
         cuts.cut_moments(&mut self.timeline.observations, |seen| &mut seen.t);
         cuts.cut_moments(&mut self.timeline.scenes, |t| t);
     }
@@ -1450,6 +1468,10 @@ mod mac {
     impl Taker for MacTaker {
         fn take(&mut self, session: &Session, dropped: &dyn Fn() -> bool) -> Option<Taken> {
             let began = Instant::now();
+            // One deadline for the whole walk, finding the window included, and the capture's
+            // word that it no longer wants the shot: checked before every step that asks the
+            // window server or an app something.
+            let stop = || began.elapsed() > LIMITS.deadline || dropped();
             let own = std::process::id() as i32;
             let (raw, front) = objc2::rc::autoreleasepool(|_| {
                 (
@@ -1457,6 +1479,9 @@ mod mac {
                     crate::capture::frontmost_external_pid(),
                 )
             });
+            if stop() {
+                return None;
+            }
             let window: &RawWindow = match session.mode {
                 CaptureMode::Display | CaptureMode::Region => {
                     let apps = &mut self.apps;
@@ -1482,6 +1507,9 @@ mod mac {
                     .find(|w| Some(w.id) == session.window_id && w.pid != own)?,
                 CaptureMode::Device => return None,
             };
+            if stop() {
+                return None;
+            }
             let pid = window.pid;
             let bundle_id = objc2::rc::autoreleasepool(|_| {
                 self.apps
@@ -1513,6 +1541,9 @@ mod mac {
                 timeout_s: MESSAGE_TIMEOUT_S,
             };
             let app = tree.adopt(Owned(unsafe { AXUIElementCreateApplication(pid) }));
+            if stop() {
+                return None;
+            }
             let woken = objc2::rc::autoreleasepool(|_| self.wake_electron(pid, &app));
             // The window by its place on screen and its title, or no shot: never another
             // window of the app (`find_window`).
@@ -1520,11 +1551,12 @@ mod mac {
                 tree: &tree,
                 app: &app,
             };
-            let element = match find_window(&windows, window.bounds, &window.title) {
+            let element = match find_window(&windows, window.bounds, &window.title, &stop) {
                 Ok(element) => element,
                 Err(miss) => {
-                    // An Electron app just asked for its tree has no windows to find yet.
-                    if !woken && self.missed != Some((window.id, miss)) {
+                    // An Electron app just asked for its tree has no windows to find yet, and
+                    // a capture that dropped the shot needs no reason.
+                    if !woken && !dropped() && self.missed != Some((window.id, miss)) {
                         self.missed = Some((window.id, miss));
                         crate::capture::scrawl_log(format!(
                             "App shot skipped: {} window {}: {}",
@@ -1537,9 +1569,14 @@ mod mac {
                 }
             };
             self.missed = None;
-            let stop = || began.elapsed() > LIMITS.deadline || dropped();
+            if stop() {
+                return None;
+            }
             let document = tree.url(&element, "AXDocument");
             let title = if window.title.trim().is_empty() {
+                if stop() {
+                    return None;
+                }
                 tree.string(&element, "AXTitle").unwrap_or_default()
             } else {
                 window.title.clone()
@@ -1612,13 +1649,13 @@ mod mac {
                     tree: &tree,
                     app: &app,
                 };
-                let result = find_window(&windows, window.bounds, &window.title);
+                let result = find_window(&windows, window.bounds, &window.title, &|| false);
                 total += 1;
                 found += usize::from(result.is_ok());
                 let detail = match result {
                     Ok(_) => "found".to_owned(),
                     Err(miss) => {
-                        let own_title = find_window(&windows, window.bounds, "")
+                        let own_title = find_window(&windows, window.bounds, "", &|| false)
                             .ok()
                             .and_then(|at_place| windows.title(&at_place))
                             .unwrap_or_default();
@@ -1923,27 +1960,27 @@ mod tests {
         // Two maximized windows of one app: the captured one is the one with its title, not
         // the first at that place.
         let mail = FakeWindows(vec![(FULL, "Inbox"), (FULL, "Drafts")]);
-        assert_eq!(find_window(&mail, FULL, "Drafts"), Ok(1));
-        assert_eq!(find_window(&mail, FULL, "Inbox"), Ok(0));
+        assert_eq!(find_window(&mail, FULL, "Drafts", &never), Ok(1));
+        assert_eq!(find_window(&mail, FULL, "Inbox", &never), Ok(0));
         // The place is the window server's, within 2 pt.
         assert_eq!(
-            find_window(&mail, [1.5, 24.0, 1513.0, 956.0], "Drafts"),
+            find_window(&mail, [1.5, 24.0, 1513.0, 956.0], "Drafts", &never),
             Ok(1)
         );
         // A window that moved since the window server was asked is at no known place: the
         // focused window is another window, and is not read for it.
         let moved = FakeWindows(vec![(SMALL, "Inbox"), ([640.0, 300.0, 800.0, 600.0], "Notes")]);
-        assert_eq!(find_window(&moved, [600.0, 280.0, 800.0, 600.0], "Notes"), Err(Miss::NoWindow));
-        assert_eq!(find_window(&FakeWindows(Vec::new()), FULL, "Inbox"), Err(Miss::NoWindow));
+        assert_eq!(find_window(&moved, [600.0, 280.0, 800.0, 600.0], "Notes", &never), Err(Miss::NoWindow));
+        assert_eq!(find_window(&FakeWindows(Vec::new()), FULL, "Inbox", &never), Err(Miss::NoWindow));
         // The window at the place has another title: it is not the captured one.
-        assert_eq!(find_window(&mail, FULL, "Sent"), Err(Miss::OtherTitle));
+        assert_eq!(find_window(&mail, FULL, "Sent", &never), Err(Miss::OtherTitle));
         // Two windows that nothing tells apart.
         let twins = FakeWindows(vec![(FULL, "New Tab"), (FULL, "New Tab"), (SMALL, "Docs")]);
-        assert_eq!(find_window(&twins, FULL, "New Tab"), Err(Miss::Ambiguous));
-        assert_eq!(find_window(&twins, SMALL, "Docs"), Ok(2));
+        assert_eq!(find_window(&twins, FULL, "New Tab", &never), Err(Miss::Ambiguous));
+        assert_eq!(find_window(&twins, SMALL, "Docs", &never), Ok(2));
         // The window server gave no title: the place alone decides, when one window is there.
-        assert_eq!(find_window(&twins, SMALL, ""), Ok(2));
-        assert_eq!(find_window(&twins, FULL, " "), Err(Miss::Ambiguous));
+        assert_eq!(find_window(&twins, SMALL, "", &never), Ok(2));
+        assert_eq!(find_window(&twins, FULL, " ", &never), Err(Miss::Ambiguous));
         // A browser's Accessibility title is the window's title and more.
         let chrome = FakeWindows(vec![
             (FULL, "Inbox - Google Chrome - Kit"),
@@ -1951,16 +1988,81 @@ mod tests {
             (SMALL, "Docs - Google Chrome - Kit"),
             (SMALL, "Docs - Edit - Google Chrome - Kit"),
         ]);
-        assert_eq!(find_window(&chrome, FULL, "Drafts"), Ok(1));
-        assert_eq!(find_window(&chrome, FULL, "Sent"), Err(Miss::OtherTitle));
-        assert_eq!(find_window(&chrome, SMALL, "Docs"), Err(Miss::Ambiguous));
+        assert_eq!(find_window(&chrome, FULL, "Drafts", &never), Ok(1));
+        assert_eq!(find_window(&chrome, FULL, "Sent", &never), Err(Miss::OtherTitle));
+        assert_eq!(find_window(&chrome, SMALL, "Docs", &never), Err(Miss::Ambiguous));
         // The exact title wins over one that only begins with it.
         let exact = FakeWindows(vec![(FULL, "Docs - Edit"), (FULL, "Docs")]);
-        assert_eq!(find_window(&exact, FULL, "Docs"), Ok(1));
+        assert_eq!(find_window(&exact, FULL, "Docs", &never), Ok(1));
         // A window without an Accessibility title is told apart by the others' titles.
         let untitled = FakeWindows(vec![(FULL, ""), (FULL, "Drafts")]);
-        assert_eq!(find_window(&untitled, FULL, "Inbox"), Ok(0));
-        assert_eq!(find_window(&untitled, FULL, "Drafts"), Ok(1));
+        assert_eq!(find_window(&untitled, FULL, "Inbox", &never), Ok(0));
+        assert_eq!(find_window(&untitled, FULL, "Drafts", &never), Ok(1));
+    }
+
+    /// An app with `windows` windows at one place, whose every answer takes `delay`: an app
+    /// that hangs. `asked` counts the answers.
+    struct SlowWindows {
+        windows: usize,
+        delay: Duration,
+        asked: std::cell::Cell<usize>,
+    }
+
+    impl SlowWindows {
+        fn new(windows: usize, delay: Duration) -> Self {
+            Self {
+                windows,
+                delay,
+                asked: std::cell::Cell::new(0),
+            }
+        }
+
+        fn answer(&self) {
+            self.asked.set(self.asked.get() + 1);
+            std::thread::sleep(self.delay);
+        }
+    }
+
+    impl Windows for SlowWindows {
+        type Window = usize;
+
+        fn windows(&self) -> Vec<usize> {
+            self.answer();
+            (0..self.windows).collect()
+        }
+
+        fn pair(&self, _: &usize, attribute: &'static str) -> Option<[f64; 2]> {
+            self.answer();
+            Some(if attribute == "AXPosition" { [0.0, 25.0] } else { [800.0, 600.0] })
+        }
+
+        fn title(&self, window: &usize) -> Option<String> {
+            self.answer();
+            Some(format!("Window {window}"))
+        }
+    }
+
+    #[test]
+    fn appshot_finding_the_window_stops_at_the_deadline_and_when_the_capture_drops_it() {
+        const PLACE: [f64; 4] = [0.0, 25.0, 800.0, 600.0];
+        // 60 windows that take 20 ms an answer: over 3 s to ask them all.
+        let app = SlowWindows::new(60, Duration::from_millis(20));
+        let deadline = Duration::from_millis(100);
+        let began = Instant::now();
+        let found = find_window(&app, PLACE, "Window 59", &|| began.elapsed() > deadline);
+        assert_eq!(found, Err(Miss::Stopped));
+        // 100 ms is five answers; one more may be on its way when the time runs out.
+        assert!(app.asked.get() <= 7, "{} answers", app.asked.get());
+        // A capture that no longer wants the shot costs the app no question.
+        let app = SlowWindows::new(60, Duration::ZERO);
+        assert_eq!(find_window(&app, PLACE, "Window 59", &|| true), Err(Miss::Stopped));
+        assert_eq!(app.asked.get(), 0);
+        // It is checked before every question: once it fires, nothing more is asked.
+        let app = SlowWindows::new(60, Duration::ZERO);
+        let found = find_window(&app, PLACE, "Window 59", &|| app.asked.get() >= 7);
+        assert_eq!((found, app.asked.get()), (Err(Miss::Stopped), 7));
+        // An app that answers in time is found as ever.
+        assert_eq!(find_window(&app, PLACE, "Window 59", &never), Ok(59));
     }
 
     #[test]
@@ -2680,6 +2782,45 @@ mod tests {
             .collect();
         assert_eq!(times, [(500, "a"), (1_200, "b")]);
         assert_eq!(shots.timeline.scenes, [400, 1_100]);
+    }
+
+    #[test]
+    fn appshot_a_walk_that_a_pause_fell_in_is_dropped() {
+        let walk = |t: u64, took_ms: u64, shot: &str| Observation {
+            took_ms,
+            ..seen(t, shot, Some(1), "Safari")
+        };
+        let mut shots = Shots {
+            dir: PathBuf::new(),
+            timeline: Timeline {
+                observations: vec![
+                    // Read from 500 to 600 ms: over before the pause.
+                    walk(500, 100, "before"),
+                    // Began before the pause and read on until after it.
+                    walk(900, 2_300, "across"),
+                    // Began before the pause and ended in it.
+                    walk(950, 200, "into"),
+                    // Began in the pause.
+                    walk(2_900, 300, "out of"),
+                    // Began as the recording resumed.
+                    walk(3_000, 50, "after"),
+                ],
+                scenes: Vec::new(),
+                capped: false,
+            },
+        };
+        shots.cut(&crate::pause::Cuts::new(vec![crate::pause::Span {
+            start_ms: 1_000,
+            end_ms: 3_000,
+        }]));
+        let kept: Vec<(u64, &str)> = shots
+            .timeline
+            .observations
+            .iter()
+            .map(|seen| (seen.t, seen.shot.as_str()))
+            .collect();
+        // "across" is not kept at 900 ms, its time before the pause: it read the window after.
+        assert_eq!(kept, [(500, "before"), (1_000, "after")]);
     }
 
     #[test]

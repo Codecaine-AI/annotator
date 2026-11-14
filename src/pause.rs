@@ -247,6 +247,14 @@ impl Cuts {
         (!self.spans.iter().any(|span| span.holds(t))).then(|| self.shift(t))
     }
 
+    /// Whether the recording was paused at any time from `from_ms` to `to_ms`, both included:
+    /// something that took that long (an app shot's walk) did not see one moment of it.
+    pub fn overlaps(&self, from_ms: u64, to_ms: u64) -> bool {
+        self.spans
+            .iter()
+            .any(|span| span.start_ms <= to_ms && span.end_ms > from_ms)
+    }
+
     /// What is left of `from_ms..to_ms`, as ranges on the same clock: what to keep of a movie
     /// or of the audio.
     pub fn kept(&self, from_ms: u64, to_ms: u64) -> Vec<(u64, u64)> {
