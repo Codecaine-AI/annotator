@@ -380,6 +380,32 @@ pub(super) fn front_own_window() -> Option<isize> {
             w.windowNumber()
         })
 }
+/// The frame of the app's own window of `size` (points), in global points from the primary
+/// display's top-left corner, the space `scrawl-helper play --frame` takes.
+pub(super) fn own_window_rect(size: [f32; 2]) -> Option<[f32; 4]> {
+    let mtm = MainThreadMarker::new()?;
+    let app = NSApplication::sharedApplication(mtm);
+    let primary_h = objc2_app_kit::NSScreen::screens(mtm)
+        .firstObject()?
+        .frame()
+        .size
+        .height;
+    let near = |a: f64, b: f32| (a - f64::from(b)).abs() < 2.0;
+    let windows = app.windows();
+    let matching = windows.iter().filter(|w| {
+        let s = w.frame().size;
+        w.isVisible() && near(s.width, size[0]) && near(s.height, size[1])
+    });
+    let window = matching.max_by_key(|w| w.isKeyWindow())?;
+    let f = window.frame();
+    Some([
+        f.origin.x as f32,
+        (primary_h - f.origin.y - f.size.height) as f32,
+        f.size.width as f32,
+        f.size.height as f32,
+    ])
+}
+
 /// Whether macOS asks for reduced motion (Accessibility ▸ Display ▸ Reduce motion).
 pub(super) fn reduce_motion() -> bool {
     use objc2::runtime::AnyClass;
@@ -418,6 +444,11 @@ objc2::define_class!(
         #[unsafe(method(openLatest:))]
         fn open_latest(&self, _sender: &AnyObject) {
             let _ = self.ivars().sender.try_send(MenuAction::OpenLatest);
+        }
+
+        #[unsafe(method(openHistory:))]
+        fn open_history(&self, _sender: &AnyObject) {
+            let _ = self.ivars().sender.try_send(MenuAction::History);
         }
 
         #[unsafe(method(exportVideo:))]
@@ -604,7 +635,7 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
     let mtm = MainThreadMarker::new()?;
     let (sender, receiver) = flume::bounded(16);
     let target = ScrawlMenuTarget::new(sender, mtm);
-    let menu = NSMenu::initWithTitle(NSMenu::alloc(mtm), &NSString::from_str("Scrawl"));
+    let menu = NSMenu::initWithTitle(NSMenu::alloc(mtm), &NSString::from_str("Annotator"));
 
     let add = |title: &str, action: objc2::runtime::Sel| {
         let item = unsafe {
@@ -626,6 +657,7 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
     add("Choose What to Record…", sel!(chooseTarget:));
     menu.addItem(&NSMenuItem::separatorItem(mtm));
     add("Open Latest Capture", sel!(openLatest:));
+    add("History…", sel!(openHistory:));
     add("Export Last Capture as Video…", sel!(exportVideo:));
     if let Some(item) = menu.itemAtIndex(menu.numberOfItems() - 1) {
         item.setTag(EXPORT_VIDEO_MENU_TAG);
@@ -637,7 +669,10 @@ pub(super) fn install_status_bar() -> Option<flume::Receiver<MenuAction>> {
         item.setKeyEquivalent(&NSString::from_str(","));
     }
     add("Check for Updates…", sel!(checkForUpdates:));
-    add("Quit Scrawl", sel!(quitApp:));
+    if let Some(item) = menu.itemAtIndex(menu.numberOfItems() - 1) {
+        item.setHidden(!crate::sparkle::bundled());
+    }
+    add("Quit Annotator", sel!(quitApp:));
     if let Some(item) = menu.itemAtIndex(menu.numberOfItems() - 1) {
         item.setKeyEquivalent(&NSString::from_str("q"));
     }
@@ -680,10 +715,11 @@ fn find_hud_pill_ns_window() -> Option<Retained<NSWindow>> {
     let app = NSApplication::sharedApplication(mtm);
     for win in app.windows() {
         let size = win.frame().size;
-        if ((size.width - f64::from(PILL_WINDOW_W)).abs() < 8.0
-            || (size.width - f64::from(crate::native::pill::model::PANEL_W)).abs() < 8.0)
-            && (size.height - f64::from(PILL_WINDOW_H)).abs() < 8.0
-        {
+        let gpui = (size.width - f64::from(PILL_WINDOW_W)).abs() < 8.0
+            && (size.height - f64::from(PILL_WINDOW_H)).abs() < 8.0;
+        let native = (size.width - f64::from(crate::native::pill::model::PANEL_W)).abs() < 8.0
+            && (size.height - f64::from(crate::native::pill::model::PANEL_H)).abs() < 8.0;
+        if gpui || native {
             return Some(win);
         }
     }
@@ -1061,7 +1097,7 @@ pub(super) fn capture_own_window_screenshot(
                     .is_some_and(|a| a.process_id() == pid)
         })
         .max_by_key(|w| (w.frame().size.width as u64) * (w.frame().size.height as u64))
-        .ok_or_else(|| anyhow::anyhow!("Could not find Scrawl window"))?;
+        .ok_or_else(|| anyhow::anyhow!("Could not find Annotator window"))?;
     let frame = window.frame();
     let filter = SCContentFilter::create()
         .with_window(&window)

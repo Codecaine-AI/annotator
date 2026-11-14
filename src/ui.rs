@@ -220,6 +220,15 @@ fn clock_template(clock: &str) -> String {
 
 /// Lead text of the Completed island: local captures were copied (or sent, as `note` says);
 /// iPhone ones count the inbox.
+/// The cancel key as the recording capsule shows it: `esc`, `F5`.
+fn pill_key(key: crate::settings::CancelKey) -> String {
+    if key == crate::settings::CancelKey::ESCAPE {
+        "esc".to_owned()
+    } else {
+        key.label()
+    }
+}
+
 fn completed_label(inbox_count: usize, note: Option<&str>) -> String {
     match inbox_count {
         0 => note.unwrap_or("Copied").to_owned(),
@@ -428,6 +437,7 @@ enum MenuAction {
     ToggleCapture,
     ChooseTarget,
     OpenLatest,
+    History,
     OpenInbox(PathBuf),
     ExportVideo,
     Settings,
@@ -634,7 +644,8 @@ enum CaptureSource {
     Screen {
         session: ScreenCaptureSession,
         audio: Option<AudioRecorder>,
-        /// Screen mode only: which windows were where, for `scrawl autocrop`.
+        /// Screen and Area modes: which windows were where, for `scrawl autocrop` and the apps
+        /// list.
         windows: Option<crate::windows::WindowLogger>,
     },
     /// The helper's mirror window records the phone's native video and the narration.
@@ -649,6 +660,9 @@ struct ActiveRecording {
     bundle_dir: PathBuf,
     source: CaptureSource,
     _metal_overlay: Option<LaserOverlay>,
+    /// Recording, paused, finishing or cancelled, and the pauses so far (`crate::pause`), on
+    /// the capture clock (`SharedCaptureTelemetry::elapsed_ms`).
+    pause: crate::pause::Session,
 }
 
 impl ActiveRecording {
@@ -657,6 +671,37 @@ impl ActiveRecording {
             CaptureSource::Screen { session, .. } => session.elapsed_ms(),
             CaptureSource::Phone(session) => session.elapsed_ms(),
             CaptureSource::Lab => self.started.elapsed().as_millis() as u64,
+        }
+    }
+
+    /// What the capsule's timer shows at `now_ms` on the capture clock: the time recorded,
+    /// which stands still while paused.
+    fn shown_ms(&self, now_ms: u64) -> u64 {
+        self.elapsed_ms()
+            .saturating_sub(self.pause.paused_ms(now_ms))
+    }
+
+    /// Stops or restarts what a pause can stop while it lasts: input, and the candidate frames
+    /// (the movie, the microphone and the window log go on, and are cut at finish).
+    fn set_paused(&self, telemetry: &SharedCaptureTelemetry, paused: bool) {
+        if paused {
+            telemetry.pause_input();
+        } else {
+            telemetry.resume_input();
+        }
+        // No app shot is taken while paused; resuming takes one at once.
+        if let Some(walker) = crate::appshot::walker() {
+            walker.set_paused(paused);
+        }
+        if let CaptureSource::Screen { session, .. } = &self.source {
+            session.set_paused(paused);
+            if !paused {
+                // What the recording resumes on: a candidate frame and the windows, at once.
+                session.request_immediate_frame();
+                telemetry
+                    .window_log_request
+                    .store(true, std::sync::atomic::Ordering::Release);
+            }
         }
     }
 }
@@ -767,6 +812,8 @@ pub struct ScrawlCoordinator {
 pub enum ReviewTab {
     ContactSheet,
     Keyframes,
+    /// The capture's video in the system player (`helper::play`); hidden once the video is gone.
+    Video,
 }
 
 impl ScrawlCoordinator {
@@ -942,6 +989,60 @@ impl ScrawlCoordinator {
 
     pub fn is_recording(&self) -> bool {
         self.active_recording.is_some()
+    }
+
+    /// Whether the recording is paused (`crate::pause`).
+    pub fn is_paused(&self) -> bool {
+        self.active_recording
+            .as_ref()
+            .is_some_and(|rec| rec.pause.is_paused())
+    }
+
+    /// The cancel key went down at each of `presses` (ms on the capture clock, oldest first),
+    /// in any app. The picker closes. A recording pauses or resumes on a single press and is
+    /// thrown away on the second of two within 400 ms (`pause::classify`).
+    pub fn press_cancel_key(&mut self, presses: &[u64], cx: &mut Context<Self>) {
+        // Only macOS's capsule shows a paused recording and only its helper cuts a movie, so
+        // elsewhere the key cancels as it always did.
+        if self.is_selecting() || (self.is_recording() && !cfg!(target_os = "macos")) {
+            self.cancel_recording(cx);
+            return;
+        }
+        for &at_ms in presses {
+            let Some(rec) = self.active_recording.as_mut() else {
+                return;
+            };
+            let change = rec.pause.press(at_ms);
+            self.apply_pause_change(change, cx);
+        }
+    }
+
+    /// Acts on what the recording's state machine decided.
+    fn apply_pause_change(&mut self, change: crate::pause::Change, cx: &mut Context<Self>) {
+        use crate::pause::Change;
+        let paused = match change {
+            Change::None => return,
+            Change::Cancelled => {
+                self.cancel_recording(cx);
+                return;
+            }
+            Change::Paused => true,
+            Change::Resumed => false,
+        };
+        scrawl_log(if paused {
+            "recording paused"
+        } else {
+            "recording resumed"
+        });
+        if let Some(rec) = &self.active_recording {
+            rec.set_paused(&self.telemetry, paused);
+        }
+        if paused {
+            // The switch chips would hide Resume.
+            self.fold_reveal();
+        }
+        self.sync_native_pill();
+        cx.notify();
     }
 
     pub fn is_processing(&self) -> bool {
@@ -1358,6 +1459,10 @@ impl ScrawlCoordinator {
     fn discard_recording(&mut self) -> Option<(TargetInfo, Option<LaserOverlay>)> {
         let rec = self.active_recording.take()?;
         let _ = self.telemetry.finish_session();
+        // The app-shot walk in flight is dropped at once; its spool goes with the bundle below.
+        if let Some(walker) = crate::appshot::walker() {
+            walker.cancel();
+        }
         match rec.source {
             CaptureSource::Screen { session, audio, .. } => {
                 let _ = session.stop();
@@ -1374,6 +1479,11 @@ impl ScrawlCoordinator {
 
     pub fn is_island_visible(&self) -> bool {
         !matches!(self.island_phase, IslandPhase::Hidden)
+    }
+
+    /// Whether GPUI's `key` ("escape", "f5") is the cancel key (Settings › Shortcuts).
+    fn is_cancel_key(&self, key: &str) -> bool {
+        key == self.telemetry.controls().cancel.id()
     }
 
     pub fn shortcut_label(&self) -> String {
@@ -1586,8 +1696,8 @@ impl ScrawlCoordinator {
             return false;
         };
         let mods = keystroke.modifiers;
-        // Esc cancels even with ⌥⇧ still held from the shortcut.
-        if keystroke.key == "escape" {
+        // The cancel key cancels even with ⌥⇧ still held from the shortcut.
+        if self.is_cancel_key(&keystroke.key) {
             self.cancel_recording(cx);
             return true;
         }
@@ -1624,7 +1734,6 @@ impl ScrawlCoordinator {
         match keystroke.key.as_str() {
             key if repeat && records(key) => {}
             "space" | " " => self.toggle_selection_mode(cx),
-            "escape" => self.cancel_recording(cx),
             "enter" => self.record_selected_mode(cx),
             key if key.eq_ignore_ascii_case(record_key) => self.record_selected_mode(cx),
             "tab" => self.choose_selection_mode(mode.cycled(!mods.shift, has_iphone), cx),
@@ -1861,14 +1970,21 @@ impl ScrawlCoordinator {
     }
 
     fn pill_snapshot(&self) -> crate::native::pill::PillSnapshot {
-        use crate::native::pill::{PillSnapshot, PillStyle, model::Pres};
+        use crate::native::pill::{
+            PillSnapshot, PillStyle,
+            model::{Keys, Pres},
+        };
+        let controls = self.telemetry.controls();
+        let now_ms = self.telemetry.elapsed_ms();
         let recording_ms = self
             .active_recording
             .as_ref()
-            .map(ActiveRecording::elapsed_ms);
+            .map(|rec| rec.shown_ms(now_ms));
         let elapsed_ms = recording_ms.unwrap_or(self.last_elapsed_ms);
         let clock = format_clock(elapsed_ms);
         let has_iphone = self.iphone.is_some();
+        let paused = self.is_paused();
+        let cancel_key = pill_key(controls.cancel);
 
         let pres = match self.island_phase {
             IslandPhase::Hidden | IslandPhase::Dismissing => Pres::Hidden,
@@ -1876,6 +1992,18 @@ impl ScrawlCoordinator {
             IslandPhase::Recording => Pres::Recording {
                 chips: self.reveal.is_open(),
                 has_iphone,
+                // A pause is cut out of the audio, so the capsule doesn't show it being heard.
+                live: if paused {
+                    Default::default()
+                } else {
+                    crate::live_audio::rows()
+                },
+                keys: Keys {
+                    cancel: format!("{cancel_key} {cancel_key}"),
+                    pause: cancel_key,
+                    finish: controls.record.label.clone(),
+                },
+                paused,
             },
             IslandPhase::Processing => Pres::Processing,
             IslandPhase::Completed { inbox_count, .. } => Pres::Completed {
@@ -1888,6 +2016,7 @@ impl ScrawlCoordinator {
             clock,
             reduced_motion: self.reduced_motion,
             style: PillStyle::current(),
+            cancel_key: controls.cancel.key_code() as u16,
         }
     }
 
@@ -1910,7 +2039,29 @@ impl ScrawlCoordinator {
             PillAction::SelectMode(mode) => self.click_selection_mode(mode, cx),
             PillAction::SwitchRecording(mode) => self.switch_recording(mode, cx),
             PillAction::RecordSelected => self.record_selected_mode(cx),
-            PillAction::Cancel => self.cancel_recording(cx),
+            PillAction::Cancel => {
+                let change = self.active_recording.as_mut().map(|rec| rec.pause.cancel());
+                match change {
+                    Some(change) => self.apply_pause_change(change, cx),
+                    None => self.cancel_recording(cx),
+                }
+            }
+            PillAction::CancelKey => {
+                if !self.is_recording() {
+                    self.cancel_recording(cx);
+                } else if !self.telemetry.keys_live() {
+                    // With the key tap on, the tap reports this press itself.
+                    let now_ms = self.telemetry.elapsed_ms();
+                    self.press_cancel_key(&[now_ms], cx);
+                }
+            }
+            PillAction::TogglePause => {
+                let now_ms = self.telemetry.elapsed_ms();
+                if let Some(rec) = self.active_recording.as_mut() {
+                    let change = rec.pause.toggle(now_ms);
+                    self.apply_pause_change(change, cx);
+                }
+            }
             PillAction::Finish => self.finish_recording(cx),
             PillAction::Paste(target) => self.paste_completed_bundle(target, cx),
             PillAction::Inspect => self.inspect_completed_bundle(cx),
@@ -2563,7 +2714,13 @@ impl ScrawlCoordinator {
         });
         start_metric("metal_open_ms", stage);
         let stage = Instant::now();
-        let audio_recorder = AudioRecorder::start().ok();
+        let started_at = *self
+            .telemetry
+            .started_at
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // The microphone opens later than this; the audio notes how much (`offset_ms`).
+        let audio_recorder = AudioRecorder::start(started_at).ok();
         start_metric("audio_start_ms", stage);
         let stage = Instant::now();
         let screen_session = ScreenCaptureSession::start(
@@ -2572,18 +2729,31 @@ impl ScrawlCoordinator {
             Arc::clone(&self.telemetry.excluded_window_ids),
         );
         start_metric("sck_start_ms", stage);
-        let window_log = (target.mode == CaptureMode::Display).then(|| {
-            let started_at = *self
-                .telemetry
-                .started_at
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            crate::windows::WindowLogger::start(
-                target.frame,
+        // App shots (`crate::appshot`): the first one now, on the clock the window log uses.
+        let app_shots = crate::appshot::walker().filter(|_| self.telemetry.probing());
+        if let Some(walker) = app_shots {
+            walker.begin(crate::appshot::Session {
+                mode: target.mode,
+                window_id: target.window_id,
+                region: target.frame,
                 started_at,
-                Arc::clone(&self.telemetry.window_log_request),
-            )
-        });
+                bundle_dir: bundle_dir.clone(),
+            });
+        }
+        let window_log =
+            matches!(target.mode, CaptureMode::Display | CaptureMode::Region).then(|| {
+                crate::windows::WindowLogger::start(
+                    target.frame,
+                    target.mode,
+                    started_at,
+                    Arc::clone(&self.telemetry.window_log_request),
+                    // Another top window, or a new title on it, is a new app shot.
+                    app_shots.map(|walker| {
+                        Box::new(move || walker.request(Duration::ZERO))
+                            as crate::windows::TopChanged
+                    }),
+                )
+            });
         self.active_recording = Some(ActiveRecording {
             started: Instant::now(),
             target,
@@ -2594,6 +2764,7 @@ impl ScrawlCoordinator {
                 windows: window_log,
             },
             _metal_overlay: metal_overlay,
+            pause: Default::default(),
         });
         self.present_recording_island(cx);
         start_metric("recording_start_ms", started);
@@ -2636,6 +2807,7 @@ impl ScrawlCoordinator {
             bundle_dir: PathBuf::new(),
             source: CaptureSource::Lab,
             _metal_overlay: None,
+            pause: Default::default(),
         });
         self.present_recording_island(cx);
     }
@@ -2735,6 +2907,7 @@ impl ScrawlCoordinator {
             bundle_dir,
             source: CaptureSource::Phone(session),
             _metal_overlay: metal_overlay,
+            pause: Default::default(),
         });
         self.present_recording_island(cx);
     }
@@ -2770,10 +2943,26 @@ impl ScrawlCoordinator {
     pub fn finish_recording(&mut self, cx: &mut Context<Self>) {
         self.playback.take();
         scrawl_log("finish_recording invoked");
-        let Some(rec) = self.active_recording.take() else {
+        let Some(mut rec) = self.active_recording.take() else {
             return;
         };
-        let (events, strokes) = self.telemetry.finish_session();
+        // Finish works while paused too; the pauses come out of every timeline below. A pause
+        // it is pressed in runs to wherever each track ends: they stop later, in the task below.
+        let now_ms = self.telemetry.elapsed_ms();
+        let cuts = rec.pause.finish().unwrap_or_default();
+        // The movie and the candidate frames run on the screen session's clock, which started
+        // a little after the capture clock the pauses are on.
+        let frames_clock_ms = now_ms.saturating_sub(rec.elapsed_ms());
+        let (mut events, mut strokes) = self.telemetry.finish_session();
+        cuts.cut_events(&mut events);
+        cuts.cut_strokes(&mut strokes);
+        if !cuts.is_empty() {
+            scrawl_log(format!(
+                "finish: {} ms paused in {} pauses",
+                cuts.paused_before(now_ms),
+                cuts.spans().len()
+            ));
+        }
         let bundle_dir = rec.bundle_dir;
         let target = rec.target;
         let source = rec.source;
@@ -2842,7 +3031,8 @@ impl ScrawlCoordinator {
                             windows,
                         } => (session, audio, windows),
                         CaptureSource::Phone(session) => {
-                            let finalized = session.stop().and_then(|recording| {
+                            let finalized = session.stop().and_then(|mut recording| {
+                                recording.cut(&cuts)?;
                                 crate::phone::finalize_live_capture(
                                     &bundle_dir,
                                     recording,
@@ -2863,22 +3053,41 @@ impl ScrawlCoordinator {
                         }
                     };
                     let stop_started = Instant::now();
-                    let (recording, recorded_audio, mut activity) = std::thread::scope(|s| {
-                        let screen_handle = s.spawn(|| screen_session.stop());
-                        let win_handle = s.spawn(|| {
-                            window_log
-                                .map(crate::windows::WindowLogger::stop)
-                                .unwrap_or_default()
+                    let (mut recording, mut recorded_audio, mut activity) =
+                        std::thread::scope(|s| {
+                            let screen_handle = s.spawn(|| screen_session.stop());
+                            let win_handle = s.spawn(|| {
+                                window_log
+                                    .map(crate::windows::WindowLogger::stop)
+                                    .unwrap_or_default()
+                            });
+                            let audio = audio_recorder.and_then(|r| r.stop().ok());
+                            (
+                                screen_handle.join().unwrap(),
+                                audio,
+                                win_handle.join().unwrap_or_default(),
+                            )
                         });
-                        let audio = audio_recorder.and_then(|r| r.stop().ok());
-                        (
-                            screen_handle.join().unwrap(),
-                            audio,
-                            win_handle.join().unwrap_or_default(),
-                        )
-                    });
                     activity.stop_started = Some(stop_started);
                     activity.stop_ms = Some(stop_started.elapsed().as_millis() as u64);
+                    // After the sampler and the window log stopped, so nothing asks for another
+                    // app shot: waits at most 400 ms for the walk in flight.
+                    let mut shots = crate::appshot::walker().and_then(|walker| walker.finish());
+                    if !cuts.is_empty() {
+                        recording.cut(&cuts.on_clock_from(frames_clock_ms));
+                        activity.cut(&cuts);
+                        if let Some(shots) = &mut shots {
+                            shots.cut(&cuts);
+                        }
+                        recorded_audio = recorded_audio.and_then(|audio| {
+                            audio
+                                .cut(&cuts)
+                                .inspect_err(|error| {
+                                    scrawl_log(format!("Paused audio could not be cut: {error:#}"));
+                                })
+                                .ok()
+                        });
+                    }
                     let duration_ms = recording.duration_ms;
                     let finalized = crate::finalize_capture_bundle(
                         &bundle_dir,
@@ -2889,6 +3098,7 @@ impl ScrawlCoordinator {
                         recorded_audio,
                         None,
                         activity,
+                        shots,
                     );
                     (finalized, duration_ms)
                 })
@@ -3089,10 +3299,11 @@ impl Render for HudPillWindow {
         let scale = coord.island_scale;
         let y_off = coord.island_y;
         let opacity = coord.island_opacity.clamp(0.0, 1.0);
+        let now_ms = coord.telemetry.elapsed_ms();
         let recording_ms = coord
             .active_recording
             .as_ref()
-            .map(ActiveRecording::elapsed_ms);
+            .map(|rec| rec.shown_ms(now_ms));
         let elapsed_ms = recording_ms.unwrap_or(coord.last_elapsed_ms);
         let switch = coord
             .switch
@@ -4343,6 +4554,17 @@ pub struct BundleReviewWindow {
     cached_sheet_path: Option<PathBuf>,
     cached_sheet_image: Option<Arc<Image>>,
     cached_frames: Vec<Option<Arc<Image>>>,
+    /// The Video tab's player window (`scrawl-helper play`), killed when the tab, the capture
+    /// or the window goes.
+    player: Option<std::process::Child>,
+    /// The video the Video tab last opened on its own, so closing the player doesn't reopen it.
+    auto_played: Option<PathBuf>,
+}
+
+impl Drop for BundleReviewWindow {
+    fn drop(&mut self) {
+        self.stop_player();
+    }
 }
 
 impl BundleReviewWindow {
@@ -4353,6 +4575,37 @@ impl BundleReviewWindow {
             cached_sheet_path: None,
             cached_sheet_image: None,
             cached_frames: Vec::new(),
+            player: None,
+            auto_played: None,
+        }
+    }
+
+    fn stop_player(&mut self) {
+        if let Some(mut child) = self.player.take() {
+            let _ = child.kill();
+            let _ = child.wait();
+        }
+    }
+
+    /// Opens `video` in the player, fitted over the stage (the window less its header and the
+    /// transcript sidebar).
+    fn play(&mut self, video: &std::path::Path, title: &str, window: &Window) {
+        self.stop_player();
+        let size = window.bounds().size;
+        let stage = platform::own_window_rect([f32::from(size.width), f32::from(size.height)])
+            .map(|[x, y, w, h]| {
+                let pad = 20.0;
+                [
+                    x + pad,
+                    y + 48.0 + pad,
+                    w - 320.0 - 2.0 * pad,
+                    h - 48.0 - 2.0 * pad,
+                ]
+            })
+            .filter(|[_, _, w, h]| *w > 100.0 && *h > 100.0);
+        match crate::helper::play(video, title, stage) {
+            Ok(child) => self.player = Some(child),
+            Err(error) => scrawl_log(format!("Video tab: {error:#}")),
         }
     }
 
@@ -4420,7 +4673,7 @@ impl Render for BundleReviewWindow {
                     div()
                         .text_size(px(16.0))
                         .font_weight(FontWeight::SEMIBOLD)
-                        .child("Scrawl"),
+                        .child("Annotator"),
                 )
                 .child(
                     div()
@@ -4454,13 +4707,34 @@ impl Render for BundleReviewWindow {
 
         self.ensure_images(&dir, &bundle);
 
-        let target_label = match (&bundle.target.app, &bundle.target.window_title) {
-            (Some(app), Some(win)) if !win.is_empty() && win != app => {
+        let apps = bundle.apps();
+        let target_label = match (apps.as_slice(), &bundle.target.window_title) {
+            ([app], Some(win))
+                if bundle.target.mode == CaptureMode::Window && !win.is_empty() && win != app =>
+            {
                 format!("{app} — “{win}”")
             }
-            (Some(app), _) => app.clone(),
-            _ => format!("Display {}", bundle.target.display_id),
+            ([], _) => format!("Display {}", bundle.target.display_id),
+            (apps, _) => apps.join(" → "),
         };
+        let video = crate::history::playable_video(&dir, &bundle);
+        let has_video = video.is_some();
+        let video = video.unwrap_or_default();
+        let tab = if tab == ReviewTab::Video && !has_video {
+            ReviewTab::ContactSheet
+        } else {
+            tab
+        };
+        if tab == ReviewTab::Video {
+            if self.auto_played.as_ref() != Some(&video) {
+                self.auto_played = Some(video.clone());
+                self.play(&video, &target_label, window);
+            }
+        } else {
+            self.auto_played = None;
+            self.stop_player();
+        }
+        let c_tab_video = self.coordinator.clone();
         let timeline = timeline(&bundle);
 
         let c_keydown = self.coordinator.clone();
@@ -4596,7 +4870,18 @@ impl Render for BundleReviewWindow {
                                                 });
                                             },
                                         ),
-                                    ),
+                                    )
+                                    .when(has_video, |d| {
+                                        d.child(
+                                            tab_chip("tab-video", "Video", tab == ReviewTab::Video)
+                                                .on_click(move |_, _, cx| {
+                                                    c_tab_video.update(cx, |coord, cx| {
+                                                        coord.selected_tab = ReviewTab::Video;
+                                                        cx.notify();
+                                                    });
+                                                }),
+                                        )
+                                    }),
                             )
                             .child(
                                 div()
@@ -4706,6 +4991,28 @@ impl Render for BundleReviewWindow {
                                 ReviewTab::ContactSheet => self.render_contact_sheet_stage(stage_w),
                                 ReviewTab::Keyframes => {
                                     self.render_keyframes_stage(&bundle, selected_kf, stage_w)
+                                }
+                                ReviewTab::Video => {
+                                    let replay = cx.listener({
+                                        let video = video.clone();
+                                        let title = target_label.clone();
+                                        move |this, _, window, _| this.play(&video, &title, window)
+                                    });
+                                    div()
+                                        .min_h(px(320.0))
+                                        .flex()
+                                        .flex_col()
+                                        .items_center()
+                                        .justify_center()
+                                        .gap_3()
+                                        .text_color(rgb(MUTED_COLOR))
+                                        .text_size(px(13.0))
+                                        .child("The video plays in the player window.")
+                                        .child(
+                                            action_button("btn-play", "Play", true)
+                                                .on_click(replay),
+                                        )
+                                        .into_any_element()
                                 }
                             }),
                     )
@@ -5243,11 +5550,11 @@ fn open_review_window(coord_entity: &Entity<ScrawlCoordinator>, cx: &mut App) {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             titlebar: Some(gpui::TitlebarOptions {
                 // The taskbar and Alt+Tab show it on Windows; macOS draws no title here.
-                title: cfg!(target_os = "windows").then(|| "Scrawl".into()),
+                title: cfg!(target_os = "windows").then(|| "Annotator".into()),
                 appears_transparent: true,
                 traffic_light_position: Some(point(px(16.0), px(16.0))),
             }),
-            app_id: Some("dev.kitlangton.scrawl".into()),
+            app_id: Some(crate::app_identity::Variant::current().bundle_id().into()),
             focus: true,
             show: true,
             kind: WindowKind::Normal,
@@ -5263,6 +5570,299 @@ fn open_review_window(coord_entity: &Entity<ScrawlCoordinator>, cx: &mut App) {
                 cx.observe(&coord_clone, |_, _, cx| cx.notify()).detach();
                 BundleReviewWindow::new(coord_clone, focus)
             })
+        },
+    );
+    platform::take_keys(cx);
+}
+
+/// Plain text for a hover tooltip.
+struct TooltipText(SharedString);
+
+impl Render for TooltipText {
+    fn render(&mut self, _: &mut Window, _: &mut Context<Self>) -> impl IntoElement {
+        div()
+            .px(px(8.0))
+            .py(px(4.0))
+            .rounded(px(6.0))
+            .bg(rgb(0x3a3a3c))
+            .text_size(px(11.5))
+            .text_color(rgb(TEXT_COLOR))
+            .child(self.0.clone())
+    }
+}
+
+/// Every capture in the captures folder, newest first (`crate::history`). Double-click or Return
+/// opens one in the Review window, playing its video when it still has one.
+pub struct HistoryWindow {
+    coordinator: Entity<ScrawlCoordinator>,
+    focus: FocusHandle,
+    rows: Vec<crate::history::HistoryEntry>,
+    selected: usize,
+}
+
+const HISTORY_DATE_W: f32 = 150.0;
+const HISTORY_LENGTH_W: f32 = 64.0;
+const HISTORY_VIDEO_W: f32 = 112.0;
+
+impl HistoryWindow {
+    fn new(coordinator: Entity<ScrawlCoordinator>, focus: FocusHandle) -> Self {
+        let mut window = Self {
+            coordinator,
+            focus,
+            rows: Vec::new(),
+            selected: 0,
+        };
+        window.refresh();
+        window
+    }
+
+    fn refresh(&mut self) {
+        self.rows = crate::history::scan(
+            &crate::handoff::default_captures_dir(),
+            crate::now_epoch_ms(),
+        );
+        self.selected = self.selected.min(self.rows.len().saturating_sub(1));
+    }
+
+    fn open(&mut self, index: usize, cx: &mut Context<Self>) {
+        let Some(row) = self.rows.get(index) else {
+            return;
+        };
+        self.selected = index;
+        let Ok((dir, bundle)) = crate::handoff::load_bundle(&row.dir) else {
+            return;
+        };
+        let video = !row.cleaned;
+        let coordinator = self.coordinator.clone();
+        coordinator.update(cx, |coord, cx| {
+            coord.mark_handled(&dir);
+            coord.set_review_bundle((dir, bundle), None);
+            if video {
+                coord.selected_tab = ReviewTab::Video;
+            }
+            cx.notify();
+        });
+        cx.defer(move |cx| open_review_window(&coordinator, cx));
+    }
+}
+
+fn history_cell(width: Option<f32>) -> Div {
+    let cell = div().px(px(14.0)).flex().items_center().min_w_0();
+    match width {
+        Some(w) => cell.w(px(w)).flex_none(),
+        None => cell.flex_1(),
+    }
+}
+
+impl Render for HistoryWindow {
+    fn render(&mut self, _window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
+        let header = |label: &'static str, width| {
+            history_cell(width)
+                .text_size(px(11.0))
+                .font_weight(FontWeight::SEMIBOLD)
+                .text_color(rgb(MUTED_COLOR))
+                .child(label)
+        };
+        let rows = self.rows.iter().enumerate().map(|(i, row)| {
+            let selected = i == self.selected;
+            let label = row.apps_label();
+            let (shown, more) = match label.rsplit_once(" +") {
+                Some((shown, more)) if row.apps.len() > 3 => {
+                    (shown.to_owned(), Some(more.to_owned()))
+                }
+                _ => (label, None),
+            };
+            let tooltip: SharedString = row.apps_tooltip().into();
+            div()
+                .id(("history-row", i))
+                .h(px(32.0))
+                .flex()
+                .items_center()
+                .rounded(px(6.0))
+                .text_size(px(13.0))
+                .text_color(rgb(TEXT_COLOR))
+                .when(selected, |d| d.bg(rgb(ACCENT_COLOR)))
+                .when(!selected, |d| d.hover(|s| s.bg(rgb(SURFACE_BG))))
+                .on_click(cx.listener(move |this, event: &gpui::ClickEvent, _, cx| {
+                    if event.click_count() >= 2 {
+                        this.open(i, cx);
+                    } else {
+                        this.selected = i;
+                    }
+                    cx.notify();
+                }))
+                .child(history_cell(Some(HISTORY_DATE_W)).child(row.date.clone()))
+                .child(
+                    history_cell(None)
+                        .id(("history-apps", i))
+                        .gap(px(6.0))
+                        .when(!tooltip.is_empty(), |d| {
+                            d.tooltip(move |_, cx| cx.new(|_| TooltipText(tooltip.clone())).into())
+                        })
+                        .child(div().min_w_0().truncate().child(shown))
+                        .when_some(more, |d, more| {
+                            d.child(
+                                div()
+                                    .flex_none()
+                                    .px(px(5.0))
+                                    .rounded(px(7.0))
+                                    .bg(rgba(0xffffff38))
+                                    .text_size(px(11.0))
+                                    .child(format!("+{more}")),
+                            )
+                        }),
+                )
+                .child(history_cell(Some(HISTORY_LENGTH_W)).child(row.length.clone()))
+                .child(
+                    history_cell(Some(HISTORY_VIDEO_W)).child(
+                        div()
+                            .px(px(7.0))
+                            .rounded(px(9.0))
+                            .text_size(px(11.0))
+                            .map(|d| match (row.cleaned, selected) {
+                                (true, _) => d
+                                    .bg(rgba(0xffffff14))
+                                    .text_color(rgb(MUTED_COLOR))
+                                    .child("Video cleaned"),
+                                (false, true) => d
+                                    .bg(rgba(0xffffff40))
+                                    .text_color(rgb(TEXT_COLOR))
+                                    .child("Video"),
+                                (false, false) => d
+                                    .bg(rgba(0x69d89f2e))
+                                    .text_color(rgb(POSITIVE_COLOR))
+                                    .child("Video"),
+                            }),
+                    ),
+                )
+        });
+        let empty = self.rows.is_empty();
+        div()
+            .id("history-root")
+            .track_focus(&self.focus)
+            .on_key_down(cx.listener(|this, event: &KeyDownEvent, window, cx| {
+                let key = event.keystroke.key.as_str();
+                let mods = event.keystroke.modifiers;
+                match key {
+                    "escape" => window.remove_window(),
+                    "w" if mods.secondary() => window.remove_window(),
+                    "up" => this.selected = this.selected.saturating_sub(1),
+                    "down" => {
+                        this.selected = (this.selected + 1).min(this.rows.len().saturating_sub(1))
+                    }
+                    "enter" => this.open(this.selected, cx),
+                    _ => return,
+                }
+                cx.stop_propagation();
+                cx.notify();
+            }))
+            .size_full()
+            .flex()
+            .flex_col()
+            .bg(rgb(CANVAS_BG))
+            .text_color(rgb(TEXT_COLOR))
+            .child(
+                div()
+                    .h(px(44.0))
+                    .pl(px(platform::HEADER_LEAD))
+                    .pr(px(platform::HEADER_TRAIL))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .gap(px(14.0))
+                    .bg(rgb(SIDEBAR_BG))
+                    .border_b_1()
+                    .border_color(rgb(LINE_COLOR))
+                    .map(platform::window_drag_region)
+                    .child(
+                        div()
+                            .text_size(px(13.0))
+                            .font_weight(FontWeight::SEMIBOLD)
+                            .child("History"),
+                    )
+                    .child(
+                        div()
+                            .flex_1()
+                            .text_size(px(12.0))
+                            .text_color(rgb(MUTED_COLOR))
+                            .child("Newest first"),
+                    )
+                    .children(platform::caption_buttons()),
+            )
+            .child(
+                div()
+                    .h(px(30.0))
+                    .px(px(8.0))
+                    .flex_none()
+                    .flex()
+                    .items_center()
+                    .border_b_1()
+                    .border_color(rgb(LINE_COLOR))
+                    .child(header("Date", Some(HISTORY_DATE_W)))
+                    .child(header("Apps", None))
+                    .child(header("Length", Some(HISTORY_LENGTH_W)))
+                    .child(header("Video", Some(HISTORY_VIDEO_W))),
+            )
+            .child(
+                div()
+                    .id("history-rows")
+                    .flex_1()
+                    .min_h_0()
+                    .overflow_y_scroll()
+                    .p(px(8.0))
+                    .flex()
+                    .flex_col()
+                    .gap(px(2.0))
+                    .when(empty, |d| {
+                        d.child(
+                            div()
+                                .p_6()
+                                .text_size(px(13.0))
+                                .text_color(rgb(MUTED_COLOR))
+                                .child("No captures yet."),
+                        )
+                    })
+                    .children(rows),
+            )
+    }
+}
+
+/// Opens the History window in front, or brings it forward with a fresh list.
+fn open_history_window(coord_entity: &Entity<ScrawlCoordinator>, cx: &mut App) {
+    for handle in cx.windows() {
+        if let Some(history) = handle.downcast::<HistoryWindow>() {
+            platform::take_keys(cx);
+            let _ = history.update(cx, |this, window, cx| {
+                this.refresh();
+                window.activate_window();
+                cx.notify();
+            });
+            return;
+        }
+    }
+    let bounds = Bounds::centered(None, size(px(720.0), px(480.0)), cx);
+    let coordinator = coord_entity.clone();
+    let _ = cx.open_window(
+        WindowOptions {
+            window_bounds: Some(WindowBounds::Windowed(bounds)),
+            titlebar: Some(gpui::TitlebarOptions {
+                title: cfg!(target_os = "windows").then(|| "Annotator History".into()),
+                appears_transparent: true,
+                traffic_light_position: Some(point(px(16.0), px(14.0))),
+            }),
+            app_id: Some(crate::app_identity::Variant::current().bundle_id().into()),
+            focus: true,
+            show: true,
+            kind: WindowKind::Normal,
+            is_resizable: true,
+            window_background: WindowBackgroundAppearance::Opaque,
+            ..Default::default()
+        },
+        move |window, cx| {
+            platform::decorate_app_window(window);
+            let focus = cx.focus_handle();
+            window.focus(&focus);
+            cx.new(|_| HistoryWindow::new(coordinator, focus))
         },
     );
     platform::take_keys(cx);
@@ -5353,6 +5953,8 @@ pub fn run_app(
         start_global_input_tap(Arc::clone(&telemetry));
         platform::start_updates();
         crate::retention::start();
+        // Nothing records yet: app-shot spools of captures that never finished go.
+        crate::appshot::sweep_spools(&crate::handoff::default_captures_dir());
         crate::recover::start();
         crate::hex::watch();
         crate::speech_model::ensure();
@@ -5451,6 +6053,7 @@ pub fn run_app(
                                         open_review_window(&loop_coord, cx);
                                     }
                                 }
+                                MenuAction::History => open_history_window(&loop_coord, cx),
                                 MenuAction::OpenInbox(path) => {
                                     let loaded = crate::handoff::load_bundle(&path).ok();
                                     let opened = loaded.is_some();
@@ -5529,12 +6132,14 @@ pub fn run_app(
                     motion::poll_tune();
                     if loop_coord.read(cx).shortcut.is_pending() {
                         loop_coord.update(cx, |coord, cx| coord.tick_shortcut(cx));
-                    } else if loop_coord.read(cx).telemetry.take_escape()
-                        && loop_coord.read(cx).is_selecting()
-                    {
-                        // The picker may not have the keys (another app is active), but the
-                        // key tap sees Esc anyway.
-                        loop_coord.update(cx, |coord, cx| coord.cancel_recording(cx));
+                    } else {
+                        // The picker or the capsule may not have the keys (another app is
+                        // active), but the key tap sees the cancel key anyway: it closes the
+                        // picker, and pauses, resumes or cancels a recording.
+                        let presses = loop_coord.read(cx).telemetry.take_cancel_presses();
+                        if !presses.is_empty() {
+                            loop_coord.update(cx, |coord, cx| coord.press_cancel_key(&presses, cx));
+                        }
                     }
                     if loop_coord.read(cx).gate.is_pending() {
                         loop_coord.update(cx, |coord, _| coord.tick_gate());

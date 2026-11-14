@@ -1,0 +1,139 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Shortcuts Pane</title><style>
+:root {
+  --ds-color-surface-panel: #f8f8f7;
+  --ds-color-surface-page: #fdfdfd;
+  --ds-color-surface-sunken: color-mix(in srgb, #1f1f1f 5%, #f8f8f7);
+  --ds-color-surface-inset: #f9f9f9;
+  --ds-color-surface-sidebar: #f9f9f9;
+  --ds-color-text-ink: #1f1f1f;
+  --ds-color-text-body: #2a2a2a;
+  --ds-color-text-muted: #666562;
+  --ds-color-text-faint: #9b9a97;
+  --ds-color-text-secondary: color-mix(in srgb, #2a2a2a 84%, transparent);
+  --ds-color-text-on-solid: #ffffff;
+  --ds-color-border-default: #e6e5e3;
+  --ds-color-border-subtle: #efeeec;
+  --ds-color-border-strong: color-mix(in srgb, #e6e5e3 70%, #9b9a97 30%);
+  --ds-color-blue-soft: #ddebf1;
+  --ds-color-blue-solid: #0b6e99;
+  --ds-color-blue-text: #0b6e99;
+  --ds-color-red-solid: #e03e3e;
+  --ds-color-red-soft: #fbe4e4;
+  --ds-color-red-text: #c62121;
+  --ds-color-green-solid: #287c55;
+  --ds-color-green-soft: #e2efe6;
+  --ds-color-green-text: #26744f;
+  --ds-color-amber-text: #9a5b00;
+  --ds-color-status-warning-soft: #fbf3db;
+  --ds-color-status-warning-text: #9a5b00;
+  --ds-font-family-sans: Inter, ui-sans-serif, system-ui, sans-serif;
+  --ds-font-family-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  --ds-font-size-ui-2xs: 12px;
+  --ds-font-size-ui-xs: 12px;
+  --ds-font-size-ui-sm: 13px;
+  --ds-font-size-ui-md: 13.5px;
+  --ds-font-weight-medium: 500;
+  --ds-font-weight-semibold: 600;
+  --ds-space-1: 4px;
+  --ds-space-2: 8px;
+  --ds-space-3: 12px;
+  --ds-space-4: 16px;
+  --ds-space-5: 20px;
+  --ds-space-6: 24px;
+  --ds-radius-base: 2px;
+  --ds-radius-pill: 9999px;
+  --ds-border-width-hairline: 1px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ds-color-surface-panel: #151b23;
+    --ds-color-surface-page: #0d1117;
+    --ds-color-surface-sunken: color-mix(in srgb, #f0f6fc 5%, #151b23);
+    --ds-color-surface-inset: #010409;
+    --ds-color-surface-sidebar: #010409;
+    --ds-color-text-ink: #f0f6fc;
+    --ds-color-text-body: #d1d9e0;
+    --ds-color-text-muted: #9198a1;
+    --ds-color-text-faint: #656c76;
+    --ds-color-text-secondary: color-mix(in srgb, #d1d9e0 84%, transparent);
+    --ds-color-text-on-solid: #0d1117;
+    --ds-color-border-default: #3d444d;
+    --ds-color-border-subtle: #262c36;
+    --ds-color-border-strong: color-mix(in srgb, #3d444d 70%, #656c76 30%);
+    --ds-color-blue-soft: color-mix(in srgb, #4493f8 13%, #151b23);
+    --ds-color-blue-solid: #4493f8;
+    --ds-color-blue-text: #4493f8;
+    --ds-color-red-solid: #f85149;
+    --ds-color-red-soft: color-mix(in srgb, #f85149 13%, #151b23);
+    --ds-color-red-text: #f85b53;
+    --ds-color-green-solid: #3fb950;
+    --ds-color-green-soft: color-mix(in srgb, #3fb950 13%, #151b23);
+    --ds-color-green-text: #3fb950;
+    --ds-color-amber-text: #d29922;
+    --ds-color-status-warning-soft: color-mix(in srgb, #d29922 13%, #151b23);
+    --ds-color-status-warning-text: #d29922;
+  }
+}
+
+
+html,body{margin:0;padding:0;background:none}
+body{font-family:var(--ds-font-family-sans);color:var(--ds-color-text-body)}
+.scroll{overflow-x:auto}
+.cap{font-size:var(--ds-font-size-ui-sm);color:var(--ds-color-text-muted);margin:var(--ds-space-2) 0 0;line-height:1.45}
+.cap b{color:var(--ds-color-text-ink);font-weight:var(--ds-font-weight-semibold)}
+.tag{display:inline-block;font-size:var(--ds-font-size-ui-2xs);font-weight:var(--ds-font-weight-medium);padding:1px 6px;border-radius:var(--ds-radius-pill);background:var(--ds-color-blue-soft);color:var(--ds-color-blue-text);margin-right:6px}
+.tag.now{background:var(--ds-color-surface-sunken);color:var(--ds-color-text-muted)}
+/* App colors, copied from the Scrawl source. The app UI is dark in both themes. */
+.app{--a-win:#1e1e1e;--a-side:#262626;--a-group:rgba(255,255,255,.045);--a-line:rgba(255,255,255,.08);
+ --a-text:#f2f2f2;--a-dim:rgba(255,255,255,.55);--a-faint:rgba(255,255,255,.38);--a-accent:#3b5cf6;--a-switch:#0a84ff;
+ --a-red:#f04438;--a-green:#69d89f;font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text",system-ui,sans-serif;
+ color:var(--a-text);font-size:13px}
+.win{background:var(--a-win);border-radius:12px;overflow:hidden;box-shadow:0 0 0 1px rgba(255,255,255,.1),0 8px 24px rgba(0,0,0,.25)}
+.lights{display:flex;gap:8px}.lights i{width:12px;height:12px;border-radius:50%;background:#ff5f57}.lights i+i{background:#febc2e}.lights i+i+i{background:#28c840}
+.kbd{white-space:nowrap;flex:none;display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 10px;border-radius:6px;background:rgba(255,255,255,.08);box-shadow:inset 0 0 0 1px rgba(255,255,255,.12);font-size:13px;letter-spacing:1px;color:var(--a-text)}
+.kbd .x{letter-spacing:0;color:var(--a-faint);font-size:11px}
+.pop{white-space:nowrap;flex:none;display:inline-flex;align-items:center;gap:8px;height:24px;padding:0 8px 0 10px;border-radius:6px;background:rgba(255,255,255,.1);font-size:13px}
+.pop:after{content:"⌃";transform:rotate(180deg);font-size:10px;color:var(--a-dim)}
+.sw{width:32px;height:18px;border-radius:9px;background:rgba(255,255,255,.18);position:relative;flex:none}
+.sw:after{content:"";position:absolute;top:2px;left:2px;width:14px;height:14px;border-radius:50%;background:#fff}
+.sw.on{background:var(--a-switch)}.sw.on:after{left:16px}
+.new{outline:1.5px dashed #6ea0ff;outline-offset:2px;border-radius:6px}
+
+
+.set{display:grid;grid-template-columns:180px 1fr;min-width:560px;max-width:640px}
+.side{background:var(--a-side);padding:16px 10px}
+.side .lights{margin:0 6px 22px}
+.side h6{margin:12px 8px 4px;font-size:11px;font-weight:600;color:var(--a-faint)}
+.item{display:flex;align-items:center;gap:8px;height:30px;padding:0 8px;border-radius:7px;font-size:13px}
+.item.sel{background:rgba(255,255,255,.1)}
+.ic{width:20px;height:20px;border-radius:5px;display:grid;place-items:center;font-size:11px;color:#fff}
+.main{padding:18px 20px 20px}
+.main h2{margin:0 0 14px;font-size:15px;font-weight:600}
+.grp{background:var(--a-group);border-radius:12px;margin-bottom:14px}
+.row{display:flex;align-items:center;justify-content:space-between;gap:12px;min-height:42px;padding:6px 14px;border-top:1px solid var(--a-line)}
+.row:first-child{border-top:0}
+.row small{display:block;color:var(--a-dim);font-size:11.5px;margin-top:2px;line-height:1.35}
+.hd{font-size:11px;font-weight:600;color:var(--a-faint);margin:0 4px 6px}
+.err{color:#ff8a80;font-size:11.5px;margin-top:3px}
+
+</style></head><body>
+<div class="scroll"><div class="app win set"><div class="side"><div class="lights"><i></i><i></i><i></i></div><div class="item"><span class="ic" style="background:#8e8e93">⚙</span>General</div><h6>Settings</h6><div class="item"><span class="ic" style="background:#e5484d">●</span>Recording</div><div class="item sel new"><span class="ic" style="background:#7c5cf6">⌘</span>Shortcuts</div><div class="item"><span class="ic" style="background:#3b82f6">▤</span>Storage</div><div class="item"><span class="ic" style="background:#30a46c">✋</span>Permissions</div><div class="item"><span class="ic" style="background:#3a3a3c">›_</span>Agents</div><h6>Annotator</h6><div class="item"><span class="ic" style="background:#8e8e93">i</span>About</div></div>
+<div class="main"><h2>Shortcuts</h2>
+<div class="hd">Start and finish</div>
+<div class="grp">
+ <div class="row"><div>Record<small>Press again to finish.</small></div><span class="kbd">⌥⇧S</span></div>
+ <div class="row"><div>Paste last capture</div><span class="kbd">⌥⇧V <span class="x">✕</span></span></div>
+</div>
+<div class="hd">While recording</div>
+<div class="grp">
+ <div class="row"><div>Draw<small>Hold and move for the laser. Hold and drag for ink. Hold and click to drop a pin.</small></div><span class="pop">⇧ Shift</span></div>
+ <div class="row"><div>Undo stroke<small>Works only while you record.</small></div><span class="kbd">⌘Z</span></div>
+ <div class="row"><div>Cancel recording<small>Stops and throws the recording away.</small></div><span class="pop">Esc</span></div>
+</div>
+<div class="hd">When a key is taken</div>
+<div class="grp">
+ <div class="row"><div>Paste last capture<div class="err">⌥⇧S is already Record. Pick another key.</div></div><span class="kbd" style="box-shadow:inset 0 0 0 1.5px #ff6b6b">⌥⇧S</span></div>
+</div>
+</div></div></div>
+<p class="cap"><b>Settings, Shortcuts pane (cp4).</b> The dashed item is new. Record and Paste move here from General. Draw takes one modifier key, and Cancel takes Esc or F1 to F12.</p>
+</body></html>

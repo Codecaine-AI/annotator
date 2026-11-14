@@ -33,9 +33,9 @@ pub struct Evidence {
     pub candidates: Vec<Candidate>,
     /// The capture's end, epoch ms; recency is measured from here.
     pub now_ms: u64,
-    /// The browser tab's URL, when there was one.
+    /// The browser tab's URL, when there was one, without its query, fragment and login.
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub url: Option<String>,
+    pub url: Option<crate::privacy::CleanUrl>,
 }
 
 /// A destination someone stated. Obeyed, never weighed.
@@ -939,7 +939,7 @@ pub fn destination_of(to: &Scored, url: Option<&str>) -> Destination {
         session: to.candidate.id.clone(),
         title: to.candidate.label().to_owned(),
         via: via.to_owned(),
-        url: url.map(str::to_owned),
+        url: url.and_then(crate::privacy::CleanUrl::new),
         directory: lead
             .and_then(|r| r.directory.as_ref())
             .map(|d| d.display().to_string()),
@@ -1183,6 +1183,27 @@ mod tests {
             }
             _ => Vec::new(),
         }
+    }
+
+    #[test]
+    fn privacy_smart_routing_stores_no_url_query_fragment_or_login() {
+        let tab = "http://kit:SECRET-MARKER@localhost:5173/page?token=SECRET-MARKER-URL#SECRET-MARKER-FRAG";
+        let mut e = ev(vec![named(Source::Page, "ses_ios")]);
+        e.url = Some(tab.into());
+        let j = decide(&e, Policy::Weigh);
+        let dest = destination(&j, Some(tab)).unwrap();
+        assert_eq!(dest.url.as_deref(), Some("http://localhost:5173/page"));
+        // What `routing.json` and `scrawl.json` hold.
+        let stored = format!(
+            "{} {}",
+            serde_json::to_string(&e).unwrap(),
+            serde_json::to_string(&dest).unwrap()
+        );
+        assert!(!stored.contains("SECRET-MARKER"), "{stored}");
+        // A `routing.json` saved before this rule is cleaned when it is read.
+        let old: Evidence =
+            serde_json::from_value(serde_json::json!({"nowMs": 1, "url": tab})).unwrap();
+        assert_eq!(old.url.as_deref(), Some("http://localhost:5173/page"));
     }
 
     #[test]

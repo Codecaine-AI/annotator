@@ -26,7 +26,7 @@ pub fn path() -> Result<PathBuf> {
         .take(2)
         .map(|dir| dir.join("scrawl-helper"))
         .find(|path| path.is_file())
-        .context("scrawl-helper is missing; rebuild Scrawl")
+        .context("scrawl-helper is missing; rebuild Annotator")
 }
 
 /// Runs a helper command to completion and parses its JSON output.
@@ -282,6 +282,34 @@ pub fn shrink(movie: &Path, out: &Path, max_edge: u32) -> Result<crate::retentio
     )
 }
 
+/// Writes `out` as `movie` with only the `keep` ranges (ms on the movie's clock), one after the
+/// other and every track alike: a paused recording without its pauses (`pause::Cuts::kept`).
+/// Samples are copied, so minutes of video take a tenth of a second. Returns the new duration.
+pub fn cut(movie: &Path, out: &Path, keep: &[(u64, u64)]) -> Result<u64> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct Cut {
+        duration_ms: u64,
+    }
+    let ranges = keep
+        .iter()
+        .map(|(from, to)| format!("{from}-{to}"))
+        .collect::<Vec<_>>()
+        .join(",");
+    let cut: Cut = run(
+        &[
+            os("cut"),
+            movie.as_os_str(),
+            os("--out"),
+            out.as_os_str(),
+            os("--keep"),
+            os(&ranges),
+        ],
+        Duration::from_secs(300),
+    )?;
+    Ok(cut.duration_ms)
+}
+
 /// Mixes a movie's audio to 16 kHz mono WAV, aligned to the movie's start.
 pub fn export_audio(movie: &Path, wav: &Path) -> Result<()> {
     let _: serde_json::Value = run(
@@ -392,6 +420,22 @@ pub fn frames(movie: &Path, times: FrameTimes, max_edge: u32) -> Result<Vec<Rgba
 #[derive(Deserialize)]
 struct QrOutput {
     qr: String,
+}
+
+/// Opens `movie` in the system player (`scrawl-helper play`, an AVPlayerView window) fitted inside
+/// `stage` (global top-left points), playing. The window closes when the child is killed.
+pub fn play(movie: &Path, title: &str, stage: Option<[f32; 4]>) -> Result<std::process::Child> {
+    let mut command = Command::new(path()?);
+    command.arg("play").arg(movie).args(["--title", title]);
+    if let Some([x, y, w, h]) = stage {
+        command.args(["--frame", &format!("{x},{y},{w},{h}")]);
+    }
+    command
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .spawn()
+        .context("Could not start scrawl-helper play")
 }
 
 /// Renders `text` as a compact Unicode half-block QR code for the terminal via CoreImage.

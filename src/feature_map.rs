@@ -204,6 +204,7 @@ fn the_scanner_sees_known_keys_and_flags() {
     let keys = config_keys(&sources);
     for key in [
         "autoSend",
+        "appState",
         "shortcuts",
         "retention",
         "transcribeCommand",
@@ -216,17 +217,16 @@ fn the_scanner_sees_known_keys_and_flags() {
         );
     }
     let flags = experiments(&sources).unwrap();
-    for flag in [
-        "agentContext",
-        "liveTranscribe",
-        "smartRouting",
-        "clipboardImage",
-    ] {
+    for flag in ["liveTranscribe", "smartRouting", "clipboardImage"] {
         assert!(
             flags.contains(flag),
             "scanner missed experiment {flag}: {flags:?}"
         );
     }
+    assert!(
+        !flags.contains("agentContext"),
+        "app state is the appState setting now, not an experiment: {flags:?}"
+    );
 }
 
 #[test]

@@ -63,17 +63,19 @@ pub struct Policy {
     pub bundle_days: Option<u32>,
 }
 
+// A config that names `"retention"` but leaves a field out keeps that part forever, the same as
+// no config at all: nothing is trashed unless the user chose a limit.
 fn default_media_days() -> Option<u32> {
-    Some(7)
+    None
 }
 
 fn default_bundle_days() -> Option<u32> {
-    Some(30)
+    None
 }
 
 impl Default for Policy {
     fn default() -> Self {
-        Preset::Week.policy()
+        Preset::Forever.policy()
     }
 }
 
@@ -646,7 +648,7 @@ pub fn missing_media_reason(dir: &Path) -> Option<String> {
     Some(if days > 0 {
         format!(
             "The bundle's video was cleaned up after {days} days and is in the Trash \
-             (Scrawl menu › Keep Recordings sets how long video is kept)"
+             (Annotator menu › Keep Recordings sets how long video is kept)"
         )
     } else {
         "The bundle's video was cleaned up and is in the Trash".to_owned()
@@ -893,7 +895,8 @@ mod tests {
     fn policy_reads_presets_nulls_and_keeps_other_keys() {
         let tmp = TempDir::new("config");
         let path = tmp.0.join("config.json");
-        assert_eq!(Policy::load_from(&path), Preset::Week.policy());
+        assert_eq!(Policy::load_from(&path), Preset::Forever.policy());
+        assert_eq!(Policy::default(), Preset::Forever.policy());
         std::fs::write(
             &path,
             r#"{"ingestToken":"abc","agentHost":"studio","retention":{"mediaDays":null}}"#,
@@ -904,10 +907,26 @@ mod tests {
             loaded,
             Policy {
                 media_days: None,
-                bundle_days: Some(30)
+                bundle_days: None
             }
         );
-        assert_eq!(loaded.preset(), None);
+        assert_eq!(loaded.preset(), Some(Preset::Forever));
+        let partial_path = tmp.0.join("partial.json");
+        std::fs::write(&partial_path, r#"{"retention":{"mediaDays":7}}"#).unwrap();
+        let partial = Policy::load_from(&partial_path);
+        assert_eq!(
+            partial,
+            Policy {
+                media_days: Some(7),
+                bundle_days: None
+            }
+        );
+        assert_eq!(partial.preset(), None);
+        Preset::Week.policy().save_to(&partial_path).unwrap();
+        assert_eq!(
+            Policy::load_from(&partial_path).preset(),
+            Some(Preset::Week)
+        );
         Preset::Forever.policy().save_to(&path).unwrap();
         assert_eq!(Policy::load_from(&path).preset(), Some(Preset::Forever));
         let config: serde_json::Value =
@@ -935,7 +954,7 @@ mod tests {
         std::fs::create_dir_all(old.join("zoom")).unwrap();
         let ancient = bundle(&tmp.0, "scrawl-ancient", 31.0, false);
         assert_eq!(
-            planned(&tmp.0, &Policy::default()),
+            planned(&tmp.0, &Preset::Week.policy()),
             vec![
                 Action::TrashBundle(ancient),
                 Action::TrashMedia {
@@ -981,10 +1000,10 @@ mod tests {
         let busy = bundle(&tmp.0, "scrawl-busy", 40.0, false);
         let held = claim(&busy).unwrap();
         assert!(claim(&busy).is_none(), "one claim at a time");
-        assert!(planned(&tmp.0, &Policy::default()).is_empty());
+        assert!(planned(&tmp.0, &Preset::Week.policy()).is_empty());
         drop(held);
         assert_eq!(
-            planned(&tmp.0, &Policy::default()),
+            planned(&tmp.0, &Preset::Week.policy()),
             vec![Action::TrashBundle(busy)]
         );
         // A marker left by a copy that died over a day ago no longer holds a bundle.
@@ -993,7 +1012,7 @@ mod tests {
             crate::handoff::MEDIA_PENDING,
             later() - STALE_MARKER - Duration::from_secs(60),
         );
-        assert!(planned(&tmp.0, &Policy::default()).contains(&Action::TrashBundle(pending)));
+        assert!(planned(&tmp.0, &Preset::Week.policy()).contains(&Action::TrashBundle(pending)));
     }
 
     #[test]
@@ -1002,9 +1021,9 @@ mod tests {
         // Just copied from another Mac: made long ago, but the folder changed now.
         let arrived = bundle(&tmp.0, "scrawl-arrived", 40.0, false);
         let today = later() - Duration::from_secs(24 * 3600);
-        assert!(plan(&tmp.0, &Policy::default(), today).is_empty());
+        assert!(plan(&tmp.0, &Preset::Week.policy(), today).is_empty());
         assert_eq!(
-            planned(&tmp.0, &Policy::default()),
+            planned(&tmp.0, &Preset::Week.policy()),
             vec![Action::TrashBundle(arrived)]
         );
     }
@@ -1021,9 +1040,9 @@ mod tests {
             std::fs::rename(path, trash_dir.join(path.file_name().unwrap()))?;
             Ok(())
         };
-        let actions = planned(&captures, &Policy::default());
+        let actions = planned(&captures, &Preset::Week.policy());
         assert_eq!(actions.len(), 2);
-        let report = apply(&actions, &Policy::default(), &fake_trash, false);
+        let report = apply(&actions, &Preset::Week.policy(), &fake_trash, false);
         assert_eq!(
             (report.media_trashed, report.bundles_trashed, report.errors),
             (1, 1, 0)
@@ -1057,7 +1076,7 @@ mod tests {
         );
         // Nothing left to clean, and the bundle changed today besides.
         let next_week = later() + Duration::from_secs(2 * 24 * 3600);
-        assert!(plan(&captures, &Policy::default(), next_week).is_empty());
+        assert!(plan(&captures, &Preset::Week.policy(), next_week).is_empty());
     }
 
     #[test]
@@ -1068,7 +1087,7 @@ mod tests {
         let small = bundle(&tmp.0, "scrawl-small", 2.0, true);
         std::fs::write(small.join("recording.mov"), vec![0u8; 2_500_000]).unwrap();
         assert_eq!(
-            planned(&tmp.0, &Policy::default()),
+            planned(&tmp.0, &Preset::Week.policy()),
             vec![Action::Shrink {
                 bundle: phone.clone(),
                 video: phone.join("recording.mov")
@@ -1077,7 +1096,7 @@ mod tests {
         // Hours old is enough to shrink; minutes old is left to the capture's own shrink.
         let hours = bundle(&tmp.0, "scrawl-hours", 0.1, true);
         bundle(&tmp.0, "scrawl-minutes", 0.003, true);
-        let shrinks: Vec<PathBuf> = planned(&tmp.0, &Policy::default())
+        let shrinks: Vec<PathBuf> = planned(&tmp.0, &Preset::Week.policy())
             .into_iter()
             .filter_map(|a| match a {
                 Action::Shrink { bundle, .. } => Some(bundle),

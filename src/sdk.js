@@ -4,8 +4,11 @@
 // Registers this tab with Scrawl while it's open, so a Mac capture of it is sent to that
 // session. It does nothing outside localhost unless data-token (the ingest token) is set.
 // When Scrawl asks for it (loopback pages only), it also tells Scrawl what's under clicks and
-// ⇧ marks (element, component, source file:line), video seeks, console errors and failed
-// requests. It never sends request bodies, headers, cookies, query strings or typed values.
+// marks (element, component, source file:line), video seeks, console errors and failed
+// requests. A mark is a move with the draw modifier held: ⇧, or the one Settings › Shortcuts
+// names. It never sends request bodies, headers, cookies, typed values or the query string
+// of a request. A registration carries this page's whole address, which Scrawl uses once to
+// tell this tab from another and keeps without its query and fragment.
 (() => {
   const script = document.currentScript;
   if (!script || window.__scrawlSdk) return;
@@ -42,6 +45,8 @@
       path,
       {
         origin: location.origin,
+        // The whole address, so Scrawl can tell this tab from another on the same page. It
+        // names the tab with it and keeps only the page: no query, fragment or login.
         url: location.href,
         title: document.title,
         session: script.dataset.session || undefined,
@@ -50,8 +55,21 @@
       },
       keepalive,
     ).then((reply) => {
+      if (reply && drawKeys.has(reply.draw)) drawKey = drawKeys.get(reply.draw);
       if (reply && reply.context && loopback) watch();
     });
+
+  // The draw modifier, as each registration's reply names it (`draw`), and the property a
+  // pointer event has for it.
+  const drawKeys = new Map([
+    ["shift", "shiftKey"],
+    ["option", "altKey"],
+    ["control", "ctrlKey"],
+    ["command", "metaKey"],
+  ]);
+  let drawKey = "shiftKey";
+  // Only the draw modifier alone draws: with another modifier it is part of a shortcut.
+  const drawing = (e) => [...drawKeys.values()].every((key) => e[key] === (key === drawKey));
 
   const beat = () => {
     if (document.visibilityState !== "hidden") send("/web/register");
@@ -146,24 +164,56 @@
       }
       return {};
     };
-    const typed = "input, textarea, select, [contenteditable=''], [contenteditable='true']";
+    // A field holds what was typed: its text and its value are never read. A role counts
+    // wherever it stands in the element's `role` list (`~=`) and in any case (`i`).
+    const typed = [
+      "input",
+      "textarea",
+      "select",
+      "[contenteditable]:not([contenteditable='false' i])",
+      ...["textbox", "searchbox", "combobox", "spinbutton"].map((role) => `[role~=${role} i]`),
+    ].join(", ");
+    const fieldOf = (el) => el.closest(typed) || (el.isContentEditable ? el : null);
+    const attr = (el, names) => {
+      for (const name of names) {
+        const value = el.getAttribute(name);
+        if (value) return value;
+      }
+      return "";
+    };
+    const labels = ["aria-label", "title", "alt", "data-testid"];
+    // An element's text without the text of the fields inside it.
+    const shown = (el) => {
+      if (!el.querySelector(typed)) return (el.textContent || "").slice(0, 200);
+      let out = "";
+      const texts = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+      for (let node = texts.nextNode(); node && out.length < 200; node = texts.nextNode()) {
+        if (!fieldOf(node.parentElement)) out += node.data + " ";
+      }
+      return out;
+    };
     const describe = (el) => {
       if (!(el instanceof Element)) return undefined;
-      el = el.closest("button, a, [role=button], [role=tab], [role=menuitem], [role=link], label, summary") || el;
+      // The field is looked for from the element the pointer is on, before a label or a
+      // button around it takes that element's place.
+      const field = fieldOf(el);
+      el = field || el.closest("button, a, [role=button], [role=tab], [role=menuitem], [role=link], label, summary") || el;
       const target = { tag: el.tagName.toLowerCase() };
       if (el.id) target.id = clip(el.id, 60);
       const cls = [...el.classList].filter((c) => c.length <= 30 && !/[:[\]/]/.test(c)).slice(0, 2);
       if (cls.length) target.cls = cls.join(".");
-      const field = el.closest(typed);
-      let text =
-        el.getAttribute("aria-label") || el.getAttribute("title") || el.getAttribute("alt") || el.getAttribute("data-testid");
-      if (!text && field) {
-        if (field.getAttribute("type") !== "password") text = field.getAttribute("placeholder") || field.getAttribute("name");
-      } else if (!text) {
-        text = (el.textContent || "").slice(0, 200);
+      if (field) {
+        // `field` tells the app to keep no text for it; `name` is what its developer wrote.
+        target.field = true;
+        const name = clip(
+          attr(el, labels) || (el.getAttribute("type") !== "password" ? attr(el, ["placeholder", "name"]) : ""),
+          60,
+        );
+        if (name) target.name = name;
+      } else {
+        const text = clip(attr(el, labels) || shown(el), 60);
+        if (text) target.text = text;
       }
-      const label = clip(text, 60);
-      if (label) target.text = label;
       return Object.assign(target, component(el));
     };
 
@@ -175,7 +225,7 @@
     addEventListener(
       "pointermove",
       (e) => {
-        if (!e.shiftKey || e.buttons) return;
+        if (!drawing(e) || e.buttons) return;
         const now = Date.now();
         if (now - lastMark < 250) return;
         lastMark = now;

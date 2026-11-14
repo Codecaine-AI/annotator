@@ -1,5 +1,6 @@
 use std::io::Cursor;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, OnceLock};
+use std::time::Instant;
 
 use anyhow::{Context, Result, anyhow, bail, ensure};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
@@ -11,54 +12,125 @@ pub struct RecordedAudio {
     pub sample_count: usize,
     pub duration_ms: u64,
     pub wav_bytes: Vec<u8>,
+    /// How long after the capture clock started the first sample was heard: the microphone
+    /// opens on its own thread, some hundred ms after the recording begins. Sample `n` was
+    /// heard at `offset_ms + n / 16` ms on the capture clock.
+    pub offset_ms: u64,
     /// The transcription that ran while recording, if one did (`live_transcribe`).
     pub live: crate::live_transcribe::Slot,
+}
+
+impl RecordedAudio {
+    /// Takes a paused recording's pauses out of the audio (`crate::pause`), sample for sample.
+    /// `cuts` are on the capture clock; the samples are counted from the first one heard,
+    /// `offset_ms` later, so the pauses are moved onto that clock first, as a movie's are.
+    /// A transcription that ran while recording heard the pauses, so it is dropped and the
+    /// words come from the cut audio.
+    pub fn cut(self, cuts: &crate::pause::Cuts) -> Result<Self> {
+        if cuts.is_empty() {
+            return Ok(self);
+        }
+        let samples = cuts
+            .on_clock_from(self.offset_ms)
+            .cut_samples(&decode_wav_16k(&self.wav_bytes)?, u64::from(SAMPLE_RATE));
+        drop(self.live.take());
+        Ok(Self {
+            sample_count: samples.len(),
+            duration_ms: samples.len() as u64 * 1_000 / u64::from(SAMPLE_RATE),
+            wav_bytes: encode_wav_16k(&samples)?,
+            offset_ms: cuts.shift(self.offset_ms),
+            live: Default::default(),
+        })
+    }
 }
 
 pub struct AudioRecorder {
     worker: Option<std::thread::JoinHandle<Result<()>>>,
     stop_sender: Option<std::sync::mpsc::Sender<()>>,
     samples: Arc<Mutex<Vec<f32>>>,
+    /// When the capture clock started, and when the first sample was heard on it.
+    clock_started: Instant,
+    heard_at: Arc<OnceLock<Instant>>,
     error: Arc<Mutex<Option<String>>>,
     live: Option<crate::live_transcribe::Live>,
+    /// A live transcription only for showing the words (`liveWords`), dropped at stop.
+    preview: Option<crate::live_transcribe::Live>,
+    /// The capsule's view of this recording (`live_audio::begin`).
+    shown: Option<u64>,
 }
 
 impl AudioRecorder {
-    pub fn start() -> Result<Self> {
+    /// `clock_started`: when the capture clock began (`SharedCaptureTelemetry::started_at`),
+    /// which is before the microphone opens.
+    pub fn start(clock_started: Instant) -> Result<Self> {
+        Self::open(true, clock_started)
+    }
+
+    /// The microphone only for the capsule's waveform and words, while something else records the
+    /// narration (the iPhone mirror records it into its movie). `None` when live audio is off.
+    pub fn listen() -> Option<Self> {
+        if !crate::live_audio::wanted() {
+            return None;
+        }
+        Self::open(false, Instant::now())
+            .inspect_err(|error| crate::capture::scrawl_log(format!("Live audio: {error:#}")))
+            .ok()
+    }
+
+    /// `recording`: this is the capture's own audio, so the live transcription experiment runs on it.
+    fn open(recording: bool, clock_started: Instant) -> Result<Self> {
         let started = std::time::Instant::now();
         let samples = Arc::new(Mutex::new(Vec::new()));
+        let heard_at = Arc::new(OnceLock::new());
         let error = Arc::new(Mutex::new(None));
         let (stop_sender, stop_receiver) = std::sync::mpsc::channel();
         let worker_samples = Arc::clone(&samples);
+        let worker_heard_at = Arc::clone(&heard_at);
         let worker_error = Arc::clone(&error);
         let worker = std::thread::Builder::new()
             .name("scrawl-audio".into())
             .spawn(move || {
-                let stream =
-                    Self::open_stream(worker_samples, worker_error).inspect_err(|error| {
+                let stream = Self::open_stream(worker_samples, worker_heard_at, worker_error)
+                    .inspect_err(|error| {
                         crate::capture::scrawl_log(format!("Microphone startup failed: {error:#}"));
                     })?;
-                crate::ui::start_metric("audio_ready_ms", started);
+                if recording {
+                    crate::ui::start_metric("audio_ready_ms", started);
+                }
                 // Stream never crosses threads. Disconnect also stops abandoned recorders.
                 let _ = stop_receiver.recv();
                 drop(stream);
                 Ok(())
             })
             .context("Could not spawn microphone worker")?;
-        let live = crate::live_transcribe::wanted()
-            .then(|| crate::live_transcribe::Live::start(Arc::clone(&samples)))
-            .and_then(|live| {
-                live.inspect_err(|error| {
-                    crate::capture::scrawl_log(format!("Live transcription: {error:#}"));
-                })
-                .ok()
+        let show = crate::live_audio::wanted();
+        // The Apple Speech stream for the words runs only with `liveWords` on.
+        let caption = (show && crate::live_audio::captions_possible())
+            .then(|| Arc::new(Mutex::new(crate::live_audio::Caption::default())));
+        let log = |error: anyhow::Error| {
+            crate::capture::scrawl_log(format!("Live transcription: {error:#}"));
+        };
+        // The experiment's stream shows the words too; without it, one only for showing them.
+        let (live, preview) = if recording && crate::live_transcribe::wanted() {
+            let live = crate::live_transcribe::Live::start(Arc::clone(&samples), caption.clone());
+            (live.map_err(log).ok(), None)
+        } else {
+            let preview = caption.clone().map(|caption| {
+                crate::live_transcribe::Live::preview(Arc::clone(&samples), caption)
             });
+            (None, preview.and_then(|p| p.map_err(log).ok()))
+        };
+        let shown = show.then(|| crate::live_audio::begin(Arc::clone(&samples), caption));
         Ok(Self {
             worker: Some(worker),
             stop_sender: Some(stop_sender),
             samples,
+            clock_started,
+            heard_at,
             error,
             live,
+            preview,
+            shown,
         })
     }
 
@@ -66,6 +138,7 @@ impl AudioRecorder {
     /// won't open never stops the recording.
     fn open_stream(
         samples: Arc<Mutex<Vec<f32>>>,
+        heard_at: Arc<OnceLock<Instant>>,
         error: Arc<Mutex<Option<String>>>,
     ) -> Result<cpal::Stream> {
         let choice = crate::mic::choice();
@@ -76,7 +149,7 @@ impl AudioRecorder {
                     name: device_name(&device).unwrap_or_else(|| choice.name.clone()),
                 };
                 crate::mic::note_pick(&crate::mic::Pick::Chosen(&input));
-                match Self::open_device(&device, samples.clone(), error.clone()) {
+                match Self::open_device(&device, samples.clone(), heard_at.clone(), error.clone()) {
                     Ok(stream) => {
                         crate::capture::scrawl_log(format!("Microphone: {}", input.name));
                         return Ok(stream);
@@ -105,7 +178,7 @@ impl AudioRecorder {
         let device = cpal::default_host()
             .default_input_device()
             .context("No microphone is available")?;
-        let stream = Self::open_device(&device, samples, error)?;
+        let stream = Self::open_device(&device, samples, heard_at, error)?;
         crate::capture::scrawl_log(format!(
             "Microphone: {} (default)",
             device_name(&device).unwrap_or_default()
@@ -116,6 +189,7 @@ impl AudioRecorder {
     fn open_device(
         device: &cpal::Device,
         samples: Arc<Mutex<Vec<f32>>>,
+        heard_at: Arc<OnceLock<Instant>>,
         error: Arc<Mutex<Option<String>>>,
     ) -> Result<cpal::Stream> {
         let supported = device.default_input_config()?;
@@ -132,7 +206,13 @@ impl AudioRecorder {
         );
         macro_rules! stream {
             ($ty:ty) => {
-                input_stream::<$ty>(&device, config, samples.clone(), error.clone())?
+                input_stream::<$ty>(
+                    &device,
+                    config,
+                    samples.clone(),
+                    heard_at.clone(),
+                    error.clone(),
+                )?
             };
         }
         let stream = match supported.sample_format() {
@@ -165,6 +245,7 @@ impl AudioRecorder {
     }
 
     pub fn stop(mut self) -> Result<RecordedAudio> {
+        self.stop_showing();
         // Joining drops the stream and stops its callback before taking the buffer,
         // including a stop requested while the device was still being initialized.
         self.join_worker()?;
@@ -189,17 +270,34 @@ impl AudioRecorder {
         let sample_count = samples_16k.len();
         let duration_ms = sample_count as u64 * 1_000 / SAMPLE_RATE as u64;
         let wav_bytes = encode_wav_16k(&samples_16k)?;
+        let offset_ms = self.heard_at.get().map_or(0, |heard_at| {
+            heard_at
+                .saturating_duration_since(self.clock_started)
+                .as_millis() as u64
+        });
         Ok(RecordedAudio {
             sample_count,
             duration_ms,
             wav_bytes,
+            offset_ms,
             live: crate::live_transcribe::Slot::new(self.live.take()),
         })
     }
 }
 
+impl AudioRecorder {
+    /// Takes the recording out of the capsule and stops the words' own transcription.
+    fn stop_showing(&mut self) {
+        if let Some(id) = self.shown.take() {
+            crate::live_audio::end(id);
+        }
+        self.preview.take();
+    }
+}
+
 impl Drop for AudioRecorder {
     fn drop(&mut self) {
+        self.stop_showing();
         let _ = self.join_worker();
     }
 }
@@ -212,6 +310,7 @@ fn input_stream<T>(
     device: &cpal::Device,
     config: cpal::StreamConfig,
     samples: Arc<Mutex<Vec<f32>>>,
+    heard_at: Arc<OnceLock<Instant>>,
     error: Arc<Mutex<Option<String>>>,
 ) -> Result<cpal::Stream>
 where
@@ -224,7 +323,10 @@ where
     let mut sum = 0.0_f64;
     Ok(device.build_input_stream::<T, _, _>(
         config,
-        move |data, _| {
+        move |data, info| {
+            if !data.is_empty() {
+                heard_at.get_or_init(|| first_heard(Instant::now(), info.timestamp()));
+            }
             let Ok(mut output) = samples.lock() else {
                 return;
             };
@@ -264,6 +366,15 @@ where
     )?)
 }
 
+/// When the first sample of the stream's first buffer was heard. The buffer reached the
+/// callback at `delivered`; the stream's own clock says how long before that its first sample
+/// was captured (`stamp.capture`), which is the buffer's length and the device's latency (on
+/// macOS: the I/O buffer, the device latency and its safety offset).
+fn first_heard(delivered: Instant, stamp: cpal::InputStreamTimestamp) -> Instant {
+    let since_capture = stamp.callback.saturating_duration_since(stamp.capture);
+    delivered.checked_sub(since_capture).unwrap_or(delivered)
+}
+
 /// Reads a 16 kHz mono WAV (as written by `scrawl-helper audio`) back into a recording.
 pub fn recorded_audio_from_wav(wav_bytes: Vec<u8>) -> Result<RecordedAudio> {
     let sample_count = wav_16k_reader(&wav_bytes)?.duration() as usize;
@@ -271,6 +382,7 @@ pub fn recorded_audio_from_wav(wav_bytes: Vec<u8>) -> Result<RecordedAudio> {
         sample_count,
         duration_ms: sample_count as u64 * 1_000 / u64::from(SAMPLE_RATE),
         wav_bytes,
+        offset_ms: 0,
         live: Default::default(),
     })
 }
@@ -392,10 +504,126 @@ mod tests {
     use super::*;
     use std::time::Duration;
 
+    /// A recording paused from 2 s to 5 s: `audio.wav` is 3 s shorter and the sound at 5 s
+    /// follows the sound at 2 s.
+    #[test]
+    fn a_paused_recordings_audio_loses_the_pauses() {
+        // Each sample holds which tenth of a second it was heard in.
+        let heard_at = |index: usize| (index / 1_600) as f32 / 100.0;
+        let samples: Vec<f32> = (0..8 * 16_000).map(heard_at).collect();
+        let audio = recorded_audio_from_wav(encode_wav_16k(&samples).unwrap()).unwrap();
+        let cuts = crate::pause::Cuts::new(vec![crate::pause::Span {
+            start_ms: 2_000,
+            end_ms: 5_000,
+        }]);
+        let cut = audio.cut(&cuts).unwrap();
+        assert_eq!((cut.duration_ms, cut.sample_count), (5_000, 80_000));
+        let kept = decode_wav_16k(&cut.wav_bytes).unwrap();
+        assert_eq!(kept.len(), 80_000);
+        assert!((kept[31_999] - 0.19).abs() < 0.001, "{}", kept[31_999]);
+        assert!((kept[32_000] - 0.50).abs() < 0.001, "{}", kept[32_000]);
+        assert!((kept[79_999] - 0.79).abs() < 0.001, "{}", kept[79_999]);
+    }
+
+    /// A callback's timestamp for a buffer whose first sample was captured `ago`.
+    fn stamp(ago: Duration) -> cpal::InputStreamTimestamp {
+        let callback = cpal::StreamInstant::from_millis(90_000);
+        cpal::InputStreamTimestamp {
+            callback,
+            capture: callback.checked_sub(ago).unwrap(),
+        }
+    }
+
+    /// Audio heard from 200 ms to 9 s on the capture clock: each sample holds the millisecond
+    /// it was heard in.
+    fn heard_from_200_ms() -> Vec<f32> {
+        (0..8_800 * 16)
+            .map(|index| (200 + index / 16) as f32 / 32_768.0)
+            .collect()
+    }
+
+    /// Takes a pause from 5 s to 7 s on the capture clock out of `audio` (`heard_from_200_ms`)
+    /// and checks that no paused sample stays and no other sample is lost.
+    fn assert_loses_exactly_the_pause(audio: RecordedAudio) {
+        let paused = 5_000..7_000;
+        let cuts = crate::pause::Cuts::new(vec![crate::pause::Span {
+            start_ms: paused.start as u64,
+            end_ms: paused.end as u64,
+        }]);
+        let cut = audio.cut(&cuts).unwrap();
+        let kept: Vec<usize> = decode_wav_pcm16(&cut.wav_bytes)
+            .unwrap()
+            .into_iter()
+            .map(|ms| ms as usize)
+            .collect();
+        let stayed: Vec<usize> = kept
+            .iter()
+            .copied()
+            .filter(|ms| paused.contains(ms))
+            .collect();
+        assert!(
+            stayed.is_empty(),
+            "{} paused samples stayed, heard from {:?} to {:?} ms",
+            stayed.len(),
+            stayed.first(),
+            stayed.last()
+        );
+        let expected: Vec<usize> = (0..8_800 * 16)
+            .map(|index| 200 + index / 16)
+            .filter(|ms| !paused.contains(ms))
+            .collect();
+        assert_eq!(kept.len(), expected.len(), "kept samples were lost");
+        assert!(
+            kept == expected,
+            "the kept samples are not the unpaused ones"
+        );
+        // It still starts 200 ms into the capture, which is before the pause.
+        assert_eq!((cut.duration_ms, cut.offset_ms), (6_800, 200));
+    }
+
+    /// The microphone opens a little after the capture clock starts (here 200 ms), and the
+    /// pauses are on that clock: a pause from 5 s to 7 s is 4.8 s to 6.8 s into the audio.
+    #[test]
+    fn audio_that_started_late_loses_exactly_the_paused_samples() {
+        assert_loses_exactly_the_pause(RecordedAudio {
+            offset_ms: 200,
+            ..recorded_audio_from_wav(encode_wav_16k(&heard_from_200_ms()).unwrap()).unwrap()
+        });
+    }
+
+    /// A buffer reaches the callback after the device's latency as well as its own length:
+    /// 480 frames at 48 kHz (10 ms) heard from 200 ms, through a device that is 200 ms latent,
+    /// arrive at 410 ms. The recorder times the first sample by the stream's capture stamp, so
+    /// the audio starts at 200 ms and a pause comes out of the right samples.
+    #[test]
+    fn a_latent_microphone_s_first_sample_is_timed_by_its_capture_stamp() {
+        let clock_started = Instant::now();
+        let delivered = clock_started + Duration::from_millis(410);
+        let audio = AudioRecorder {
+            worker: None,
+            stop_sender: None,
+            samples: Arc::new(Mutex::new(heard_from_200_ms())),
+            clock_started,
+            heard_at: Arc::new(OnceLock::from(first_heard(
+                delivered,
+                stamp(Duration::from_millis(10 + 200)),
+            ))),
+            error: Arc::new(Mutex::new(None)),
+            live: None,
+            preview: None,
+            shown: None,
+        }
+        .stop()
+        .unwrap();
+        assert_eq!(audio.offset_ms, 200);
+        assert_loses_exactly_the_pause(audio);
+    }
+
     #[test]
     fn stop_joins_worker_before_reading_its_last_samples() {
         let samples = Arc::new(Mutex::new(Vec::new()));
         let output = Arc::clone(&samples);
+        let clock_started = Instant::now();
         let (stop_sender, stop_receiver) = std::sync::mpsc::channel();
         let worker = std::thread::spawn(move || {
             // Model a final callback flushed while the worker drops its stream.
@@ -410,12 +638,22 @@ mod tests {
             worker: Some(worker),
             stop_sender: Some(stop_sender),
             samples,
+            clock_started,
+            heard_at: Arc::new(OnceLock::from(first_heard(
+                clock_started + Duration::from_millis(230),
+                stamp(Duration::from_millis(10)),
+            ))),
             error: Arc::new(Mutex::new(None)),
             live: None,
+            preview: None,
+            shown: None,
         }
         .stop()
         .unwrap();
         assert_eq!(audio.sample_count, 3);
+        // The first buffer arrived 230 ms into the capture, 10 ms after its first sample was
+        // captured, so that sample was heard at 220 ms.
+        assert_eq!(audio.offset_ms, 220);
         assert_eq!(
             hound::WavReader::new(Cursor::new(audio.wav_bytes))
                 .unwrap()
@@ -430,8 +668,12 @@ mod tests {
             worker: None,
             stop_sender: None,
             samples: Arc::new(Mutex::new(samples)),
+            clock_started: Instant::now(),
+            heard_at: Default::default(),
             error: Arc::new(Mutex::new(Some("Device disconnected".into()))),
             live: None,
+            preview: None,
+            shown: None,
         };
         assert_eq!(recorder(vec![0.1; 160]).stop().unwrap().sample_count, 160);
         assert!(recorder(Vec::new()).stop().is_err());
@@ -443,8 +685,12 @@ mod tests {
             worker: Some(std::thread::spawn(|| bail!("device unavailable"))),
             stop_sender: None,
             samples: Arc::new(Mutex::new(Vec::new())),
+            clock_started: Instant::now(),
+            heard_at: Default::default(),
             error: Arc::new(Mutex::new(None)),
             live: None,
+            preview: None,
+            shown: None,
         };
         assert!(
             recorder

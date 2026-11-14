@@ -29,6 +29,7 @@ use crate::ui::SelectionMode;
 pub const ATLAS_W: u32 = 1024;
 pub const ATLAS_H: u32 = 512;
 
+pub const WEIGHT_REGULAR: f64 = 0.0;
 pub const WEIGHT_MEDIUM: f64 = 0.23;
 pub const WEIGHT_SEMIBOLD: f64 = 0.30;
 
@@ -113,6 +114,11 @@ pub fn measure_text_pt(text: &str, size_pt: f32, weight: f64, monospaced_digits:
     }
 }
 
+/// How wide the live words' `text` is, in points.
+pub fn measure_caption(text: &str) -> f32 {
+    measure_text_pt(text, HUD_TEXT, WEIGHT_REGULAR, false)
+}
+
 /// Measures all standard capsule strings with CoreText to build a `Metrics` table.
 pub fn measure_metrics() -> Metrics {
     Metrics {
@@ -123,6 +129,9 @@ pub fn measure_metrics() -> Metrics {
         record: measure_text_pt("Record", HUD_TEXT, WEIGHT_SEMIBOLD, false),
         cancel: measure_text_pt("Cancel", HUD_TEXT, WEIGHT_MEDIUM, false),
         finish: measure_text_pt("Finish", HUD_TEXT, WEIGHT_SEMIBOLD, false),
+        pause: measure_text_pt("Pause", HUD_TEXT, WEIGHT_MEDIUM, false),
+        resume: measure_text_pt("Resume", HUD_TEXT, WEIGHT_MEDIUM, false),
+        paused: measure_text_pt("Paused", HUD_TEXT, WEIGHT_MEDIUM, false),
         processing: measure_text_pt("Processing…", HUD_TEXT, WEIGHT_SEMIBOLD, false),
         paste: measure_text_pt("Paste", HUD_TEXT, WEIGHT_SEMIBOLD, false),
         inspect: measure_text_pt("Inspect", HUD_TEXT, WEIGHT_MEDIUM, false),
@@ -300,6 +309,13 @@ pub struct GlyphAtlas {
     /// Reserved rows for the Completed island's session chips (`y = 424, 468`).
     route_text: [String; 2],
     pub route_sprites: [Sprite; 2],
+    /// Reserved slots for the recording capsule's keys after Cancel, Finish and Pause or Resume
+    /// (`y = 290`).
+    key_text: [String; 3],
+    pub key_sprites: [Sprite; 3],
+    caption_text: Vec<String>,
+    /// The live words, a line each (`CAPTION_LINES`), drawn in slots of their own.
+    pub caption_sprites: Vec<Sprite>,
 }
 
 /// The tallest a changing label's sprite may be, in pixels, so the reserved rows don't overlap.
@@ -344,6 +360,10 @@ impl GlyphAtlas {
             completed_sprite: Sprite::default(),
             route_text: [String::new(), String::new()],
             route_sprites: [Sprite::default(); 2],
+            key_text: [String::new(), String::new(), String::new()],
+            key_sprites: [Sprite::default(); 3],
+            caption_text: Vec::new(),
+            caption_sprites: Vec::new(),
         };
 
         for (kind, size_pt) in [
@@ -367,6 +387,9 @@ impl GlyphAtlas {
             ("Record", HUD_TEXT, WEIGHT_SEMIBOLD),
             ("Cancel", HUD_TEXT, WEIGHT_MEDIUM),
             ("Finish", HUD_TEXT, WEIGHT_SEMIBOLD),
+            ("Pause", HUD_TEXT, WEIGHT_MEDIUM),
+            ("Resume", HUD_TEXT, WEIGHT_MEDIUM),
+            ("Paused", HUD_TEXT, WEIGHT_MEDIUM),
             ("Processing…", HUD_TEXT, WEIGHT_SEMIBOLD),
             ("Paste", HUD_TEXT, WEIGHT_SEMIBOLD),
             ("Inspect", HUD_TEXT, WEIGHT_MEDIUM),
@@ -482,6 +505,72 @@ impl GlyphAtlas {
             ],
         };
         self.completed_sprite
+    }
+
+    /// Draws the live words' lines (at most `CAPTION_LINES`) into their slots below the labels;
+    /// lines that didn't change aren't drawn again.
+    pub fn update_caption(&mut self, lines: &[String]) {
+        let lines = &lines[..lines.len().min(super::model::CAPTION_LINES)];
+        self.caption_sprites.truncate(lines.len());
+        self.caption_text.truncate(lines.len());
+        for (index, text) in lines.iter().enumerate() {
+            if self.caption_text.get(index) == Some(text) {
+                continue;
+            }
+            let (w, h, size_pt, bytes) =
+                rasterize_text(text, HUD_TEXT, WEIGHT_REGULAR, false, self.scale);
+            let (x, y) = (4_u32, 200_u32 + 44 * index as u32);
+            let w = w.min(ATLAS_W - x - 4);
+            let h = h.min(SLOT_H);
+            self.upload_at(x, y, w, h, &bytes);
+            let sprite = Sprite {
+                size_pt: [w as f32 / self.scale, size_pt[1]],
+                uv: [
+                    x as f32 / ATLAS_W as f32,
+                    y as f32 / ATLAS_H as f32,
+                    (x + w) as f32 / ATLAS_W as f32,
+                    (y + h) as f32 / ATLAS_H as f32,
+                ],
+            };
+            if index < self.caption_sprites.len() {
+                self.caption_sprites[index] = sprite;
+                self.caption_text[index] = text.clone();
+            } else {
+                self.caption_sprites.push(sprite);
+                self.caption_text.push(text.clone());
+            }
+        }
+    }
+
+    /// Updates the key after Cancel (`index` 0), Finish (1) or Pause and Resume (2) only when
+    /// `text` changes; an empty one has no width.
+    pub fn update_key(&mut self, index: usize, text: &str) -> Sprite {
+        let index = index.min(2);
+        if self.key_text[index] == text {
+            return self.key_sprites[index];
+        }
+        self.key_text[index] = text.to_owned();
+        if text.is_empty() {
+            self.key_sprites[index] = Sprite::default();
+            return self.key_sprites[index];
+        }
+        let (w, h, size_pt, bytes) =
+            rasterize_text(text, HUD_TEXT, WEIGHT_MEDIUM, false, self.scale);
+        // Below the live words' slots (`y = 200 + 44 * CAPTION_LINES`), above the clock's.
+        let (x, y) = (4_u32 + 340 * index as u32, 290_u32);
+        let w = w.min(332);
+        let h = h.min(SLOT_H);
+        self.upload_at(x, y, w, h, &bytes);
+        self.key_sprites[index] = Sprite {
+            size_pt: [w as f32 / self.scale, size_pt[1]],
+            uv: [
+                x as f32 / ATLAS_W as f32,
+                y as f32 / ATLAS_H as f32,
+                (x + w) as f32 / ATLAS_W as f32,
+                (y + h) as f32 / ATLAS_H as f32,
+            ],
+        };
+        self.key_sprites[index]
     }
 
     pub fn route_text(&self, index: usize) -> &str {

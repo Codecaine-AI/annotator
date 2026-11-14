@@ -183,9 +183,13 @@ pub fn rebuild(dir: &Path, media: &Media) -> Result<String> {
     );
     let _ = std::fs::write(dir.join(RECOVERING), "");
     scrawl_log(format!("recover: rebuilding {}", dir.display()));
+    // App shots that were still being spooled when the app died are not put back: when each
+    // was seen lived in memory.
+    crate::appshot::drop_spool(dir);
     let result = if dir.join(UNFINISHED).is_file() {
-        read(dir)
-            .and_then(|unfinished| crate::rebuild_screen_bundle_with(dir, unfinished, None, media))
+        read(dir).and_then(|unfinished| {
+            crate::rebuild_screen_bundle_with(dir, unfinished, None, None, media)
+        })
     } else if orphaned(dir) {
         let probe = (media.probe)(&dir.join(VIDEO));
         let audio_ms = std::fs::read(dir.join(AUDIO))
@@ -197,6 +201,7 @@ pub fn rebuild(dir: &Path, media: &Media) -> Result<String> {
                 dir,
                 orphan_recipe(&probe, audio_ms),
                 Some(None),
+                None,
                 media,
             )
         })

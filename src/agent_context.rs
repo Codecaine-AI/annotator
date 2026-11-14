@@ -343,7 +343,11 @@ fn events(bundle: &ScrawlBundle) -> Vec<(u64, String)> {
         out.extend(line);
     }
     out.extend(drags.map(DragRun::line));
-    out.extend(window_changes(&bundle.windows));
+    // Area captures log windows too (for their apps list), but the summary keeps its
+    // Screen-only window lines.
+    if bundle.target.mode == crate::model::CaptureMode::Display {
+        out.extend(window_changes(&bundle.windows));
+    }
     out.extend(bundle.context_changes.iter().map(|change| {
         let text = match &change.value {
             Some(value) => format!("{} → {}", one_line(&change.key), one_line(value)),
@@ -580,7 +584,7 @@ fn window_changes(snapshots: &[WindowSnapshot]) -> Vec<(u64, String)> {
         snapshot
             .windows
             .iter()
-            .filter(|w| w.layer == 0 && w.regular && w.app != "Scrawl")
+            .filter(|w| w.layer == 0 && w.regular && w.app != "Annotator")
             .map(|w| (w.id, w.app.clone()))
             .collect()
     };
@@ -847,6 +851,7 @@ mod tests {
             said: (!said.is_empty()).then(|| said.into()),
             mark_id: None,
             cursor: None,
+            appshot: None,
         }
     }
 

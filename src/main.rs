@@ -1,4 +1,6 @@
 mod agent_context;
+mod app_identity;
+mod appshot;
 mod audio;
 mod autocrop;
 // Windows looks elements up through UI Automation (`win/uia.rs`); other systems have no lookup.
@@ -12,6 +14,7 @@ mod capture;
 #[cfg_attr(target_os = "windows", path = "win/command_line.rs")]
 mod command_line;
 mod command_transcriber;
+mod deepgram;
 mod delivery;
 mod export;
 #[cfg(test)]
@@ -20,12 +23,14 @@ mod handoff;
 #[cfg_attr(target_os = "windows", path = "win/helper.rs")]
 mod helper;
 mod hex;
+mod history;
 mod icons;
 mod inbox;
 mod ingest_http;
 mod keyframes;
 #[cfg(target_os = "macos")]
 mod laser_overlay;
+mod live_audio;
 mod live_transcribe;
 mod mic;
 mod model;
@@ -33,10 +38,12 @@ mod native;
 mod onboarding;
 mod onboarding_window;
 mod page;
+mod pause;
 mod phone;
 // Lowers the output volume while recording on macOS; elsewhere a no-op.
 #[cfg_attr(not(target_os = "macos"), path = "win/playback.rs")]
 mod playback;
+mod privacy;
 mod recover;
 mod render;
 mod retention;
@@ -87,7 +94,7 @@ struct Cli {
 
 fn parse_engine(name: &str) -> Result<crate::transcribe::Engine, String> {
     crate::transcribe::Engine::parse(name)
-        .ok_or_else(|| "expected `apple`, `hex` or `command`".to_owned())
+        .ok_or_else(|| "expected `deepgram`, `apple`, `hex` or `command`".to_owned())
 }
 
 /// `scrawl hex status`: connection, models and what the next recording would use.
@@ -102,7 +109,22 @@ fn hex_status() {
             Err(unusable) => println!("Command: not usable ({unusable})"),
         }
     }
+    if preferred == transcribe::Engine::Deepgram {
+        // Whether a key is there, never the key.
+        let key = if deepgram::key().is_some() {
+            "found"
+        } else {
+            "missing"
+        };
+        println!("Deepgram key: {key}");
+        if let Some(reason) = transcribe::deepgram_fallback() {
+            println!("Last Deepgram fallback: {reason}");
+        }
+    }
     let next = |hex_model: Option<&str>| match (preferred, hex_model, &command) {
+        (transcribe::Engine::Deepgram, _, _) if deepgram::key().is_some() => {
+            deepgram::TITLE.to_owned()
+        }
         (transcribe::Engine::Command, _, Ok(program)) => format!("Command ({})", program.name()),
         (transcribe::Engine::Hex, Some(model), _) => format!("Hex ({model})"),
         _ => transcribe::LOCAL_ENGINE_TITLE.to_owned(),
@@ -273,7 +295,8 @@ enum Command {
         /// Copy the summary to the clipboard.
         #[arg(long)]
         clipboard: bool,
-        /// Transcribe with `apple`, `hex` or `command` instead of the configured transcriber.
+        /// Transcribe with `deepgram`, `apple`, `hex` or `command` instead of the configured
+        /// transcriber.
         #[arg(long, value_parser = parse_engine)]
         transcriber: Option<crate::transcribe::Engine>,
     },
@@ -311,11 +334,12 @@ enum Command {
         /// many times real time first, as if recording, so the finish only transcribes the tail.
         #[arg(long, hide = true, requires = "bench")]
         live_speed: Option<f64>,
-        /// Transcribe with `apple`, `hex` or `command` instead of the configured transcriber.
+        /// Transcribe with `deepgram`, `apple`, `hex` or `command` instead of the configured
+        /// transcriber.
         #[arg(long, value_parser = parse_engine)]
         transcriber: Option<crate::transcribe::Engine>,
         /// Turn an experiment on for this run, as `"experiments"` in `config.json` would
-        /// (e.g. `agentContext`). Repeatable.
+        /// (e.g. `liveTranscribe`; `agentContext` turns app state on). Repeatable.
         #[arg(long = "experiment", value_name = "NAME")]
         experiments: Vec<String>,
     },
@@ -365,7 +389,8 @@ enum Command {
         /// was drawn on, and id, for `scrawl zoom --mark`.
         #[arg(long)]
         marks: bool,
-        /// Turn an experiment on for this summary (e.g. `agentContext`). Repeatable.
+        /// Turn an experiment on for this summary (`agentContext` turns app state on).
+        /// Repeatable.
         #[arg(long = "experiment", value_name = "NAME")]
         experiments: Vec<String>,
     },
@@ -409,6 +434,19 @@ enum Command {
         /// Show the whole screen even when the bundle's keyframes are auto-cropped.
         #[arg(long)]
         full: bool,
+    },
+    /// Print the app state saved with a capture: the app, window title, URL and text outline of
+    /// the window each keyframe shows (an app shot). Without `--frame` it lists the keyframes.
+    Appshot {
+        /// A capture's id, the path to its `.scrawl` folder, or `latest`.
+        #[arg(default_value = "latest")]
+        bundle: PathBuf,
+        /// The keyframe to print, by its number (`--frame 2` for #2).
+        #[arg(long)]
+        frame: Option<usize>,
+        /// Print JSON.
+        #[arg(long)]
+        json: bool,
     },
     /// Export a bundle's recording as one shareable .mp4: H.264 video cropped to the activity
     /// with the ink and click ripples burned in, AAC audio in sync, and optionally Screen
@@ -589,13 +627,13 @@ enum Command {
         #[arg(long)]
         session: Option<String>,
         /// Ingest port used when discovering default Tailscale / LAN URLs.
-        #[arg(long, default_value_t = phone::DEFAULT_INGEST_PORT)]
+        #[arg(long, default_value_t = app_identity::Variant::current().ingest_port())]
         port: u16,
     },
     /// Run the headless ScrawlKit ingest server (HTTP + optional USB watcher, no GUI or clipboard).
     Serve {
         /// TCP port to listen on.
-        #[arg(long, default_value_t = phone::DEFAULT_INGEST_PORT)]
+        #[arg(long, default_value_t = app_identity::Variant::current().ingest_port())]
         port: u16,
         /// Also poll cabled iPhones over USB (`devicectl`) for apps listed in `usbApps`.
         #[arg(long)]
@@ -792,6 +830,9 @@ pub struct SourceExtras {
     pub full_frames: Option<FullFrames>,
     pub prepared: Option<PreparedVisuals>,
     pub timings: StageTimings,
+    /// The capture's app shots (`appshot`): the walker's spool, or an older bundle's
+    /// `appshots/` when it is rebuilt. Each keyframe gets its shot before the summary is made.
+    pub appshots: Option<appshot::Shots>,
 }
 
 /// Decodes frames at these times at full quality.
@@ -873,7 +914,11 @@ pub fn finalize_capture_bundle(
     recorded_audio: Option<RecordedAudio>,
     note: Option<String>,
     activity: windows::ActivityLog,
+    appshots: Option<appshot::Shots>,
 ) -> Result<(PathBuf, ScrawlBundle, String)> {
+    // Before anything is written (`recover.json` holds the target too).
+    let mut target = target;
+    privacy::target(&mut target);
     let started_at = activity
         .stop_started
         .unwrap_or_else(std::time::Instant::now);
@@ -980,6 +1025,7 @@ pub fn finalize_capture_bundle(
         note,
         SourceExtras {
             activity,
+            appshots,
             video_offset_ms,
             autocrop: Some(crop_settings),
             full_frames: video_path
@@ -1001,9 +1047,14 @@ pub fn finalize_capture_bundle(
 }
 
 /// Builds a Screen capture's bundle in `out`, which holds its video and `audio.wav`, from them
-/// and what the recording logged: `scrawl reprocess` and `scrawl recover`.
-pub fn rebuild_screen_bundle(out: &Path, old: recover::Unfinished) -> Result<String> {
-    rebuild_screen_bundle_with(out, old, None, &recover::Media::SYSTEM)
+/// and what the recording logged: `scrawl reprocess` and `scrawl recover`. `appshots` are the
+/// older bundle's app shots (`scrawl reprocess`), which the new keyframes are matched to.
+pub fn rebuild_screen_bundle(
+    out: &Path,
+    old: recover::Unfinished,
+    appshots: Option<appshot::Shots>,
+) -> Result<String> {
+    rebuild_screen_bundle_with(out, old, None, appshots, &recover::Media::SYSTEM)
 }
 
 /// `autocrop` as in `SourceExtras`: `None` follows the config, `Some(None)` keeps the whole frame.
@@ -1011,6 +1062,7 @@ pub fn rebuild_screen_bundle_with(
     out: &Path,
     old: recover::Unfinished,
     autocrop: Option<Option<autocrop::Settings>>,
+    appshots: Option<appshot::Shots>,
     media: &recover::Media,
 ) -> Result<String> {
     let started_at = std::time::Instant::now();
@@ -1065,6 +1117,7 @@ pub fn rebuild_screen_bundle_with(
             full_frames,
             video_offset_ms: offset,
             autocrop,
+            appshots,
             timings: StageTimings {
                 started_at: Some(started_at),
                 candidates_ms: Some(candidates_ms),
@@ -1097,6 +1150,9 @@ pub fn build_bundle_from_parts(
     note: Option<String>,
     extras: SourceExtras,
 ) -> Result<(PathBuf, ScrawlBundle, String)> {
+    // Every bundle's target goes through the privacy policy, a rebuilt older one included.
+    let mut target = target;
+    privacy::target(&mut target);
     let total_started = extras
         .timings
         .started_at
@@ -1261,7 +1317,8 @@ pub fn build_bundle_from_parts(
         .exists()
         .then(|| "audio.wav".to_string());
 
-    let bundle = ScrawlBundle {
+    let appshots = extras.appshots.take();
+    let mut bundle = ScrawlBundle {
         version: 1,
         id,
         created_at_ms: now_epoch_ms(),
@@ -1287,6 +1344,12 @@ pub fn build_bundle_from_parts(
         autocrop,
         destination: None,
     };
+    // App shots go into `appshots/` and onto their keyframes before the summary names them.
+    if let Some(shots) = appshots
+        && let Err(error) = shots.store(bundle_dir, &mut bundle)
+    {
+        capture::scrawl_log(format!("App shots could not be stored: {error:#}"));
+    }
     let summary = summary_markdown(&bundle, bundle_dir);
 
     match output {
@@ -1659,19 +1722,22 @@ fn main() -> Result<()> {
             std::fs::create_dir_all(&bundle_dir)?;
             let video_path = bundle_dir.join("recording.mp4");
             let playback = playback::Guard::start();
-            let audio = AudioRecorder::start().ok();
+            let audio = AudioRecorder::start(std::time::Instant::now()).ok();
             let session = ScreenCaptureSession::start(
                 target.clone(),
                 Some(video_path),
                 std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
             );
-            let window_log = (target.mode == CaptureMode::Display).then(|| {
-                windows::WindowLogger::start(
-                    target.frame,
-                    std::time::Instant::now(),
-                    std::sync::Arc::default(),
-                )
-            });
+            let window_log = matches!(target.mode, CaptureMode::Display | CaptureMode::Region)
+                .then(|| {
+                    windows::WindowLogger::start(
+                        target.frame,
+                        target.mode,
+                        std::time::Instant::now(),
+                        std::sync::Arc::default(),
+                        None,
+                    )
+                });
             std::thread::sleep(Duration::from_secs(duration.max(1)));
             drop(playback);
             let recording = session.stop();
@@ -1688,6 +1754,7 @@ fn main() -> Result<()> {
                 recorded_audio,
                 note,
                 activity,
+                None,
             )?;
             print!("{summary}");
             Ok(())
@@ -1870,6 +1937,7 @@ fn main() -> Result<()> {
                             recorded,
                             iter_note,
                             iter_activity,
+                            None,
                         )?;
                         let _ = handoff::copy_bundle_to_clipboard(&iter_out);
                         runs_ms.push(t0.elapsed().as_secs_f64() * 1_000.0);
@@ -1899,6 +1967,8 @@ fn main() -> Result<()> {
             if timeline_src.is_file() {
                 let _ = std::fs::copy(&timeline_src, out.join("timeline.json"));
             }
+            // The older bundle's app shots go with it: the new keyframes are matched to them.
+            let appshots = appshot::Shots::load(&dir);
             let summary = if let Some(device) = old.device.clone() {
                 phone::build_movie_bundle(
                     &out,
@@ -1940,6 +2010,7 @@ fn main() -> Result<()> {
                         windows: old.windows,
                         cursor: old.cursor,
                     },
+                    appshots,
                 )?
             };
             print!("{summary}");
@@ -2190,6 +2261,19 @@ fn main() -> Result<()> {
                 eprintln!();
             }
             println!("{}", export::describe(&exported?));
+            Ok(())
+        }
+        Command::Appshot {
+            bundle,
+            frame,
+            json,
+        } => {
+            let (dir, loaded) = handoff::load_bundle(&bundle)?;
+            let (text, code) = appshot::report(&dir, &loaded, frame, json);
+            print!("{text}");
+            if code != 0 {
+                std::process::exit(code);
+            }
             Ok(())
         }
         Command::Zoom {
@@ -2487,6 +2571,7 @@ mod tests {
             said: None,
             mark_id: None,
             cursor: None,
+            appshot: None,
         };
         let small = |t: u64| RgbaFrame::new(t, 32, 32, vec![10; 32 * 32 * 4]);
         let large = |t: u64| RgbaFrame::new(t, 160, 160, vec![200; 160 * 160 * 4]);

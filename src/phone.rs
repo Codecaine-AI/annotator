@@ -53,6 +53,9 @@ pub struct PhoneSession {
     session_epoch_ms: u64,
     /// Held while the mirror records (not while it only previews).
     busy: Option<crate::retention::Recording>,
+    /// The Mac's microphone again while recording, only for the capsule's live waveform and words:
+    /// the helper records the narration into the movie, where Scrawl can't hear it until the end.
+    listen: Option<crate::audio::AudioRecorder>,
 }
 
 pub struct PhoneRecording {
@@ -62,6 +65,24 @@ pub struct PhoneRecording {
     pub offset_ms: u64,
     /// M presses in the mirror, on the movie's clock.
     pub flags: Vec<u64>,
+}
+
+impl PhoneRecording {
+    /// Takes a paused recording's pauses (`cuts`, on Scrawl's session clock) out of the movie,
+    /// video and narration alike, and moves the M presses with it. The movie is left whole on
+    /// an error, and the capture fails rather than keep what was paused.
+    pub fn cut(&mut self, cuts: &crate::pause::Cuts) -> Result<()> {
+        if cuts.is_empty() {
+            return Ok(());
+        }
+        let on_movie = cuts.on_clock_from(self.offset_ms);
+        on_movie
+            .cut_movie(&self.movie)
+            .context("The paused iPhone recording could not be cut")?;
+        on_movie.cut_moments(&mut self.flags, |flag| flag);
+        self.offset_ms = cuts.shift(self.offset_ms);
+        Ok(())
+    }
 }
 
 #[derive(Deserialize)]
@@ -265,6 +286,10 @@ impl PhoneSession {
             cancelled,
             started_at: Instant::now(),
             session_epoch_ms,
+            listen: recording
+                .is_some()
+                .then(crate::audio::AudioRecorder::listen)
+                .flatten(),
             busy: recording,
         })
     }
@@ -275,6 +300,7 @@ impl PhoneSession {
         self.session_epoch_ms = crate::now_epoch_ms();
         self.busy
             .get_or_insert_with(crate::retention::Recording::start);
+        self.listen = crate::audio::AudioRecorder::listen();
         {
             let mut state = self.lock();
             state.recording_epoch_ms = None;
@@ -378,6 +404,7 @@ impl PhoneSession {
 
     /// Stops recording and waits for the helper to finalize the movie.
     pub fn stop(mut self) -> Result<PhoneRecording> {
+        self.listen.take();
         self.send("stop");
         self.wait(Duration::from_secs(15));
         let state = std::mem::take(&mut *self.lock());
@@ -1049,8 +1076,6 @@ pub fn import(
     )
 }
 
-pub const DEFAULT_INGEST_PORT: u16 = 47777;
-
 pub type IngestCallback = Arc<dyn Fn(PathBuf, ScrawlBundle, Option<String>) + Send + Sync>;
 
 #[derive(Clone, Default)]
@@ -1259,7 +1284,10 @@ pub fn start_ingest_server(ui_sender: flume::Sender<LiveOverlayEvent>) {
     let _ = std::thread::Builder::new()
         .name("scrawl-ingest-http".into())
         .spawn(move || {
-            if let Err(err) = serve_http(DEFAULT_INGEST_PORT, http_cfg) {
+            if let Err(err) = serve_http(
+                crate::app_identity::Variant::current().ingest_port(),
+                http_cfg,
+            ) {
                 scrawl_log(format!("ingest server: {err:#}"));
             }
         });

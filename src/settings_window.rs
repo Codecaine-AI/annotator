@@ -164,6 +164,7 @@ struct ViewState {
     auto_send: bool,
     shortcuts: Vec<Shortcut>,
     transcriber: Transcriber,
+    app_state: bool,
     video_export: bool,
     retention: Retention,
     captures_size: Option<String>,
@@ -171,6 +172,13 @@ struct ViewState {
     updates: bool,
     skill_command: String,
 }
+
+/// Under Save app state. App shots (the window's text at each keyframe) are macOS only.
+const APP_STATE_CAPTION: &str = if cfg!(target_os = "macos") {
+    "Saves what is under each click and mark, and the window's text at each keyframe. It stays with the capture, also after the video is cleaned."
+} else {
+    "Saves what is under each click and mark."
+};
 
 impl ViewState {
     fn recording(&self) -> Option<ShortcutKind> {
@@ -326,7 +334,7 @@ fn open(request: Request, cx: &mut App) {
         WindowOptions {
             window_bounds: Some(WindowBounds::Windowed(bounds)),
             titlebar: Some(gpui::TitlebarOptions {
-                title: Some("Scrawl Settings".into()),
+                title: Some("Annotator Settings".into()),
                 appears_transparent: true,
                 traffic_light_position: Some(point(px(20.0), px(20.0))),
             }),
@@ -337,7 +345,7 @@ fn open(request: Request, cx: &mut App) {
             is_resizable: false,
             is_minimizable: true,
             window_background: WindowBackgroundAppearance::Opaque,
-            app_id: Some("dev.kitlangton.scrawl".into()),
+            app_id: Some(crate::app_identity::Variant::current().bundle_id().into()),
             ..Default::default()
         },
         move |window, cx| {
@@ -817,7 +825,7 @@ impl SettingsWindow {
                             .child(self.item(theme, Pane::Permissions, cx))
                             .child(self.item(theme, Pane::Agents, cx)),
                     )
-                    .child(section("Scrawl"))
+                    .child(section("Annotator"))
                     .child(self.item(theme, Pane::About, cx)),
             )
     }
@@ -941,16 +949,16 @@ impl SettingsWindow {
             column = column.child(caption(
                 theme,
                 if WINDOWS {
-                    "Turn Scrawl on in Settings › Apps › Startup."
+                    "Turn Annotator on in Settings › Apps › Startup."
                 } else {
-                    "Allow Scrawl in System Settings › General › Login Items."
+                    "Allow Annotator in System Settings › General › Login Items."
                 },
                 false,
             ));
         } else if !state.login.available {
             column = column.child(caption(
                 theme,
-                "Launch at login works in the installed Scrawl.app.",
+                "Launch at login works in the installed Annotator.app.",
                 false,
             ));
         }
@@ -979,6 +987,8 @@ impl SettingsWindow {
             error.clone()
         } else if kind == ShortcutKind::Paste {
             "Pastes the last capture into the app in front.".to_owned()
+        } else if kind == ShortcutKind::Undo {
+            "Takes back the last stroke while you record.".to_owned()
         } else {
             "Records the screen. Press again to finish.".to_owned()
         };
@@ -1209,7 +1219,7 @@ impl SettingsWindow {
                 "Parakeet runs on this PC and times each word. Hex uses a model you have in Hex, and its word times are estimates."
             }
             (true, false) => {
-                "Parakeet runs on this PC and times each word. Scrawl downloads its 730 MB model once, unless Hex already has it. Hex shows up here while Hex is running."
+                "Parakeet runs on this PC and times each word. Annotator downloads its 730 MB model once, unless Hex already has it. Hex shows up here while Hex is running."
             }
             (false, true) => {
                 "Apple Speech times each word. Hex uses a model you have in Hex, and its word times are estimates."
@@ -1229,7 +1239,7 @@ impl SettingsWindow {
             )),
             "failed" => Some((
                 format!(
-                    "The speech model couldn't be downloaded{}. Scrawl tries again in a few minutes.",
+                    "The speech model couldn't be downloaded{}. Annotator tries again in a few minutes.",
                     t.speech
                         .error
                         .as_deref()
@@ -1241,6 +1251,7 @@ impl SettingsWindow {
             _ => None,
         };
         let video = state.video_export;
+        let app_state = state.app_state;
         div()
             .flex()
             .flex_col()
@@ -1249,6 +1260,24 @@ impl SettingsWindow {
             .when_some(speech, |pane, (text, error)| {
                 pane.child(caption(theme, &text, error))
             })
+            .child(header(theme, "For agents"))
+            .child(group(
+                theme,
+                vec![
+                    row(
+                        theme,
+                        "Save app state",
+                        true,
+                        switch(theme, "settings-app-state", app_state, true).on_click(cx.listener(
+                            move |view, _, _, _| {
+                                view.set("appState", (!app_state).into());
+                            },
+                        )),
+                    )
+                    .into_any_element(),
+                ],
+            ))
+            .child(caption(theme, APP_STATE_CAPTION, false))
             .child(header(theme, "Experimental"))
             .child(group(
                 theme,
@@ -1369,9 +1398,9 @@ impl SettingsWindow {
             column = column.child(group(theme, required_rows)).child(caption(
                 theme,
                 if WINDOWS {
-                    "Scrawl needs the microphone to hear you. Recording the screen, clicks and shortcuts need no permission on Windows."
+                    "Annotator needs the microphone to hear you. Recording the screen, clicks and shortcuts need no permission on Windows."
                 } else {
-                    "Scrawl needs these three to record."
+                    "Annotator needs these three to record."
                 },
                 false,
             ));
@@ -1452,7 +1481,7 @@ impl SettingsWindow {
         let granted = row.status == Status::Granted;
         let id = SharedString::from(format!("settings-grant-{permission:?}"));
         let trailing: AnyElement = if granted && row.relaunch {
-            button(theme, id, "Reopen Scrawl", true)
+            button(theme, id, "Reopen Annotator", true)
                 .on_click(cx.listener(|view, _, _, _| view.act(Action::Reopen)))
                 .into_any_element()
         } else if granted {
@@ -1607,7 +1636,7 @@ impl SettingsWindow {
                                     .text_size(px(14.0))
                                     .font_weight(FontWeight::SEMIBOLD)
                                     .text_color(theme.text())
-                                    .child("Scrawl"),
+                                    .child("Annotator"),
                             )
                             .child(
                                 div()
@@ -1635,7 +1664,7 @@ impl SettingsWindow {
         if !state.updates {
             column = column.child(caption(
                 theme,
-                "Updates work in the installed Scrawl.app.",
+                "Updates work in the installed Annotator.app.",
                 false,
             ));
         }

@@ -3,7 +3,8 @@
 //! console errors and failed requests to `/web/context`. The app keeps the last few minutes per
 //! tab; when a capture finishes, `apply` names its clicks and strokes from them and adds the rest
 //! as app events. Pages never send request bodies, headers, cookies, query strings or what was
-//! typed into a field; every string is cut short again here.
+//! typed into a field; every string is cut short again here and loses any URL's query and
+//! fragment (`crate::privacy`), and a field's text is dropped again here (`sanitize`).
 
 use std::collections::VecDeque;
 use std::sync::Mutex;
@@ -34,8 +35,16 @@ pub struct Target {
     pub id: Option<String>,
     #[serde(default)]
     pub cls: Option<String>,
+    /// What the element shows. Never kept for a field.
     #[serde(default)]
     pub text: Option<String>,
+    /// The page says this is a field (an input, a text area, an editable element): its text is
+    /// what was typed there.
+    #[serde(default)]
+    pub field: bool,
+    /// A field's name as its developer wrote it (`aria-label`, placeholder, `name`).
+    #[serde(default)]
+    pub name: Option<String>,
     #[serde(default)]
     pub component: Option<String>,
     /// `src/ui/Pill.tsx:142`.
@@ -95,17 +104,9 @@ pub struct Post {
     pub events: Vec<Event>,
 }
 
+/// One line of at most `max` characters, URLs in it without their query (`privacy::clip`).
 fn clip(raw: &str, max: usize) -> Option<String> {
-    let compact = raw.split_whitespace().collect::<Vec<_>>().join(" ");
-    if compact.is_empty() {
-        return None;
-    }
-    Some(if compact.chars().count() <= max {
-        compact
-    } else {
-        let cut: String = compact.chars().take(max - 1).collect();
-        format!("{}…", cut.trim_end())
-    })
+    crate::privacy::clip(raw, max)
 }
 
 fn clip_opt(value: Option<String>, max: usize) -> Option<String> {
@@ -124,18 +125,28 @@ fn sanitize(event: Event, now: u64) -> Option<Event> {
     if !kinds.contains(&event.kind.as_str()) || event.t + KEEP_MS < now || event.t > now + 5_000 {
         return None;
     }
-    let target = event.target.map(|t| Target {
-        tag: t
+    let target = event.target.map(|t| {
+        let tag: String = t
             .tag
             .chars()
             .filter(char::is_ascii_alphanumeric)
             .take(20)
-            .collect(),
-        id: clip_opt(t.id, MAX_TEXT),
-        cls: clip_opt(t.cls, MAX_TEXT),
-        text: clip_opt(t.text, MAX_TEXT),
-        component: clip_opt(t.component, MAX_TEXT),
-        source: clip_opt(t.source, 120),
+            .collect();
+        // Text from a field is what was typed there, whatever sent it: it is dropped here too.
+        let field = t.field
+            || ["input", "textarea", "select"]
+                .iter()
+                .any(|name| tag.eq_ignore_ascii_case(name));
+        Target {
+            tag,
+            id: clip_opt(t.id, MAX_TEXT),
+            cls: clip_opt(t.cls, MAX_TEXT),
+            text: clip_opt(t.text.filter(|_| !field), MAX_TEXT),
+            field,
+            name: clip_opt(t.name.filter(|_| field), MAX_TEXT),
+            component: clip_opt(t.component, MAX_TEXT),
+            source: clip_opt(t.source, 120),
+        }
     });
     let media = event.media.map(|m| Media {
         src: clip(&m.src, MAX_TEXT).unwrap_or_default(),
@@ -272,7 +283,7 @@ pub fn describe(target: &Target) -> String {
     }
     element.push('>');
     let mut parts = vec![element];
-    if let Some(text) = &target.text {
+    if let Some(text) = target.text.as_ref().or(target.name.as_ref()) {
         parts.push(format!("“{text}”"));
     }
     match (&target.component, &target.source) {
@@ -424,7 +435,104 @@ mod tests {
             text: Some("New tab".into()),
             component: Some("BrowserHeader".into()),
             source: Some("src/BrowserHeader.tsx:88".into()),
+            ..Target::default()
         }
+    }
+
+    #[test]
+    fn privacy_page_events_keep_no_url_query() {
+        let now = 1_000_000;
+        let marked = |text: &str| {
+            Some(format!(
+                "{text} http://localhost:3000/x?token=SECRET-MARKER-URL#SECRET-MARKER"
+            ))
+        };
+        let kept = sanitize(
+            Event {
+                message: marked("Failed to load"),
+                source: marked("at"),
+                path: Some("/api/reset?token=SECRET-MARKER-URL".into()),
+                target: Some(Target {
+                    text: marked("Open"),
+                    source: marked("src/App.tsx:4"),
+                    id: marked("id"),
+                    cls: marked("cls"),
+                    component: marked("App"),
+                    ..button()
+                }),
+                media: Some(Media {
+                    src: "clip.mp4?sig=SECRET-MARKER-URL".into(),
+                    ..Media::default()
+                }),
+                event: Some("play".into()),
+                ..event(now, "media")
+            },
+            now,
+        )
+        .unwrap();
+        let stored = format!("{kept:?}");
+        assert!(!stored.contains("SECRET-MARKER"), "{stored}");
+        assert_eq!(
+            kept.message.as_deref(),
+            Some("Failed to load http://localhost:3000/x")
+        );
+        assert_eq!(kept.source.as_deref(), Some("at http://localhost:3000/x"));
+        let target = kept.target.unwrap();
+        assert_eq!(target.text.as_deref(), Some("Open http://localhost:3000/x"));
+        assert_eq!(
+            target.source.as_deref(),
+            Some("src/App.tsx:4 http://localhost:3000/x")
+        );
+        assert_eq!(kept.media.unwrap().src, "clip.mp4");
+        assert_eq!(kept.path.as_deref(), Some("/api/reset"));
+    }
+
+    #[test]
+    fn privacy_page_events_keep_no_text_from_a_field() {
+        let now = 1_000_000;
+        // What a page could send for a field: text is what was typed there.
+        let fields = [
+            serde_json::json!({"tag": "span", "id": "nick", "field": true}),
+            serde_json::json!({"tag": "label", "field": true}),
+            serde_json::json!({"tag": "input", "id": "name"}),
+            serde_json::json!({"tag": "TEXTAREA"}),
+            serde_json::json!({"tag": "select"}),
+        ];
+        let events: Vec<serde_json::Value> = fields
+            .into_iter()
+            .map(|mut target| {
+                target["text"] = "SECRET-MARKER-INPUT".into();
+                target["name"] = "Nickname".into();
+                serde_json::json!({"t": now, "kind": "pointer", "target": target})
+            })
+            .chain([serde_json::json!({
+                "t": now, "kind": "pointer",
+                "target": {"tag": "button", "text": "Save", "name": "ignored"}
+            })])
+            .collect();
+        let post: Post =
+            serde_json::from_value(serde_json::json!({"tab": "t1", "events": events})).unwrap();
+        let mut log = Log::default();
+        log.record("http://localhost:5173", post, now);
+        let kept = &log.tabs[0].events;
+        assert_eq!(kept.len(), 6);
+        assert!(!format!("{kept:?}").contains("SECRET-MARKER"), "{kept:?}");
+        // A field keeps the name its developer wrote; anything else keeps its text.
+        let seen: Vec<String> = kept
+            .iter()
+            .map(|event| describe(event.target.as_ref().unwrap()))
+            .collect();
+        assert_eq!(
+            seen,
+            [
+                "<span#nick> “Nickname”",
+                "<label> “Nickname”",
+                "<input#name> “Nickname”",
+                "<TEXTAREA> “Nickname”",
+                "<select> “Nickname”",
+                "<button> “Save”",
+            ]
+        );
     }
 
     #[test]

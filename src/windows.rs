@@ -1,4 +1,4 @@
-//! Window geometry and cursor log for Screen-mode captures.
+//! Window geometry and cursor log for Screen and Area captures.
 //!
 //! While a full-screen capture records, a low-rate worker writes down which windows were on
 //! screen (front to back) and where the cursor was, so `scrawl autocrop` can work out which
@@ -14,7 +14,7 @@ use std::time::{Duration, Instant};
 
 use serde::{Deserialize, Serialize};
 
-use crate::model::TargetFrame;
+use crate::model::{CaptureMode, TargetFrame};
 
 /// How often the worker wakes to sample the cursor and check its triggers.
 const TICK: Duration = Duration::from_millis(66);
@@ -75,6 +75,15 @@ pub struct ActivityLog {
 }
 
 impl ActivityLog {
+    /// Takes a paused recording's pauses out (`crate::pause`): the recording resumes on the
+    /// windows as they were when it resumed, and the cursor's samples from a pause are dropped.
+    pub fn cut(&mut self, cuts: &crate::pause::Cuts) {
+        cuts.cut_states(&mut self.windows, |snapshot| &mut snapshot.t);
+        self.windows
+            .dedup_by(|next, last| next.windows == last.windows);
+        cuts.cut_moments(&mut self.cursor, |sample| &mut sample.0);
+    }
+
     /// Stores a snapshot unless the window list is identical to the last stored one.
     pub fn push_windows(&mut self, t: u64, windows: Vec<WindowEntry>) -> bool {
         if self
@@ -182,9 +191,10 @@ pub fn filter_windows(
         out.push(WindowEntry {
             id: w.id,
             app: w.owner.clone(),
+            // Titles go through the privacy policy: no URL query, none for a password manager.
+            title: crate::privacy::window_title(meta.bundle_id.as_deref(), &w.title),
             bundle_id: meta.bundle_id,
             regular: meta.regular,
-            title: w.title.clone(),
             bounds: [
                 (x - frame.x).round() as i32,
                 (y - frame.y).round() as i32,
@@ -196,6 +206,41 @@ pub fn filter_windows(
         });
     }
     out
+}
+
+/// The window a capture was about in one snapshot: for a Screen capture the frontmost app's
+/// window (the entry marked `frontmost`), for an Area capture the first normal window of a
+/// regular app in front-to-back order (snapshots hold only windows that overlap the region).
+/// Window and iPhone captures have one subject already, so they get `None`.
+pub fn top_window(snapshot: &WindowSnapshot, mode: CaptureMode) -> Option<&WindowEntry> {
+    let mut windows = snapshot.windows.iter();
+    match mode {
+        CaptureMode::Display => windows.find(|w| w.frontmost),
+        CaptureMode::Region => windows.find(|w| w.layer == 0 && w.regular),
+        CaptureMode::Window | CaptureMode::Device => None,
+    }
+}
+
+/// `top_window` for a live window list (`raw_windows()`, front to back): the same filters as the
+/// window log (`filter_windows`: own windows, invisible and tiny ones, layers, `app_meta`), then
+/// the same rule, over `region` (global points).
+#[cfg_attr(not(any(test, target_os = "macos")), allow(dead_code))] // App shots are macOS only.
+pub fn top_raw_window(
+    raw: &[RawWindow],
+    region: TargetFrame,
+    mode: CaptureMode,
+    own_pid: i32,
+    frontmost_pid: Option<i32>,
+    app_meta: &mut dyn FnMut(i32) -> AppMeta,
+) -> Option<WindowEntry> {
+    let windows = filter_windows(raw, region, own_pid, frontmost_pid, None, app_meta);
+    top_window(&WindowSnapshot { t: 0, windows }, mode).cloned()
+}
+
+/// What an app shot is taken of at one moment: the capture's top window and its title. When
+/// this changes, the window log asks for a new shot (`crate::appshot`).
+pub fn top_key(snapshot: &WindowSnapshot, mode: CaptureMode) -> Option<(u32, String)> {
+    top_window(snapshot, mode).map(|w| (w.id, w.title.clone()))
 }
 
 /// Apps whose windows are macOS asking the user something, never what a capture is about:
@@ -385,7 +430,7 @@ pub fn raw_windows() -> Vec<RawWindow> {
 }
 
 #[cfg(target_os = "windows")]
-fn app_meta_of(pid: i32) -> AppMeta {
+pub(crate) fn app_meta_of(pid: i32) -> AppMeta {
     let id = crate::win::app_identity(pid as u32).map(|(_, id)| id);
     let regular = crate::win::top_level_windows()
         .iter()
@@ -449,7 +494,7 @@ pub fn snapshot(
 }
 
 #[cfg(target_os = "macos")]
-fn app_meta_of(pid: i32) -> AppMeta {
+pub(crate) fn app_meta_of(pid: i32) -> AppMeta {
     use objc2_app_kit::{NSApplicationActivationPolicy, NSRunningApplication};
     match NSRunningApplication::runningApplicationWithProcessIdentifier(pid) {
         Some(app) => AppMeta {
@@ -526,7 +571,7 @@ pub fn snapshot(
     })
 }
 
-/// Background worker that logs windows and the cursor during a Screen-mode capture.
+/// Background worker that logs windows and the cursor during a Screen or Area capture.
 ///
 /// Snapshots are taken at the start, right after `request` is raised (click, ink or laser
 /// start), when the frontmost app changes, at most every 500 ms while the cursor moves, every
@@ -536,15 +581,35 @@ pub struct WindowLogger {
     worker: Option<JoinHandle<ActivityLog>>,
 }
 
+/// Called when the capture's top window or its title changes (`top_key`): app shots ask for a
+/// shot of the new one.
+pub type TopChanged = Box<dyn Fn() + Send>;
+
 impl WindowLogger {
     /// Call on the main thread, so the Dock's strip can be read from `NSScreen`.
-    pub fn start(frame: TargetFrame, started_at: Instant, request: Arc<AtomicBool>) -> Self {
+    pub fn start(
+        frame: TargetFrame,
+        mode: CaptureMode,
+        started_at: Instant,
+        request: Arc<AtomicBool>,
+        top_changed: Option<TopChanged>,
+    ) -> Self {
         let stopping = Arc::new(AtomicBool::new(false));
         let stop = Arc::clone(&stopping);
         let dock = dock_rect(frame);
         let worker = thread::Builder::new()
             .name("scrawl-window-log".into())
-            .spawn(move || run(frame, dock, started_at, &request, &stop))
+            .spawn(move || {
+                run(
+                    frame,
+                    mode,
+                    dock,
+                    started_at,
+                    &request,
+                    &stop,
+                    top_changed.as_deref(),
+                )
+            })
             .ok();
         Self { stopping, worker }
     }
@@ -583,12 +648,15 @@ impl Drop for WindowLogger {
 
 fn run(
     frame: TargetFrame,
+    mode: CaptureMode,
     dock: Option<[f64; 4]>,
     started_at: Instant,
     request: &AtomicBool,
     stopping: &AtomicBool,
+    top_changed: Option<&(dyn Fn() + Send)>,
 ) -> ActivityLog {
     let mut log = ActivityLog::default();
+    let mut last_top = None;
     let mut cache = HashMap::new();
     let mut last_snapshot: Option<Instant> = None;
     let mut last_front = None;
@@ -618,6 +686,13 @@ fn run(
                 || since.is_some_and(|s| s >= IDLE_INTERVAL));
         if due {
             take(&mut log, t);
+            let top = log.windows.last().and_then(|last| top_key(last, mode));
+            if top != last_top {
+                last_top = top;
+                if let Some(changed) = top_changed {
+                    changed();
+                }
+            }
             last_snapshot = Some(Instant::now());
             last_front = front;
             cursor_at_snapshot = cursor;
@@ -693,6 +768,96 @@ mod tests {
     }
 
     #[test]
+    fn privacy_window_log_titles_lose_url_queries_and_a_password_managers_are_empty() {
+        let window = |id, pid, title: &str| RawWindow {
+            id,
+            pid,
+            owner: format!("App {pid}"),
+            title: title.into(),
+            bounds: [10.0, 10.0, 400.0, 300.0],
+            layer: 0,
+            alpha: 1.0,
+        };
+        let raw = [
+            window(
+                1,
+                10,
+                "Fixture file:///f/appshot-secret.html?token=SECRET-MARKER-URL",
+            ),
+            window(2, 11, "appshot-secret.html?token=SECRET-MARKER-URL"),
+            window(3, 12, "Login SECRET-MARKER — 1Password"),
+            window(4, 13, "Notes"),
+        ];
+        let entries = filter_windows(&raw, frame(), 99, Some(10), None, &mut |pid| AppMeta {
+            bundle_id: Some(
+                if pid == 12 {
+                    "com.1password.1password"
+                } else {
+                    "com.apple.Safari"
+                }
+                .into(),
+            ),
+            regular: true,
+        });
+        let titles: Vec<&str> = entries.iter().map(|w| w.title.as_str()).collect();
+        assert_eq!(
+            titles,
+            [
+                "Fixture file:///f/appshot-secret.html",
+                "appshot-secret.html",
+                "",
+                "Notes"
+            ]
+        );
+        assert!(
+            !serde_json::to_string(&entries)
+                .unwrap()
+                .contains("SECRET-MARKER")
+        );
+    }
+
+    #[test]
+    fn appshot_trigger_key_changes_with_the_top_window_or_its_title() {
+        let snapshot = |windows: Vec<WindowEntry>| WindowSnapshot { t: 0, windows };
+        let titled = |id, title: &str| WindowEntry {
+            title: title.into(),
+            ..entry(id, 0)
+        };
+        let base = top_key(
+            &snapshot(vec![titled(1, "Inbox"), titled(2, "Notes")]),
+            CaptureMode::Display,
+        );
+        assert_eq!(base, Some((1, "Inbox".into())));
+        // The same window moved, or another window behind it changed: no new shot.
+        let mut moved = titled(1, "Inbox");
+        moved.bounds = [50, 50, 400, 300];
+        assert_eq!(
+            top_key(
+                &snapshot(vec![moved, titled(2, "Other")]),
+                CaptureMode::Display
+            ),
+            base
+        );
+        // A new title (another tab or document), or another window in front: a new shot.
+        assert_ne!(
+            top_key(
+                &snapshot(vec![titled(1, "Sent"), titled(2, "Notes")]),
+                CaptureMode::Display
+            ),
+            base
+        );
+        let mut front = titled(2, "Notes");
+        front.frontmost = true;
+        let mut back = titled(1, "Inbox");
+        back.frontmost = false;
+        assert_eq!(
+            top_key(&snapshot(vec![front, back]), CaptureMode::Display),
+            Some((2, "Notes".into()))
+        );
+        assert_eq!(top_key(&snapshot(Vec::new()), CaptureMode::Display), None);
+    }
+
+    #[test]
     fn window_snapshots_are_stored_only_when_the_list_changes() {
         let mut log = ActivityLog::default();
         assert!(log.push_windows(0, vec![entry(1, 0), entry(2, 100)]));
@@ -713,7 +878,13 @@ mod tests {
     #[test]
     fn logger_snapshots_at_start_and_right_after_a_request() {
         let request = Arc::new(AtomicBool::new(false));
-        let logger = WindowLogger::start(frame(), Instant::now(), Arc::clone(&request));
+        let logger = WindowLogger::start(
+            frame(),
+            CaptureMode::Display,
+            Instant::now(),
+            Arc::clone(&request),
+            None,
+        );
         request.store(true, Ordering::Release);
         // A slow window list (a loaded CI runner) can hold the worker for a while, so wait for
         // the request to be taken instead of sleeping a fixed time. Once it's taken, the snapshot
@@ -762,7 +933,7 @@ mod tests {
             alpha: 1.0,
         };
         let windows = [
-            raw(1, 9, "Scrawl", "", [1000.0, 0.0, 300.0, 300.0], 0),
+            raw(1, 9, "Annotator", "", [1000.0, 0.0, 300.0, 300.0], 0),
             raw(
                 2,
                 10,
@@ -852,10 +1023,100 @@ mod tests {
         assert!(macos_is_asking(&quit_and_reopen));
         // The same alert behind Scrawl's window.
         let behind = [
-            window(11, "Scrawl Helper", [650.0, 145.0, 620.0, 532.0], 0),
+            window(11, "Annotator Helper", [650.0, 145.0, 620.0, 532.0], 0),
             quit_and_reopen[0].clone(),
             settings[0].clone(),
         ];
         assert!(!macos_is_asking(&behind));
+    }
+
+    fn snap(windows: Vec<WindowEntry>) -> WindowSnapshot {
+        WindowSnapshot { t: 0, windows }
+    }
+
+    #[test]
+    fn the_top_window_is_the_frontmost_on_screen_and_the_first_regular_one_over_an_area() {
+        let mut menu_bar = entry(9, 0);
+        menu_bar.app = "Window Server".into();
+        menu_bar.layer = 24;
+        let mut agent = entry(8, 0);
+        agent.app = "Cua Driver".into();
+        agent.regular = false;
+        let mut front = entry(1, 0);
+        front.app = "Safari".into();
+        let mut behind = entry(2, 100);
+        behind.app = "Finder".into();
+        // Safari is the frontmost app but Finder's window is on top of the region.
+        front.frontmost = true;
+        let s = snap(vec![menu_bar, agent, behind.clone(), front.clone()]);
+        assert_eq!(
+            top_window(&s, CaptureMode::Display).map(|w| w.app.as_str()),
+            Some("Safari")
+        );
+        assert_eq!(
+            top_window(&s, CaptureMode::Region).map(|w| w.app.as_str()),
+            Some("Finder")
+        );
+        assert_eq!(top_window(&s, CaptureMode::Window), None);
+        assert_eq!(top_window(&s, CaptureMode::Device), None);
+        // Nothing marked frontmost (Annotator itself was in front): no app for that moment.
+        front.frontmost = false;
+        assert_eq!(
+            top_window(&snap(vec![behind, front]), CaptureMode::Display),
+            None
+        );
+        assert_eq!(top_window(&snap(Vec::new()), CaptureMode::Region), None);
+    }
+
+    #[test]
+    fn the_live_top_window_over_a_region_away_from_the_origin_uses_the_log_filters() {
+        let raw = |id, pid, owner: &str, bounds, layer, alpha| RawWindow {
+            id,
+            pid,
+            owner: owner.into(),
+            title: String::new(),
+            bounds,
+            layer,
+            alpha,
+        };
+        let region = TargetFrame {
+            x: 2000.0,
+            y: 600.0,
+            width: 400.0,
+            height: 300.0,
+            scale: 2.0,
+        };
+        let windows = [
+            raw(1, 7, "Annotator", [2000.0, 600.0, 400.0, 300.0], 0, 1.0), // our own
+            raw(2, 11, "Hidden", [2000.0, 600.0, 400.0, 300.0], 0, 0.0),
+            raw(3, 12, "Elsewhere", [0.0, 0.0, 800.0, 600.0], 0, 1.0),
+            raw(4, 13, "Overlay", [2000.0, 600.0, 400.0, 300.0], 0, 1.0), // an agent app
+            raw(5, 14, "T3 Code", [2100.0, 700.0, 900.0, 700.0], 0, 1.0),
+            raw(6, 15, "Safari", [1800.0, 500.0, 900.0, 700.0], 0, 1.0),
+        ];
+        let mut meta = |pid| AppMeta {
+            bundle_id: None,
+            regular: pid != 13,
+        };
+        let top = top_raw_window(
+            &windows,
+            region,
+            CaptureMode::Region,
+            7,
+            Some(15),
+            &mut meta,
+        )
+        .unwrap();
+        assert_eq!(top.app, "T3 Code");
+        assert_eq!(top.bounds, [100, 100, 900, 700], "in region points");
+        let front = top_raw_window(
+            &windows,
+            region,
+            CaptureMode::Display,
+            7,
+            Some(15),
+            &mut meta,
+        );
+        assert_eq!(front.map(|w| w.app), Some("Safari".to_owned()));
     }
 }

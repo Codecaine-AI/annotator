@@ -4,18 +4,20 @@
 //   scrawl-helper mirror --out FILE.mov [--device ID] [--microphone UID --microphone-name NAME]
 //                                                       live mirror window + native recording (JSON lines)
 //   scrawl-helper transcribe FILE [--locale ID]          SpeechAnalyzer transcript with word timings
-//   scrawl-helper transcribe-stream [--locale ID]        the same while recording: PCM on stdin, JSON lines (LiveTranscribe.swift)
+//   scrawl-helper transcribe-stream [--locale ID] [--volatile [--fast]]   the same while recording: PCM on stdin, JSON lines (LiveTranscribe.swift)
 //   scrawl-helper speech-model [--install] [--locale ID] the speech model's status; install it (JSON lines)
 //   scrawl-helper frames MOVIE --out-dir DIR (--every MS | --at MS,MS…) [--max-edge PX]
 //   scrawl-helper audio MOVIE OUT.wav                   16 kHz mono PCM of every audio track, mixed
 //   scrawl-helper probe MOVIE                           duration and video size
 //   scrawl-helper shrink MOVIE --out FILE.mov [--max-edge PX] [--bitrate BPS]   HEVC copy, same timeline
+//   scrawl-helper cut MOVIE --out FILE --keep FROM-TO[,FROM-TO…]   a copy with only those ranges (ms): a recording without its pauses
 //   scrawl-helper export PLAN.json                      shareable .mp4: crop/camera, burned-in ink, audio (Export.swift)
 //   scrawl-helper permissions                           what Scrawl has been granted, as JSON
 //   scrawl-helper sck-probe [--watch SECONDS]           can this process capture with ScreenCaptureKit (ScreenProbe.swift)
 //   scrawl-helper permission-panel --permission P [--from X,Y,W,H]   drag-to-allow card (PermissionPanel.swift)
 //   scrawl-helper onboarding [--shortcut L] [--render DIR]   the welcome window (Onboarding.swift)
 //   scrawl-helper settings [--pane P] [--render DIR]         the Settings window (Settings.swift)
+//   scrawl-helper play MOVIE [--title T] [--frame X,Y,W,H]   a capture's video in the system player (Player.swift)
 //
 // Every timestamp in the output is integer milliseconds. Scrawl drives the long-running
 // `mirror` command over stdin (`stop`, `cancel`) and reads its events from stdout.
@@ -120,7 +122,9 @@ case "transcribe":
   guard arguments.count >= 2 else { fail("transcribe needs a file") }
   runAsync { emit(try await Transcriber.transcribe(URL(filePath: arguments[1]), preferred: option("--locale", in: arguments))) }
 case "transcribe-stream":
-  runAsync { try await LiveTranscriber.run(preferred: option("--locale", in: arguments)) }
+  let volatile = arguments.contains("--volatile")
+  let fast = arguments.contains("--fast")
+  runAsync { try await LiveTranscriber.run(preferred: option("--locale", in: arguments), volatile: volatile, fast: fast) }
 case "speech-model":
   let install = arguments.contains("--install")
   runAsync { await SpeechModel.run(install: install, preferred: option("--locale", in: arguments)) }
@@ -144,6 +148,16 @@ case "shrink":
   runAsync {
     emit(try await Media.shrink(movie: URL(filePath: arguments[1]), out: URL(filePath: out), maxEdge: maxEdge, bitRate: bitRate))
   }
+case "cut":
+  guard arguments.count >= 2, let out = option("--out", in: arguments), let keep = option("--keep", in: arguments) else {
+    fail("cut needs MOVIE --out FILE --keep FROM-TO[,FROM-TO…]")
+  }
+  let ranges: [(Int, Int)] = keep.split(separator: ",").compactMap { range in
+    let ends = range.split(separator: "-").compactMap { Int($0) }
+    return ends.count == 2 && ends[1] > ends[0] ? (ends[0], ends[1]) : nil
+  }
+  guard !ranges.isEmpty else { fail("cut needs --keep FROM-TO[,FROM-TO…] in milliseconds") }
+  runAsync { emit(try await Media.cut(movie: URL(filePath: arguments[1]), out: URL(filePath: out), keep: ranges)) }
 case "export":
   guard arguments.count >= 2 else { fail("export needs PLAN.json") }
   runAsync { try await Exporter.run(plan: URL(filePath: arguments[1])) }
@@ -163,11 +177,13 @@ case "playback-volume":
   runPlaybackVolume(arguments: Array(arguments.dropFirst()))
 case "settings":
   SettingsWindow.run(arguments: arguments)
+case "play":
+  PlayerWindow.run(arguments: arguments)
 case "qr":
   guard arguments.count >= 2, let qr = renderQR(arguments[1]) else {
     fail("qr needs a text argument")
   }
   emit(["qr": qr])
 default:
-  fail("usage: scrawl-helper devices|mirror|transcribe|transcribe-stream|speech-model|frames|audio|probe|export|shrink|permission-panel|permissions|sck-probe|onboarding|settings|qr …")
+  fail("usage: scrawl-helper devices|mirror|transcribe|transcribe-stream|speech-model|frames|audio|probe|export|shrink|cut|permission-panel|permissions|sck-probe|onboarding|settings|play|qr …")
 }

@@ -723,11 +723,10 @@ fn context_value(raw: &str) -> String {
 pub const LOOK_AT_IMAGES: &str = "Open contact-sheet.png and frames/ in that folder before changing anything: the marks and words only make sense on the images, which can show more than the text does.";
 
 pub fn summary_markdown(bundle: &ScrawlBundle, bundle_dir: &std::path::Path) -> String {
-    let agent_context = crate::handoff::experiment(crate::handoff::AGENT_CONTEXT);
-    summary_markdown_with(bundle, bundle_dir, agent_context)
+    summary_markdown_with(bundle, bundle_dir, crate::handoff::app_state())
 }
 
-/// `agent_context` is the `agentContext` experiment (`agent_context::keyframe_texts`).
+/// `agent_context` is whether app state is on (`handoff::app_state`, `agent_context::keyframe_texts`).
 pub fn summary_markdown_with(
     bundle: &ScrawlBundle,
     bundle_dir: &std::path::Path,
@@ -738,11 +737,12 @@ pub fn summary_markdown_with(
         .app
         .clone()
         .unwrap_or_else(|| "Display".into());
-    if let Some(title) = &bundle.target.window_title
-        && !title.is_empty()
-        && Some(title.as_str()) != bundle.target.app.as_deref()
-    {
-        target.push_str(&format!(" “{title}”"));
+    // The title goes through the privacy policy here too, for a bundle built before it did.
+    if let Some(title) = &bundle.target.window_title {
+        let title = crate::privacy::window_title(bundle.target.bundle_id.as_deref(), title);
+        if !title.is_empty() && Some(title.as_str()) != bundle.target.app.as_deref() {
+            target.push_str(&format!(" “{title}”"));
+        }
     }
     if let Some(device) = &bundle.device {
         target = device.name.clone();
@@ -783,6 +783,14 @@ pub fn summary_markdown_with(
     if !bundle.keyframes.is_empty() {
         out.push_str(LOOK_AT_IMAGES);
         out.push('\n');
+    }
+    // The app state of a keyframe's window is one command away, never pasted.
+    if bundle.keyframes.iter().any(|k| k.appshot.is_some()) {
+        out.push_str(&format!(
+            "App shots: {} appshot {} --frame N (N is the keyframe number)\n",
+            crate::app_identity::Variant::current().command_name(),
+            bundle.id
+        ));
     }
     // The screen at the start and the app's own values, on one line.
     let start_screen = bundle.screen_at(0);
@@ -937,9 +945,30 @@ pub fn summary_markdown_with(
     out
 }
 
-/// A ⇧-click pin shows live only as a brief ring at the click, gone in this long; the pin itself
-/// stays data (keyframes, summary). Ordinary clicks draw nothing live.
+/// A ⇧-click pin's live entrance: a brief ring at the click, gone in this long. Its numbered
+/// disc (`pin_badge`) stays longer. Ordinary clicks draw nothing live.
 pub const PIN_PULSE_MS: u64 = 350;
+
+/// A dropped pin's live numbered disc: its radius in points (22 pt across), how long it stays
+/// whole, and how long its fade then takes.
+pub const PIN_BADGE_RADIUS_PT: f32 = 11.0;
+pub const PIN_BADGE_HOLD_MS: u64 = 2_000;
+pub const PIN_BADGE_FADE_MS: u64 = 500;
+/// The disc pops in over this long, as it does in an exported video (`helper/Export.swift`).
+const PIN_BADGE_POP_MS: u64 = 160;
+
+/// The live numbered disc of a pin dropped `age_ms` ago: its size (1 is full) and opacity. It
+/// pops in (ease-out cubic), stays whole until `PIN_BADGE_HOLD_MS`, then fades evenly to nothing
+/// over `PIN_BADGE_FADE_MS`, so the screen is clear again soon after.
+pub fn pin_badge(age_ms: u64) -> Option<(f32, f32)> {
+    if age_ms >= PIN_BADGE_HOLD_MS + PIN_BADGE_FADE_MS {
+        return None;
+    }
+    let pop = (age_ms as f32 / PIN_BADGE_POP_MS as f32).min(1.0);
+    let grow = 1.0 - (1.0 - pop).powi(3);
+    let fade = 1.0 - age_ms.saturating_sub(PIN_BADGE_HOLD_MS) as f32 / PIN_BADGE_FADE_MS as f32;
+    Some((0.6 + 0.4 * grow, grow * fade))
+}
 
 /// The live pulse for a pin dropped `age_ms` ago: a thin ring's radius (points) and opacity. It
 /// grows out fast and slows (ease-out cubic) while it fades to nothing.
@@ -1448,7 +1477,34 @@ fn smooth_closed_polygon(poly: &[[f32; 2]]) -> Vec<[f32; 2]> {
 mod tests {
     use super::*;
 
-    /// A pin pulses once and is gone: nothing click-related stays on screen while recording.
+    /// A pin's numbered disc pops in, is whole for 2 s, fades evenly over the next 0.5 s and is
+    /// gone, so nothing stays on screen for the rest of the recording.
+    #[test]
+    fn a_pin_badge_pops_in_holds_for_two_seconds_then_fades() {
+        let (s0, a0) = pin_badge(0).unwrap();
+        assert!((s0 - 0.6).abs() < 1e-6 && a0 == 0.0, "{s0} {a0}");
+        let (s1, a1) = pin_badge(80).unwrap();
+        assert!(s1 > s0 && s1 < 1.0 && a1 > 0.8 && a1 < 1.0, "{s1} {a1}");
+        for age in [160, 500, 1_999, PIN_BADGE_HOLD_MS] {
+            assert_eq!(pin_badge(age), Some((1.0, 1.0)), "whole at {age} ms");
+        }
+        let fading: Vec<f32> = [2_100, 2_250, 2_400, 2_499]
+            .iter()
+            .map(|&age| {
+                let (size, alpha) = pin_badge(age).unwrap();
+                assert_eq!(size, 1.0, "the fade doesn't shrink it");
+                alpha
+            })
+            .collect();
+        assert!((fading[0] - 0.8).abs() < 1e-6 && (fading[1] - 0.5).abs() < 1e-6);
+        assert!(fading.windows(2).all(|w| w[0] > w[1]) && fading[3] > 0.0);
+        assert_eq!(pin_badge(PIN_BADGE_HOLD_MS + PIN_BADGE_FADE_MS), None);
+        assert_eq!(pin_badge(60_000), None);
+        // The entrance ring is over long before the disc goes.
+        assert!(PIN_PULSE_MS < PIN_BADGE_HOLD_MS);
+    }
+
+    /// A pin's entrance ring pulses once and is gone.
     #[test]
     fn a_pin_pulse_grows_fades_and_ends() {
         let (r0, a0) = pin_pulse(0).unwrap();
@@ -2034,6 +2090,80 @@ mod tests {
     }
 
     #[test]
+    fn appshot_summary_names_the_command_with_the_captures_own_id() {
+        let bundle = |appshot: Option<&str>| -> ScrawlBundle {
+            serde_json::from_value(serde_json::json!({
+                "version": 1, "id": "scrawl-1794586221550-4f2a", "createdAtMs": 0,
+                "durationMs": 14000,
+                "target": {
+                    "mode": "display", "app": "Safari", "displayId": 1,
+                    "frame": {"x": 0.0, "y": 0.0, "width": 1000.0, "height": 1000.0, "scale": 1.0}
+                },
+                "transcript": {"source": "test", "text": "", "segments": []},
+                "strokes": [], "marks": [], "events": [],
+                "keyframes": [
+                    {"index": 1, "t": 4000, "reason": "scene_change",
+                     "file": "frames/frame-01.png", "event": "scene changed",
+                     "appshot": appshot},
+                    {"index": 2, "t": 9000, "reason": "scene_change",
+                     "file": "frames/frame-02.png", "event": "scene changed"}
+                ],
+                "contactSheet": "contact-sheet.png"
+            }))
+            .unwrap()
+        };
+        let dir = std::path::Path::new("/recordings/scrawl-1794586221550-4f2a.scrawl");
+        let command = crate::app_identity::Variant::current().command_name();
+        let line = format!(
+            "App shots: {command} appshot scrawl-1794586221550-4f2a --frame N (N is the keyframe number)\n"
+        );
+        for agent_context in [false, true] {
+            let with = summary_markdown_with(&bundle(Some("shot-01.json")), dir, agent_context);
+            assert_eq!(with.matches(&line).count(), 1, "{with}");
+            assert!(
+                with.find(&line).unwrap() < with.find("- #1").unwrap(),
+                "the command comes before the keyframes: {with}"
+            );
+            // A capture without shots says nothing about them.
+            let without = summary_markdown_with(&bundle(None), dir, agent_context);
+            assert!(!without.contains("appshot"), "{without}");
+        }
+    }
+
+    #[test]
+    fn privacy_the_summary_prints_no_url_query_from_the_window_title() {
+        let bundle = |bundle_id: &str| -> ScrawlBundle {
+            serde_json::from_value(serde_json::json!({
+                "version": 1, "id": "scrawl-1-test", "createdAtMs": 0, "durationMs": 14000,
+                "target": {
+                    "mode": "window", "app": "Safari", "bundleId": bundle_id,
+                    "windowTitle": "Fixture file:///f/appshot-secret.html?token=SECRET-MARKER-URL",
+                    "displayId": 1,
+                    "frame": {"x": 0.0, "y": 0.0, "width": 1000.0, "height": 1000.0, "scale": 1.0}
+                },
+                "transcript": {"source": "test", "text": "", "segments": []},
+                "strokes": [], "marks": [], "events": [], "keyframes": [],
+                "contactSheet": "contact-sheet.png"
+            }))
+            .unwrap()
+        };
+        let dir = std::path::Path::new("/recordings/test");
+        let summary = summary_markdown(&bundle("com.apple.Safari"), dir);
+        assert!(
+            summary.starts_with(
+                "[scrawl 0:14 · Safari “Fixture file:///f/appshot-secret.html” · /recordings/test]"
+            ),
+            "{summary}"
+        );
+        assert!(!summary.contains("SECRET-MARKER"), "{summary}");
+        let vault = summary_markdown(&bundle("com.1password.1password"), dir);
+        assert!(
+            vault.starts_with("[scrawl 0:14 · Safari · /recordings/test]"),
+            "{vault}"
+        );
+    }
+
+    #[test]
     fn summary_interleaves_speech_marks_and_events() {
         let strokes = vec![stroke(&[[0.5, 0.5]], 5000)];
         let mut marks = marks_of(&strokes);
@@ -2083,6 +2213,7 @@ mod tests {
                 said: Some("This row is too dense.".into()),
                 mark_id: Some("m1".into()),
                 cursor: None,
+                appshot: None,
             }],
             contact_sheet: "contact.png".into(),
             video: None,
@@ -2155,6 +2286,7 @@ mod tests {
             said: None,
             mark_id: Some("f1".into()),
             cursor: None,
+            appshot: None,
         });
         phone.events = vec![
             InteractionEvent::AppEvent {
@@ -2211,6 +2343,7 @@ mod tests {
             said: Some("And then I scroll up.".into()),
             mark_id: None,
             cursor: Some([0.50, 0.20]),
+            appshot: None,
         });
         let summary_with_action =
             summary_markdown(&phone, std::path::Path::new("/recordings/phone"));
@@ -2240,6 +2373,7 @@ mod tests {
             said: said.map(str::to_owned),
             mark_id: None,
             cursor: None,
+            appshot: None,
         };
         bundle.keyframes = vec![
             keyframe(

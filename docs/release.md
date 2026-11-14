@@ -1,5 +1,10 @@
 # Releasing Scrawl
 
+**Annotator does not publish releases.** The fork has no Sparkle, appcast, DMG, Homebrew cask or
+Windows zip. Annotator is built and installed from this repo with `./scripts/install-app.sh`
+(`AGENTS.md`). The steps below are upstream's release process for kitlangton/scrawl. They are kept
+for reference and for changes sent upstream. Do not run them from the fork.
+
 Everything lands on `main` through pull requests, the version bump and the appcast included. A release
 is one Mac build (notarized DMG + Sparkle zip) and one Windows zip, built from the same tagged commit.
 

@@ -152,6 +152,11 @@ pub fn available() -> bool {
     UPDATE_STATUS.load(Ordering::Acquire) != UpdateStatus::Unavailable as u8
 }
 
+/// Whether this bundle ships Sparkle at all. Annotator.app does not, so its update UI stays hidden.
+pub fn bundled() -> bool {
+    matches!(framework_path(), Ok(Some(_)))
+}
+
 pub fn check_for_updates() {
     let Some(mtm) = MainThreadMarker::new() else {
         return;

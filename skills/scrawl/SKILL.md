@@ -23,7 +23,7 @@ Cropped to: the activity in OpenCode (full frames in frames-full/)
 - The next line asks you to open the images first. Do: the text is only what was said and done, and a problem can show in a frame without being marked or mentioned.
 - Each `#N (M:SS)` line is a keyframe: what they did at that moment in brackets, then what they said while it was on screen. A line with no quote has the action alone.
 - `⚑` means they flagged the moment on purpose. `⟨Name⟩` means the app reported a new screen. Lines starting `·` are events or values the app logged.
-- Optional lines near the top: `For session:` (where Scrawl sent it), `Screen:` with app context, `Note:`, and `Cropped to:`.
+- Optional lines near the top: `For session:` (where Scrawl sent it), `App shots:` (the command that prints a keyframe's app state, see below), `Screen:` with app context, `Note:`, and `Cropped to:`.
 - Coordinates are fractions of the captured area, from the top left (x 0.51 is just right of centre).
 
 When you answer, refer to moments the same way, as in "#3 (0:10)", so the person can find them on the contact sheet.
@@ -34,17 +34,20 @@ When you answer, refer to moments the same way, as in "#3 (0:10)", so the person
 2. Read the transcript lines next to it. Speech recognition mishears names and code terms, so trust the screen when the two disagree.
 3. Open `frames/frame-NN.png` for any keyframe you need at full size (`frame-03.png` is #3). When the summary says `Cropped to:`, the uncropped screens are in `frames-full/`.
 
+The person can pause a recording (Esc) and resume it. Paused time is cut out of the video, the audio, the transcript and every time in the bundle, so times run on without a gap. A sudden change between two keyframes can be a pause.
+
 What the drawings mean:
 
 - Red strokes, circles, underlines and arrows are the person's marks, and they point at the problem. Marks drawn on the same screen all show on one keyframe. When there are several, the text numbers them in drawing order (`✎① 0:06 …`, `✎② 0:09 …`); the image shows only the ink, so use `scrawl zoom --mark` to see which ink is which.
+- A red disc in a white ring with a white number is a pin: a deliberate "here". Pins are numbered 1, 2, 3 in the order they were dropped in the whole recording, and the text calls them `pin N`. A pin number is not a mark number: `scrawl inspect --marks` lists each pin's mark id (`m3`), and `scrawl zoom --mark m3` zooms to it.
 - A ripple around the cursor shows a click or tap, and a finger trail shows a swipe.
 - A glowing red trail that tapers off is the laser pointer, used to point without leaving a mark.
 
-Other files: `scrawl.json` is the full manifest (keyframes, `marks` with shape and box, `events`, `transcript.words` with times, app `context`, and `autocrop`). `recording.mp4` or `recording.mov` and `audio.wav` are the source media. A `.media-pending` file means the video is still being copied from another Mac.
+Other files: `scrawl.json` is the full manifest (keyframes, `marks` with shape and box, `events`, `transcript.words` with times, app `context`, and `autocrop`). `recording.mp4` or `recording.mov` and `audio.wav` are the source media. A `.media-pending` file means the video is still being copied from another Mac. `appshots/` holds the app state of Mac captures: `shot-NN.json` is one window's app, title, URL and text outline (`tree`), `timeline.json` says when each was seen, and a keyframe's `appshot` in `scrawl.json` names its file. It stays after the video is cleaned.
 
 ## The scrawl CLI
 
-`scrawl` is the Scrawl app's own binary. If `command -v scrawl` finds nothing, use `/Applications/Scrawl.app/Contents/MacOS/scrawl` (or the same path under `~/Applications`), and tell the person they can put it on PATH with Install in Scrawl's Settings › Agents. It runs only on the Mac with Scrawl installed. Anywhere else, read `contact-sheet.png`, `frames/` and `scrawl.json` directly. Every command takes a bundle path, and most default to `latest`, the newest capture. Quote the path, because it usually contains `Application Support`.
+`scrawl` is the app's own binary (Annotator.app, or upstream's Scrawl.app). If `command -v scrawl` finds nothing, use `/Applications/Annotator.app/Contents/MacOS/scrawl` (or `/Applications/Scrawl.app/Contents/MacOS/scrawl`), and tell the person they can put it on PATH with Install in the app's Settings › Agents. Annotator Dev.app's command is `scrawl-dev`, with its own captures. It runs only on the Mac with Scrawl installed. Anywhere else, read `contact-sheet.png`, `frames/` and `scrawl.json` directly. Every command takes a bundle path, and most default to `latest`, the newest capture. Quote the path, because it usually contains `Application Support`.
 
 ### Look closer at a moment
 
@@ -68,14 +71,17 @@ It prints the path of a PNG sheet of frames around that moment, the time of each
 scrawl inspect <bundle>               # summary.md, the text above
 scrawl inspect <bundle> --json        # scrawl.json
 scrawl inspect <bundle> --marks       # the marks, numbered as in the text [--json]
+scrawl appshot <bundle>               # each keyframe's app, window, URL and tree size [--json]
+scrawl appshot <bundle> --frame 2     # keyframe #2's window as a text outline [--json]
 scrawl frames <bundle> --from 0:04 --to 0:06 [--fps 4]   # plain PNGs of a range; prints their paths
 scrawl send <bundle> --session ses_…  # queue the capture into an OpenCode session
 scrawl send <bundle> --clipboard      # copy the summary text to the clipboard
 scrawl export <bundle> [--out demo.mp4] [--zoom] [--crop auto|full|x,y,w,h] [--size 1920]
 ```
 
+- `appshot` prints what the app itself knew about the window a keyframe shows: use it when the picture leaves a name, a label or a URL unclear, or to find the element to change. `<bundle>` can be the capture's id from the `App shots:` line. The outline is one element per line, indented by depth, such as `button "Save" #save` (role, label, identifier). A text field shows its name, never what was typed in it, and a URL has no query. A header's `cut: nodes` (or `depth`, `bytes`, `timeout`) means the outline stops early. `no app shots in this capture` means it was made with app state off or on Windows; a keyframe without a shot says which window it expected.
 - `zoom` and `frames` write into `<bundle>/zoom/`. Leave the rest of the bundle as it is, because Scrawl manages those files and cleans them up.
 - `send` without `--session` goes to the session the capture was addressed to (the `For session:` line), and otherwise to the most recently active session. With a recorded destination it refuses a different `--session` unless you pass `--reroute`, so check with the person before rerouting.
 - `export` writes one `.mp4` with the ink and clicks burned in and the audio in sync (default `~/Movies/Scrawl/<bundle>.mp4`). `--zoom` eases in toward the activity. `--no-ink`, `--no-clicks`, `--hevc` and `--fps` are also available.
-- Video and audio go to the Trash 7 days after a capture unless the person changed that in Settings. After that `zoom`, `frames` and `export` can't read the video, but `frames/`, the contact sheet and `scrawl.json` remain.
+- Captures are kept forever unless the person set a limit in Settings › Storage. Once video and audio are cleaned, `zoom`, `frames` and `export` can't read the video, but `frames/`, the contact sheet, `scrawl.json` and `appshots/` remain.
 - `scrawl <command> --help` lists every flag, and `scrawl skill` prints this guide as the installed version knows it.

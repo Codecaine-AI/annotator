@@ -14,12 +14,14 @@
 //!   across `Recording (chips) -> Selecting`) travel on a `0.24 s` zero-bounce spring with up to
 //!   `4 pt` blur in transit that clears before landing.
 
+pub use crate::live_audio::Rows;
 use crate::ui::SelectionMode;
 
 // ─── Geometry (pt in the fixed 640 × 84 panel) ──────────────────────────────────────────────
 
 pub const PANEL_W: f32 = 640.0;
-pub const PANEL_H: f32 = 84.0;
+/// Room for the capsule with the live words' row under it (`CAPTION_H`) and its shadow.
+pub const PANEL_H: f32 = 132.0;
 pub const PANEL_Y: f32 = 34.0;
 pub const CX: f32 = PANEL_W * 0.5;
 /// Top edge of the resting 40 pt capsule inside the 84 pt panel (vertical centre y = 42, screen y = 76).
@@ -42,6 +44,22 @@ pub const SEG_PX: f32 = 10.0;
 pub const SEG_ICON: f32 = 14.0;
 pub const SEG_ICON_GAP: f32 = 5.0;
 pub const HUD_TEXT: f32 = 13.0;
+/// The microphone's waveform beside the timer (`live_audio`).
+pub const WAVE_W: f32 = 96.0;
+/// The live words' row under the controls: its box runs from `CAPTION_GAP` below the controls to
+/// 2 pt above the capsule's bottom, the full width less 2 pt a side, so its clearance core
+/// (`CHIP_CORE_ROUND`) sits on the capsule's corner arcs, like a chip's. The capsule is at least
+/// `CAPTION_W` inside.
+pub const CAPTION_H: f32 = 47.0;
+/// From the controls to the row's hairline: the inset above them less the capsule's 1 pt rim, so
+/// a selected chip sits as far from the hairline as from the rim.
+pub const CAPTION_GAP: f32 = ISLAND_INSET - 1.0;
+pub const CAPTION_W: f32 = 360.0;
+pub const CAPTION_INSET: f32 = 2.0;
+/// Where the words start inside the row's box, and their line pitch.
+pub const CAPTION_PX: f32 = 14.0;
+pub const CAPTION_LINE: f32 = 17.0;
+pub const CAPTION_LINES: usize = 2;
 
 /// Core cap radius of a 32 pt chip for clearance checks (3 pt inside the 16 pt chip pill and 7 pt
 /// inside the 20 pt outer capsule wall at rest, so at rest `d = 7 pt >= CLEAR + EDGE_BAND = 5 pt`).
@@ -334,10 +352,15 @@ pub enum ElemId {
     /// The Completed island's sessions one click away (smart routing).
     Route0 = 15,
     Route1 = 16,
+    /// What the microphone hears, and the words, while recording (`live_audio`).
+    Wave = 17,
+    Caption = 18,
+    /// Pause while recording, Resume while paused (`crate::pause`).
+    Pause = 19,
 }
 
 impl ElemId {
-    pub const COUNT: usize = 17;
+    pub const COUNT: usize = 20;
     pub const ROUTES: [ElemId; 2] = [Self::Route0, Self::Route1];
     pub const ALL: [ElemId; Self::COUNT] = [
         Self::Lead,
@@ -357,6 +380,9 @@ impl ElemId {
         Self::Inspect,
         Self::Route0,
         Self::Route1,
+        Self::Wave,
+        Self::Caption,
+        Self::Pause,
     ];
 
     pub const fn trace_key(self) -> &'static str {
@@ -378,6 +404,9 @@ impl ElemId {
             Self::Inspect => "inspect",
             Self::Route0 => "route:0",
             Self::Route1 => "route:1",
+            Self::Wave => "wave",
+            Self::Caption => "caption",
+            Self::Pause => "pause",
         }
     }
 
@@ -403,7 +432,7 @@ impl ElemId {
     pub const fn is_interactive(self) -> bool {
         !matches!(
             self,
-            Self::DividerLead | Self::DividerClose | Self::Processing
+            Self::DividerLead | Self::DividerClose | Self::Processing | Self::Wave | Self::Caption
         )
     }
 
@@ -423,8 +452,22 @@ impl ElemId {
             Self::Paste => "Paste",
             Self::Inspect => "Inspect",
             Self::Route0 | Self::Route1 => "Send to session",
+            Self::Wave => "Microphone level",
+            Self::Caption => "Live transcript",
+            Self::Pause => "Pause or resume",
         }
     }
+}
+
+/// The keys the recording capsule shows after Pause or Resume, Cancel and Finish (`esc`,
+/// `esc esc`, `⌥⇧S`), as Settings › Shortcuts has them; an empty one shows no key.
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
+pub struct Keys {
+    /// The cancel key: one press pauses or resumes.
+    pub pause: String,
+    /// The cancel key twice.
+    pub cancel: String,
+    pub finish: String,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -433,6 +476,12 @@ pub enum Pres {
     Recording {
         chips: bool,
         has_iphone: bool,
+        /// The waveform and the words' row (`live_audio`).
+        live: Rows,
+        keys: Keys,
+        /// Paused (`crate::pause`): the dot stops pulsing, the lead says Paused beside the
+        /// timer, which stands still, and Pause reads Resume.
+        paused: bool,
     },
     Selecting {
         mode: SelectionMode,
@@ -456,12 +505,18 @@ impl Pres {
                 Self::Recording {
                     chips: a,
                     has_iphone: ia,
+                    live: la,
+                    keys: ka,
+                    paused: pa,
                 },
                 Self::Recording {
                     chips: b,
                     has_iphone: ib,
+                    live: lb,
+                    keys: kb,
+                    paused: pb,
                 },
-            ) => a == b && (ia == ib || !*a),
+            ) => a == b && (ia == ib || !*a) && la == lb && ka == kb && pa == pb,
             (
                 Self::Selecting {
                     mode: ma,
@@ -497,6 +552,10 @@ pub struct Metrics {
     pub record: f32,
     pub cancel: f32,
     pub finish: f32,
+    pub pause: f32,
+    pub resume: f32,
+    /// The lead's "Paused".
+    pub paused: f32,
     pub processing: f32,
     pub paste: f32,
     pub inspect: f32,
@@ -514,6 +573,9 @@ impl Default for Metrics {
             record: 46.0,
             cancel: 44.0,
             finish: 38.0,
+            pause: 39.0,
+            resume: 51.0,
+            paused: 46.0,
             processing: 78.0,
             paste: 36.0,
             inspect: 47.0,
@@ -588,11 +650,14 @@ impl Layout {
     }
 }
 
-/// Widths of the Completed island's changing labels, measured as their sprites are drawn.
+/// Widths of the changing labels (the Completed island's, and the recording capsule's keys),
+/// measured as their sprites are drawn.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct LabelWidths {
     pub completed: f32,
     pub routes: [f32; 2],
+    /// The keys after Cancel, Finish and Pause or Resume (`Keys`), in that order; 0 shows none.
+    pub keys: [f32; 3],
 }
 
 impl Default for LabelWidths {
@@ -600,8 +665,20 @@ impl Default for LabelWidths {
         Self {
             completed: 46.0,
             routes: [0.0; 2],
+            keys: [0.0; 3],
         }
     }
+}
+
+/// The gap between a chip's label and its key.
+pub const KEY_GAP: f32 = 6.0;
+
+/// The gap between the timer and "Paused" in the lead.
+pub const PAUSED_GAP: f32 = 7.0;
+
+/// How much a key of width `w` widens its chip.
+pub fn key_extra(w: f32) -> f32 {
+    if w > 0.0 { KEY_GAP + w } else { 0.0 }
 }
 
 /// Computes the resting capsule bounds and item boxes for `pres`.
@@ -640,10 +717,23 @@ pub fn layout_of(
             raw.push((ElemId::DividerClose, DIVIDER_W, 0.0, 0.0, false));
             raw.push((ElemId::Close, CHIP_H, CHIP_CORE_ROUND, 0.0, true));
         }
-        Pres::Recording { chips, has_iphone } => {
+        Pres::Recording {
+            chips,
+            has_iphone,
+            live,
+            paused,
+            ..
+        } => {
+            // An element's `active` level carries "paused", so the lead and the Pause chip fade
+            // between their two looks.
+            let paused_level = f32::from(u8::from(*paused));
             let clock_w = m.clock_width(clock);
-            let lead_w = CHIP_H + clock_w + LEAD_TRAIL;
-            raw.push((ElemId::Lead, lead_w, CHIP_CORE_ROUND, 0.0, true));
+            let said = if *paused { PAUSED_GAP + m.paused } else { 0.0 };
+            let lead_w = CHIP_H + clock_w + said + LEAD_TRAIL;
+            raw.push((ElemId::Lead, lead_w, CHIP_CORE_ROUND, paused_level, true));
+            if live.wave {
+                raw.push((ElemId::Wave, WAVE_W, CHIP_CORE_ROUND, 0.0, false));
+            }
             raw.push((ElemId::DividerLead, DIVIDER_W, 0.0, 0.0, false));
             if *chips {
                 for &seg in SelectionMode::available(*has_iphone) {
@@ -658,16 +748,24 @@ pub fn layout_of(
                 raw.push((ElemId::DividerClose, DIVIDER_W, 0.0, 0.0, false));
                 raw.push((ElemId::Close, CHIP_H, CHIP_CORE_ROUND, 0.0, true));
             } else {
+                let toggle = if *paused { m.resume } else { m.pause };
+                raw.push((
+                    ElemId::Pause,
+                    Metrics::chip_width(toggle + key_extra(labels.keys[2])),
+                    CHIP_CORE_ROUND,
+                    paused_level,
+                    true,
+                ));
                 raw.push((
                     ElemId::Cancel,
-                    Metrics::chip_width(m.cancel),
+                    Metrics::chip_width(m.cancel + key_extra(labels.keys[0])),
                     CHIP_CORE_ROUND,
                     0.0,
                     true,
                 ));
                 raw.push((
                     ElemId::Finish,
-                    Metrics::chip_width(m.finish),
+                    Metrics::chip_width(m.finish + key_extra(labels.keys[1])),
                     CHIP_CORE_ROUND,
                     0.0,
                     true,
@@ -709,16 +807,30 @@ pub fn layout_of(
         }
     }
 
-    let inner_w: f32 = raw.iter().map(|(_, w, ..)| *w).sum::<f32>()
+    let row_w: f32 = raw.iter().map(|(_, w, ..)| *w).sum::<f32>()
         + raw.len().saturating_sub(1) as f32 * CHIP_GAP;
+    // The words' row widens a short row: the controls after the timer and waveform move right.
+    let caption = matches!(pres, Pres::Recording { live, .. } if live.caption);
+    let inner_w = if caption { row_w.max(CAPTION_W) } else { row_w };
+    let spread = inner_w - row_w;
     let outer_w = inner_w + 2.0 * ISLAND_INSET;
-    let lay = Layout::centered(outer_w, ISLAND_H);
-    let last = raw.len().saturating_sub(1);
+    let lay = Layout::centered(
+        outer_w,
+        if caption {
+            ISLAND_H + CAPTION_H - ISLAND_INSET
+        } else {
+            ISLAND_H
+        },
+    );
+    let last = raw.len().saturating_sub(1) + usize::from(caption);
     let mut x = lay.l + ISLAND_INSET;
-    let items = raw
+    let mut items: Vec<LayoutItem> = raw
         .into_iter()
         .enumerate()
         .map(|(rank, (id, w, round, active, enabled))| {
+            if id == ElemId::DividerLead {
+                x += spread;
+            }
             let item = LayoutItem {
                 id,
                 rect: [x, y0, w, CHIP_H],
@@ -732,6 +844,22 @@ pub fn layout_of(
             item
         })
         .collect();
+    if caption {
+        items.push(LayoutItem {
+            id: ElemId::Caption,
+            rect: [
+                lay.l + CAPTION_INSET,
+                y0 + CHIP_H + CAPTION_GAP,
+                outer_w - 2.0 * CAPTION_INSET,
+                lay.b - CAPTION_INSET - (y0 + CHIP_H + CAPTION_GAP),
+            ],
+            round: CHIP_CORE_ROUND,
+            rank: last,
+            last,
+            active: 0.0,
+            enabled: false,
+        });
+    }
     (lay, items)
 }
 
@@ -1087,9 +1215,13 @@ impl PillModel {
     /// changed and the layout follows them now; otherwise `set_pres` lays it out.
     pub fn set_label_widths(&mut self, labels: LabelWidths, next: &Pres) {
         let changed = (self.labels.completed - labels.completed).abs() > 0.5
-            || (0..2).any(|i| (self.labels.routes[i] - labels.routes[i]).abs() > 0.5);
+            || (0..2).any(|i| (self.labels.routes[i] - labels.routes[i]).abs() > 0.5)
+            || (0..3).any(|i| (self.labels.keys[i] - labels.keys[i]).abs() > 0.5);
         self.labels = labels;
-        if changed && self.pres == *next && matches!(next, Pres::Completed { .. }) {
+        if changed
+            && self.pres == *next
+            && matches!(next, Pres::Completed { .. } | Pres::Recording { .. })
+        {
             self.apply_geometry();
         }
     }
@@ -1342,8 +1474,13 @@ impl PillModel {
                 st.y.step(dt);
                 // Inelastic containment: keep travelling shared elements at least CLEAR inside the
                 // current unscaled outline (`contain` in `island/model.js`).
-                let min_x = self.l.x + ISLAND_INSET;
-                let max_x = (self.r.x - ISLAND_INSET - st.w).max(min_x);
+                let inset = if id == ElemId::Caption {
+                    CAPTION_INSET
+                } else {
+                    ISLAND_INSET
+                };
+                let min_x = self.l.x + inset;
+                let max_x = (self.r.x - inset - st.w).max(min_x);
                 if st.x.x < min_x {
                     st.x.x = min_x;
                     if st.x.v < 0.0 {
@@ -1694,6 +1831,9 @@ mod tests {
                     Pres::Recording {
                         chips: true,
                         has_iphone: false,
+                        live: Rows::default(),
+                        keys: Default::default(),
+                        paused: false,
                     },
                 ),
                 (
@@ -1712,6 +1852,9 @@ mod tests {
                     Pres::Recording {
                         chips: true,
                         has_iphone: false,
+                        live: Rows::default(),
+                        keys: Default::default(),
+                        paused: false,
                     },
                 ),
                 (
@@ -1730,6 +1873,9 @@ mod tests {
                     Pres::Recording {
                         chips: true,
                         has_iphone: false,
+                        live: Rows::default(),
+                        keys: Default::default(),
+                        paused: false,
                     },
                 ),
                 (
@@ -1737,6 +1883,9 @@ mod tests {
                     Pres::Recording {
                         chips: false,
                         has_iphone: false,
+                        live: Rows::default(),
+                        keys: Default::default(),
+                        paused: false,
                     },
                 ),
                 (2.4, Pres::Hidden),
@@ -1769,6 +1918,9 @@ mod tests {
                     Pres::Recording {
                         chips: false,
                         has_iphone: false,
+                        live: Rows::default(),
+                        keys: Default::default(),
+                        paused: false,
                     },
                 ),
                 (3.9, Pres::Hidden),
@@ -1780,6 +1932,9 @@ mod tests {
                     Pres::Recording {
                         chips: true,
                         has_iphone: false,
+                        live: Rows::default(),
+                        keys: Default::default(),
+                        paused: false,
                     },
                 ),
                 (
@@ -1787,6 +1942,9 @@ mod tests {
                     Pres::Recording {
                         chips: false,
                         has_iphone: false,
+                        live: Rows::default(),
+                        keys: Default::default(),
+                        paused: false,
                     },
                 ),
                 (2.0, Pres::Processing),
@@ -1830,6 +1988,9 @@ mod tests {
         m.set_pres(Pres::Recording {
             chips: true,
             has_iphone: false,
+            live: Rows::default(),
+            keys: Default::default(),
+            paused: false,
         });
         for _ in 0..8 {
             m.advance(FRAME_DT);
@@ -1861,10 +2022,16 @@ mod tests {
             Pres::Recording {
                 chips: true,
                 has_iphone: false,
+                live: Rows::default(),
+                keys: Default::default(),
+                paused: false,
             },
             Pres::Recording {
                 chips: false,
                 has_iphone: false,
+                live: Rows::default(),
+                keys: Default::default(),
+                paused: false,
             },
             Pres::Selecting {
                 mode: SelectionMode::Area,
@@ -1928,6 +2095,9 @@ mod tests {
         m.set_pres(Pres::Recording {
             chips: true,
             has_iphone: false,
+            live: Rows::default(),
+            keys: Default::default(),
+            paused: false,
         });
         let mut saw_sharp_before_opaque = false;
         for _ in 0..120 {
@@ -1947,6 +2117,9 @@ mod tests {
         m.set_pres(Pres::Recording {
             chips: false,
             has_iphone: false,
+            live: Rows::default(),
+            keys: Default::default(),
+            paused: false,
         });
         let mut peak_travel_blur = 0.0_f32;
         for _ in 0..120 {
@@ -1976,6 +2149,9 @@ mod tests {
         m.set_pres(Pres::Recording {
             chips: true,
             has_iphone: false,
+            live: Rows::default(),
+            keys: Default::default(),
+            paused: false,
         });
         let target_w = m.r.target - m.l.target;
         m.advance(FRAME_DT);
@@ -2055,6 +2231,9 @@ mod tests {
         m.set_pres(Pres::Recording {
             chips: true,
             has_iphone: false,
+            live: Rows::default(),
+            keys: Default::default(),
+            paused: false,
         });
         let target_w = m.r.target - m.l.target;
         let mut first: Vec<(ElemId, f32)> = Vec::new();
@@ -2084,10 +2263,13 @@ mod tests {
     }
 
     #[test]
-    fn recording_controls_are_cancel_and_finish() {
+    fn recording_controls_are_pause_cancel_and_finish() {
         let pres = Pres::Recording {
             chips: false,
             has_iphone: false,
+            live: Rows::default(),
+            keys: Default::default(),
+            paused: false,
         };
         let (layout, items) = layout_of(&pres, "0:00", LabelWidths::default(), &Metrics::default());
         let ids: Vec<ElemId> = items.iter().map(|i| i.id).collect();
@@ -2096,12 +2278,146 @@ mod tests {
             [
                 ElemId::Lead,
                 ElemId::DividerLead,
+                ElemId::Pause,
                 ElemId::Cancel,
                 ElemId::Finish
             ]
         );
         let last = items.last().unwrap().rect;
         assert!((layout.r - (last[0] + last[2]) - ISLAND_INSET).abs() < 0.5);
+    }
+
+    /// Paused: the same controls, the lead wider by "Paused", the first chip wider by the
+    /// difference between Resume and Pause, and both marked so they draw their paused look.
+    #[test]
+    fn a_paused_recording_says_paused_and_offers_resume() {
+        let recording = |paused| Pres::Recording {
+            chips: false,
+            has_iphone: false,
+            live: Rows::default(),
+            keys: Default::default(),
+            paused,
+        };
+        let m = Metrics::default();
+        let (running, running_items) =
+            layout_of(&recording(false), "0:12", LabelWidths::default(), &m);
+        let (paused, paused_items) =
+            layout_of(&recording(true), "0:12", LabelWidths::default(), &m);
+        let ids = |items: &[LayoutItem]| items.iter().map(|i| i.id).collect::<Vec<_>>();
+        assert_eq!(ids(&running_items), ids(&paused_items));
+        let item = |items: &[LayoutItem], id: ElemId| *items.iter().find(|i| i.id == id).unwrap();
+        for id in [ElemId::Lead, ElemId::Pause] {
+            assert_eq!(item(&running_items, id).active, 0.0, "{id:?}");
+            assert_eq!(item(&paused_items, id).active, 1.0, "{id:?}");
+        }
+        let grew = |id| item(&paused_items, id).rect[2] - item(&running_items, id).rect[2];
+        assert!((grew(ElemId::Lead) - (PAUSED_GAP + m.paused)).abs() < 0.01);
+        assert!((grew(ElemId::Pause) - (m.resume - m.pause)).abs() < 0.01);
+        assert_eq!(grew(ElemId::Cancel), 0.0);
+        assert_eq!(grew(ElemId::Finish), 0.0);
+        assert!(paused.width() > running.width());
+        assert!(paused.width() < PANEL_W - 40.0, "{}", paused.width());
+        assert!(!recording(false).same_layout(&recording(true)));
+        // Pause is a button.
+        assert!(ElemId::Pause.is_interactive());
+    }
+
+    #[test]
+    fn live_audio_adds_a_waveform_and_a_full_width_row_for_the_words() {
+        let recording = |wave, caption| Pres::Recording {
+            chips: false,
+            has_iphone: false,
+            live: Rows { wave, caption },
+            keys: Default::default(),
+            paused: false,
+        };
+        let m = Metrics::default();
+        let (plain, plain_items) =
+            layout_of(&recording(false, false), "0:00", LabelWidths::default(), &m);
+        let (waved, items) = layout_of(&recording(true, false), "0:00", LabelWidths::default(), &m);
+        let ids: Vec<ElemId> = items.iter().map(|i| i.id).collect();
+        assert_eq!(
+            ids,
+            [
+                ElemId::Lead,
+                ElemId::Wave,
+                ElemId::DividerLead,
+                ElemId::Pause,
+                ElemId::Cancel,
+                ElemId::Finish
+            ]
+        );
+        assert!((waved.width() - plain.width() - WAVE_W - CHIP_GAP).abs() < 0.5);
+        assert_eq!(waved.height(), plain.height());
+        assert_eq!(plain_items.len(), 5);
+
+        let (lay, items) = layout_of(&recording(true, true), "0:00", LabelWidths::default(), &m);
+        assert!(lay.width() >= CAPTION_W + 2.0 * ISLAND_INSET - 0.5);
+        assert!((lay.height() - (ISLAND_H + CAPTION_H - ISLAND_INSET)).abs() < 0.5);
+        // Timer and waveform stay at the left; the controls move to the right edge.
+        let finish = items.iter().find(|i| i.id == ElemId::Finish).unwrap().rect;
+        assert!((lay.r - (finish[0] + finish[2]) - ISLAND_INSET).abs() < 0.5);
+        let wave = items.iter().find(|i| i.id == ElemId::Wave).unwrap().rect;
+        assert!((wave[0] - (lay.l + ISLAND_INSET + items[0].rect[2] + CHIP_GAP)).abs() < 0.5);
+        let caption = items.iter().find(|i| i.id == ElemId::Caption).unwrap();
+        assert!(
+            (caption.rect[1] - (wave[1] + wave[3]) - CAPTION_GAP).abs() < 0.5,
+            "a gap under the controls like the one above them"
+        );
+        assert!((lay.b - (caption.rect[1] + caption.rect[3]) - CAPTION_INSET).abs() < 0.5);
+        assert!(!caption.id.is_interactive() && !ElemId::Wave.is_interactive());
+        assert!(lay.b + 20.0 <= PANEL_H, "the panel holds it and its shadow");
+    }
+
+    #[test]
+    fn the_words_row_settles_fully_visible_and_leaves_with_the_capsule() {
+        let mut m = PillModel::new(Metrics::default());
+        let live = |caption| Pres::Recording {
+            chips: false,
+            has_iphone: false,
+            live: Rows {
+                wave: true,
+                caption,
+            },
+            keys: Keys::default(),
+            paused: false,
+        };
+        m.set_pres(live(false));
+        for _ in 0..90 {
+            m.advance(FRAME_DT);
+        }
+        m.set_pres(live(true));
+        for _ in 0..120 {
+            m.advance(FRAME_DT);
+            let f = m.frame();
+            assert_frame_room_invariants(&m, &f);
+        }
+        assert!(m.is_at_rest(), "settles");
+        let f = m.frame();
+        for id in [ElemId::Wave, ElemId::Caption, ElemId::Finish] {
+            let e = f.elems.iter().find(|e| e.id == id);
+            assert!(
+                e.is_some_and(|e| e.alpha > 0.99),
+                "{id:?} fully shown: {e:?}"
+            );
+        }
+        // The row's box inside the capsule, clear of its rounded corners.
+        let caption = f.elems.iter().find(|e| e.id == ElemId::Caption).unwrap();
+        assert!(caption.rect[1] + caption.rect[3] <= f.shape.b);
+
+        m.set_pres(Pres::Processing);
+        for _ in 0..120 {
+            m.advance(FRAME_DT);
+            let f = m.frame();
+            assert_frame_room_invariants(&m, &f);
+        }
+        assert!(m.is_at_rest());
+        assert!(
+            !m.frame()
+                .elems
+                .iter()
+                .any(|e| e.id == ElemId::Caption || e.id == ElemId::Wave)
+        );
     }
 
     #[test]
@@ -2111,6 +2427,9 @@ mod tests {
         m.set_pres(Pres::Recording {
             chips: true,
             has_iphone: false,
+            live: Rows::default(),
+            keys: Default::default(),
+            paused: false,
         });
         for _ in 0..60 {
             m.advance(FRAME_DT);
@@ -2133,5 +2452,44 @@ mod tests {
             m.advance(FRAME_DT);
         }
         assert!(m.frame().ghost.is_none());
+    }
+
+    /// The keys after Pause, Cancel and Finish widen those chips by the key and a gap, and no
+    /// key leaves them as they were.
+    #[test]
+    fn the_recording_capsule_makes_room_for_the_current_keys() {
+        let pres = Pres::Recording {
+            chips: false,
+            has_iphone: false,
+            live: Rows::default(),
+            keys: Keys {
+                pause: "esc".into(),
+                cancel: "esc esc".into(),
+                finish: "⌥⇧S".into(),
+            },
+            paused: false,
+        };
+        let m = Metrics::default();
+        let width = |labels: LabelWidths, id: ElemId| {
+            let (_, items) = layout_of(&pres, "0:00", labels, &m);
+            items.iter().find(|i| i.id == id).unwrap().rect[2]
+        };
+        let bare = LabelWidths::default();
+        let keyed = LabelWidths {
+            keys: [20.0, 30.0, 12.0],
+            ..bare
+        };
+        assert!(
+            (width(keyed, ElemId::Pause) - width(bare, ElemId::Pause) - (KEY_GAP + 12.0)).abs()
+                < 0.01
+        );
+        assert!(
+            (width(keyed, ElemId::Cancel) - width(bare, ElemId::Cancel) - (KEY_GAP + 20.0)).abs()
+                < 0.01
+        );
+        assert!(
+            (width(keyed, ElemId::Finish) - width(bare, ElemId::Finish) - (KEY_GAP + 30.0)).abs()
+                < 0.01
+        );
     }
 }

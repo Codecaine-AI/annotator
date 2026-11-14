@@ -4,22 +4,63 @@ set -euo pipefail
 export LC_ALL=C
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+if [[ $# -gt 1 || ( $# -eq 1 && "$1" != --dev ) ]]; then
+  echo "usage: scripts/install-app.sh [--dev]" >&2
+  exit 2
+fi
+# --dev installs Annotator Dev.app beside the live app. It has its own bundle id, so its own TCC
+# grants, and the app derives its own config, captures, logs, shortcuts and port from that id
+# (src/app_identity.rs). It never quits, replaces or relinks the live Annotator.app.
+if [[ "${1:-}" == --dev ]]; then
+  APP_NAME="Annotator Dev"
+  BUNDLE_ID="ai.codecaine.annotator.dev"
+  # Outside target/, which `hivemind clean` purges.
+  DEFAULT_APP_DIR="${HOME}/Applications/Annotator Dev.app"
+  CLI_LINKS=("${HOME}/bin/scrawl-dev")
+  # Only this app is quit. Annotator.app, Scrawl.app and their shortcuts are separate.
+  APP_BINARIES=("Annotator Dev.app/Contents/MacOS/scrawl")
+else
+  APP_NAME="Annotator"
+  BUNDLE_ID="ai.codecaine.annotator"
+  DEFAULT_APP_DIR="/Applications/Annotator.app"
+  CLI_LINKS=("${HOME}/bin/scrawl" /usr/local/bin/scrawl)
+  # The upstream Scrawl.app and Annotator.app share the shortcut and the captures folder, so only
+  # one may run. Scrawl.app itself stays installed.
+  APP_BINARIES=("Scrawl.app/Contents/MacOS/scrawl" "Annotator.app/Contents/MacOS/scrawl")
+fi
 # SCRAWL_APP_DIR builds the signed bundle somewhere else (staging for remote installs, see
-# install-app-remote.sh); SCRAWL_NO_LAUNCH=1 skips the ~/bin link and the restart.
-APP_DIR="${SCRAWL_APP_DIR:-${HOME}/Applications/Scrawl.app}"
+# install-app-remote.sh); SCRAWL_NO_LAUNCH=1 skips the CLI links and the restart.
+APP_DIR="${SCRAWL_APP_DIR:-${DEFAULT_APP_DIR}}"
 CONTENTS_DIR="${APP_DIR}/Contents"
 MACOS_DIR="${CONTENTS_DIR}/MacOS"
 RESOURCES_DIR="${CONTENTS_DIR}/Resources"
 FRAMEWORKS_DIR="${CONTENTS_DIR}/Frameworks"
-SIGN_ID="Developer ID Application: Christopher Langton (QC99C9JE59)"
-SPARKLE_PUBLIC_KEY="mIek27lttJe8cIBqVZFhh6reRKjpTx1h9ZY9OKWPtuM="
+HELPER_ID="${BUNDLE_ID}.helper"
+# The pinned local identity from scripts/setup-local-signing.py. Signing with the same
+# certificate and an explicit designated requirement keeps TCC grants across rebuilds.
+SIGNING_CONFIG="${HOME}/.config/annotator/signing.json"
+
+if [[ ! -f "${SIGNING_CONFIG}" ]]; then
+  echo "no ${SIGNING_CONFIG}; run python3 scripts/setup-local-signing.py first" >&2
+  exit 1
+fi
+IDENTITY="$(/usr/bin/plutil -extract identity raw -o - "${SIGNING_CONFIG}")"
+KEYCHAIN="$(/usr/bin/plutil -extract keychain raw -o - "${SIGNING_CONFIG}")"
+if [[ ! "${IDENTITY}" =~ ^[0-9A-Fa-f]{40}$ ]]; then
+  echo "${SIGNING_CONFIG} has no SHA-1 identity; refusing to sign ad hoc" >&2
+  exit 1
+fi
+if ! security find-identity -p codesigning "${KEYCHAIN}" 2>/dev/null | grep -qi "${IDENTITY}"; then
+  echo "the pinned identity is not in ${KEYCHAIN}; refusing to sign ad hoc" >&2
+  exit 1
+fi
 
 cd "${REPO_DIR}"
-chmod +x "${REPO_DIR}/scripts/setup-sparkle.sh" "${REPO_DIR}/scripts/release-app.sh" 2>/dev/null || true
-SPARKLE_DIR="$("${REPO_DIR}/scripts/setup-sparkle.sh" 2>/dev/null || true)"
-taskpolicy -c utility cargo build -j 3
+taskpolicy -c utility cargo build -j 3 --offline
 
-mkdir -p "${MACOS_DIR}" "${RESOURCES_DIR}" "${FRAMEWORKS_DIR}" "${HOME}/bin"
+mkdir -p "${MACOS_DIR}" "${RESOURCES_DIR}" "${HOME}/bin"
+# Annotator ships without Sparkle; drop a framework an older build left behind.
+rm -rf "${FRAMEWORKS_DIR}"
 
 rm -f "${MACOS_DIR}/scrawl" "${MACOS_DIR}/scrawl-helper"
 cp -f "${REPO_DIR}/target/debug/scrawl" "${MACOS_DIR}/scrawl"
@@ -28,11 +69,6 @@ chmod +x "${MACOS_DIR}/scrawl" "${MACOS_DIR}/scrawl-helper"
 
 if [[ -f "${REPO_DIR}/assets/Scrawl.icns" ]]; then
   cp -f "${REPO_DIR}/assets/Scrawl.icns" "${RESOURCES_DIR}/Scrawl.icns"
-fi
-
-if [[ -n "${SPARKLE_DIR}" && -d "${SPARKLE_DIR}/Sparkle.framework" ]]; then
-  rm -rf "${FRAMEWORKS_DIR}/Sparkle.framework"
-  /usr/bin/ditto "${SPARKLE_DIR}/Sparkle.framework" "${FRAMEWORKS_DIR}/Sparkle.framework"
 fi
 
 cat > "${CONTENTS_DIR}/Info.plist" <<PLIST
@@ -45,13 +81,13 @@ cat > "${CONTENTS_DIR}/Info.plist" <<PLIST
   <key>CFBundleIconFile</key>
   <string>Scrawl</string>
   <key>CFBundleIdentifier</key>
-  <string>dev.kitlangton.scrawl</string>
+  <string>${BUNDLE_ID}</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>Scrawl</string>
+  <string>${APP_NAME}</string>
   <key>CFBundleDisplayName</key>
-  <string>Scrawl</string>
+  <string>${APP_NAME}</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>
@@ -65,74 +101,65 @@ cat > "${CONTENTS_DIR}/Info.plist" <<PLIST
   <key>NSHighResolutionCapable</key>
   <true/>
   <key>NSScreenCaptureUsageDescription</key>
-  <string>Scrawl captures your screen to build annotated agent bundles.</string>
+  <string>Annotator captures your screen to build annotated agent bundles.</string>
   <key>NSMicrophoneUsageDescription</key>
-  <string>Scrawl records your voice to align transcripts with keyframes.</string>
+  <string>Annotator records your voice to align transcripts with keyframes.</string>
   <key>NSCameraUsageDescription</key>
-  <string>Scrawl mirrors and records a cabled iPhone's screen.</string>
+  <string>Annotator mirrors and records a cabled iPhone's screen.</string>
   <key>NSSpeechRecognitionUsageDescription</key>
-  <string>Scrawl transcribes your narration on this Mac.</string>
+  <string>Annotator transcribes your narration on this Mac.</string>
   <key>NSAppleEventsUsageDescription</key>
-  <string>Scrawl reads the address of the browser tab you captured, to send a capture of a dev site to its project's session.</string>
-  <key>SUEnableAutomaticChecks</key>
-  <false/>
-  <key>SUAutomaticallyUpdate</key>
-  <false/>
-  <key>SUAllowsAutomaticUpdates</key>
-  <false/>
-  <key>SUFeedURL</key>
-  <string>https://scrawl.kitlangton.com/appcast.xml</string>
-  <key>SUPublicEDKey</key>
-  <string>${SPARKLE_PUBLIC_KEY}</string>
-  <key>SUVerifyUpdateBeforeExtraction</key>
-  <true/>
+  <string>Annotator reads the address of the browser tab you captured, to send a capture of a dev site to its project's session.</string>
 </dict>
 </plist>
 PLIST
 
-if security find-identity -v -p codesigning 2>/dev/null | grep -q "${SIGN_ID}"; then
-  IDENTITY="${SIGN_ID}"
-else
-  IDENTITY="-"
-fi
-if [[ -d "${FRAMEWORKS_DIR}/Sparkle.framework/Versions/B" ]]; then
-  SPARKLE_VER="${FRAMEWORKS_DIR}/Sparkle.framework/Versions/B"
-  codesign --force --sign "${IDENTITY}" "${SPARKLE_VER}/XPCServices/Installer.xpc"
-  codesign --force --sign "${IDENTITY}" --preserve-metadata=entitlements "${SPARKLE_VER}/XPCServices/Downloader.xpc"
-  codesign --force --sign "${IDENTITY}" "${SPARKLE_VER}/Autoupdate"
-  codesign --force --sign "${IDENTITY}" "${SPARKLE_VER}/Updater.app"
-  codesign --force --sign "${IDENTITY}" "${FRAMEWORKS_DIR}/Sparkle.framework"
-fi
-codesign --force --sign "${IDENTITY}" --identifier "dev.kitlangton.scrawl.helper" "${MACOS_DIR}/scrawl-helper"
-codesign --force --sign "${IDENTITY}" --identifier "dev.kitlangton.scrawl" "${APP_DIR}"
+# No hardened runtime: this is a local build, and the runtime would need the release entitlements.
+codesign --force --sign "${IDENTITY}" --keychain "${KEYCHAIN}" --identifier "${HELPER_ID}" \
+  --requirements "=designated => identifier \"${HELPER_ID}\" and certificate leaf = H\"${IDENTITY}\"" \
+  "${MACOS_DIR}/scrawl-helper"
+codesign --force --sign "${IDENTITY}" --keychain "${KEYCHAIN}" --identifier "${BUNDLE_ID}" \
+  --requirements "=designated => identifier \"${BUNDLE_ID}\" and certificate leaf = H\"${IDENTITY}\"" \
+  "${APP_DIR}"
+codesign --verify --strict "${APP_DIR}"
 
 if [[ "${SCRAWL_NO_LAUNCH:-0}" == "1" ]]; then
   exit 0
 fi
 
-ln -sf "${MACOS_DIR}/scrawl" "${HOME}/bin/scrawl"
+for link in "${CLI_LINKS[@]}"; do
+  ln -sf "${MACOS_DIR}/scrawl" "${link}"
+done
 
 scrawl_running() {
-  local status=0
-  pgrep -f "Scrawl.app/Contents/MacOS/scrawl" >/dev/null || status=$?
-  case "${status}" in
-    0) return 0 ;;
-    1) return 1 ;;
-    *) echo "pgrep failed (exit ${status}); can't tell whether the old Scrawl stopped" >&2; exit 1 ;;
-  esac
+  local binary status
+  for binary in "${APP_BINARIES[@]}"; do
+    status=0
+    pgrep -f "${binary}" >/dev/null || status=$?
+    case "${status}" in
+      0) return 0 ;;
+      1) ;;
+      *) echo "pgrep failed (exit ${status}); can't tell whether the old app stopped" >&2; exit 1 ;;
+    esac
+  done
+  return 1
 }
 
-pkill -f "Scrawl.app/Contents/MacOS/scrawl" 2>/dev/null || true
+for binary in "${APP_BINARIES[@]}"; do
+  pkill -f "${binary}" 2>/dev/null || true
+done
 pkill -f "target/debug/scrawl" 2>/dev/null || true
 for _ in {1..40}; do
   scrawl_running || break
   sleep 0.05
 done
 if scrawl_running; then
-  pgrep -fl "Scrawl.app/Contents/MacOS/scrawl" >&2 || true
-  echo "the old Scrawl is still running; quit it and run this again" >&2
+  for binary in "${APP_BINARIES[@]}"; do
+    pgrep -fl "${binary}" >&2 || true
+  done
+  echo "the old Scrawl or Annotator is still running; quit it and run this again" >&2
   exit 1
 fi
 open -a "${APP_DIR}" || (sleep 0.3 && open -n -a "${APP_DIR}")
 sleep 0.3
-pgrep -fl "Scrawl.app/Contents/MacOS/scrawl"
+pgrep -fl "${APP_NAME}.app/Contents/MacOS/scrawl"

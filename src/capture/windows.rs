@@ -19,7 +19,7 @@ use windows::Win32::UI::Input::KeyboardAndMouse::{
     KEYBD_EVENT_FLAGS, KEYBDINPUT, KEYEVENTF_KEYUP, MOD_ALT, MOD_CONTROL, MOD_NOREPEAT, MOD_SHIFT,
     MOD_WIN, MOUSEEVENTF_ABSOLUTE, MOUSEEVENTF_LEFTDOWN, MOUSEEVENTF_LEFTUP,
     MOUSEEVENTF_VIRTUALDESK, MOUSEINPUT, RegisterHotKey, SendInput, UnregisterHotKey, VIRTUAL_KEY,
-    VK_CONTROL, VK_ESCAPE, VK_LBUTTON, VK_LWIN, VK_MENU, VK_RBUTTON, VK_RWIN, VK_SHIFT,
+    VK_CONTROL, VK_LBUTTON, VK_LWIN, VK_MENU, VK_RBUTTON, VK_RWIN, VK_SHIFT,
 };
 use windows::Win32::UI::WindowsAndMessaging::{
     CallNextHookEx, GetMessageW, GetSystemMetrics, HC_ACTION, KBDLLHOOKSTRUCT, LLKHF_INJECTED,
@@ -32,9 +32,9 @@ use windows::Win32::UI::WindowsAndMessaging::{
 
 use super::{
     CARBON_CMD_KEY, CARBON_CONTROL_KEY, CARBON_OPTION_KEY, CARBON_SHIFT_KEY, LiveOverlayEvent,
-    Sampler, SharedCaptureTelemetry, ShortcutConfig, ShortcutKind, clean_label, hotkey_combos,
-    layout_default_keycode, pick_display, poll_clicks, scrawl_log, shortcut_label,
-    shortcut_matches, track_shift_ink,
+    Sampler, SharedCaptureTelemetry, ShortcutConfig, ShortcutKind, carbon_modifiers, clean_label,
+    draw_in_chord, draws, hotkey_combos, layout_default_keycode, pick_display, poll_clicks,
+    scrawl_log, shortcut_label, shortcut_matches, track_shift_ink,
 };
 use crate::model::{CaptureMode, InteractionEvent, TargetFrame, TargetInfo};
 use crate::win;
@@ -51,7 +51,7 @@ pub(super) const NO_KEY_SOURCE: &str = "polled key state (keyboard hook off)";
 /// `VK_S` on Dvorak too.
 pub const KEY_S: u16 = 0x53;
 pub const KEY_V: u16 = 0x56;
-const KEY_Z: u16 = 0x5A;
+pub const KEY_Z: u16 = 0x5A;
 /// An unassigned virtual key, sent around Alt or Win coming up after a shortcut so the app in
 /// front doesn't open its menu bar (or the Start menu) on the lone modifier release.
 const VK_MASK: u16 = 0xE8;
@@ -125,6 +125,11 @@ impl Modifiers {
             alt: key_down(VK_MENU.0),
             shift: key_down(VK_SHIFT.0),
         }
+    }
+
+    /// As Carbon bits (Win is ⌘'s).
+    fn carbon(self) -> u32 {
+        carbon_modifiers(self.win, self.ctrl, self.alt, self.shift)
     }
 
     fn any(self) -> bool {
@@ -441,7 +446,7 @@ pub fn post_synthetic_cmd_v() {
         inputs.push(keyboard_input(VK_CONTROL.0, KEYEVENTF_KEYUP));
     }
     if !send(&inputs) {
-        scrawl_log("Ctrl+V was refused (an elevated app in front ignores Scrawl's input)");
+        scrawl_log("Ctrl+V was refused (an elevated app in front ignores Annotator's input)");
     }
 }
 
@@ -531,7 +536,7 @@ fn hotkey_id(kind: ShortcutKind, index: usize) -> i32 {
     match (kind, index) {
         (ShortcutKind::Record, 0) => HOTKEY_ID_TOGGLE,
         (ShortcutKind::Record, i) => HOTKEY_ID_ALT1 + i as i32,
-        (ShortcutKind::Paste, i) => HOTKEY_ID_PASTE_BASE + i as i32,
+        (ShortcutKind::Paste | ShortcutKind::Undo, i) => HOTKEY_ID_PASTE_BASE + i as i32,
     }
 }
 
@@ -720,7 +725,8 @@ enum HookEvent {
         right: bool,
         x: f64,
         y: f64,
-        pure_shift: bool,
+        /// The modifiers down (Carbon bits).
+        held: u32,
     },
     Wheel {
         x: f64,
@@ -787,7 +793,7 @@ unsafe extern "system" fn mouse_hook(code: i32, wparam: WPARAM, lparam: LPARAM) 
                     right,
                     x,
                     y,
-                    pure_shift: mods.shift && !mods.ctrl && !mods.alt && !mods.win,
+                    held: mods.carbon(),
                 });
             } else if message == WM_MOUSEWHEEL || message == WM_MOUSEHWHEEL {
                 let delta = f32::from((event.mouseData >> 16) as u16 as i16) / 120.0;
@@ -836,13 +842,13 @@ fn handle_hook_event(telemetry: &SharedCaptureTelemetry, event: HookEvent) {
                 }
                 return;
             }
-            if vk == VK_ESCAPE.0 && !repeat && !mods.win && !mods.ctrl {
-                telemetry.escape_pressed.store(true, Ordering::Release);
+            if !repeat && telemetry.is_cancel(vk, mods.carbon()) {
+                telemetry.note_cancel();
             }
             if !telemetry.active.load(Ordering::Acquire) || repeat {
                 return;
             }
-            if vk == KEY_Z && mods.ctrl && !mods.alt && !mods.shift && !mods.win {
+            if telemetry.is_undo(vk, mods.carbon()) {
                 let _ = telemetry.ui_sender.try_send(LiveOverlayEvent::UndoStroke);
             } else if (mods.ctrl || mods.win)
                 && let Some(key) = shortcut_key_name(vk)
@@ -876,11 +882,13 @@ fn handle_hook_event(telemetry: &SharedCaptureTelemetry, event: HookEvent) {
             right,
             x,
             y,
-            pure_shift,
+            held,
         } => {
             if !telemetry.active.load(Ordering::Acquire) {
                 return;
             }
+            // The draw modifier alone (Shift unless Settings changed it).
+            let pure_shift = draws(telemetry.draw_mask(), held);
             let t_ms = telemetry.elapsed_ms();
             // A Shift-press is never a click: a Shift-click drops a pin, a Shift-drag is ink.
             if down {
@@ -1004,16 +1012,22 @@ fn run_key_poller(telemetry: Arc<SharedCaptureTelemetry>) {
             alt,
             shift,
         } = mods;
-        if !shift {
+        let held = mods.carbon();
+        let draw = telemetry.draw_mask();
+        if held & draw == 0 {
             await_shift_release = false;
-        } else if win || ctrl || alt {
+        } else if draw_in_chord(draw, held) {
             await_shift_release = true;
         }
 
-        // Esc for the picker, from key state while the keyboard hook is off.
-        let escape_now = key_down(VK_ESCAPE.0);
-        if escape_now && !prev_escape && !KEYBOARD_HOOK_LIVE.load(Ordering::Acquire) {
-            telemetry.escape_pressed.store(true, Ordering::Release);
+        // The cancel key, from key state while the keyboard hook is off.
+        let escape_now = key_down(telemetry.cancel_key());
+        if escape_now
+            && !prev_escape
+            && !KEYBOARD_HOOK_LIVE.load(Ordering::Acquire)
+            && telemetry.is_cancel(telemetry.cancel_key(), held)
+        {
+            telemetry.note_cancel();
         }
         prev_escape = escape_now;
 
@@ -1054,7 +1068,9 @@ fn run_key_poller(telemetry: Arc<SharedCaptureTelemetry>) {
             continue;
         }
 
-        let undo_now = ctrl && !win && !alt && !shift && key_down(KEY_Z);
+        let undo_now = telemetry
+            .undo_keys()
+            .is_some_and(|(codes, mods)| held == mods && codes.into_iter().any(key_down));
         if undo_now && !prev_undo && !KEYBOARD_HOOK_LIVE.load(Ordering::Acquire) {
             let _ = telemetry.ui_sender.try_send(LiveOverlayEvent::UndoStroke);
         }
@@ -1073,12 +1089,12 @@ fn run_key_poller(telemetry: Arc<SharedCaptureTelemetry>) {
             &mut prev_buttons,
             buttons,
             (x, y),
-            shift && !win && !ctrl && !alt,
+            draws(draw, held),
             |x, y| telemetry.on_scrawl_window(x, y),
         );
 
-        let pure_shift = shift && !win && !ctrl && !alt && !await_shift_release;
-        // Hold Shift + move the cursor inside the capture target = draw a persistent stroke.
+        let pure_shift = draws(draw, held) && !await_shift_release;
+        // Hold the draw modifier + move the cursor inside the capture target = draw a persistent stroke.
         track_shift_ink(&telemetry, (x, y), pure_shift, prev_shift_ink);
         prev_shift_ink = pure_shift;
     }

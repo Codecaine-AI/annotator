@@ -117,11 +117,11 @@ final class Mirror: NSObject, NSApplicationDelegate, NSWindowDelegate, AVCapture
     showWindow(title: "iPhone", orderFront: !hiddenPreview)
     AVCaptureDevice.requestAccess(for: .video) { granted in
       DispatchQueue.main.async {
-        guard granted else { return self.die("Camera access denied; allow Scrawl in System Settings › Privacy & Security › Camera") }
+        guard granted else { return self.die("Camera access denied; allow Annotator in System Settings › Privacy & Security › Camera") }
         AVCaptureDevice.requestAccess(for: .audio) { micGranted in
           DispatchQueue.main.async {
             if !micGranted {
-              self.warn("Microphone access denied; recording without narration (allow Scrawl in System Settings › Privacy & Security › Microphone)")
+              self.warn("Microphone access denied; recording without narration (allow Annotator in System Settings › Privacy & Security › Microphone)")
             }
             Phone.publishScreenCaptureDevices()
             let deadline = Date().addingTimeInterval(12)

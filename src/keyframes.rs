@@ -5,6 +5,24 @@ const THUMB_WIDTH: usize = 64;
 const THUMB_HEIGHT: usize = 36;
 const THUMB_PIXELS: usize = THUMB_WIDTH * THUMB_HEIGHT;
 const FRAME_GAP_MS: u64 = 750;
+/// Two candidate frames this far apart (`scene_transition_diff`) are a scene change.
+const SCENE_THRESHOLD: f32 = 0.08;
+
+/// A candidate frame's thumbnail, to tell a scene change while the capture records: app shots
+/// (`crate::appshot`) ask for a shot when one happens.
+pub(crate) struct Thumbnail([f32; THUMB_PIXELS]);
+
+impl Thumbnail {
+    pub(crate) fn of(frame: &RgbaFrame) -> Self {
+        Self(luma_thumbnail(frame))
+    }
+
+    /// Whether the picture changed from this frame to `next` as much as a scene-change keyframe
+    /// needs.
+    pub(crate) fn is_scene_change(&self, next: &Thumbnail) -> bool {
+        scene_transition_diff(&self.0, &next.0) > SCENE_THRESHOLD
+    }
+}
 
 /// Sample the centers of a fixed grid; cost is independent of capture resolution.
 fn luma_thumbnail(frame: &RgbaFrame) -> [f32; THUMB_PIXELS] {
@@ -582,7 +600,7 @@ pub fn select_keyframes(
     let mut transitions: Vec<(usize, (u64, u64), f32)> = Vec::new();
     let mut transition: Option<(usize, u64, f32)> = None;
     for (i, &delta) in deltas.iter().enumerate() {
-        if delta > 0.08 {
+        if delta > SCENE_THRESHOLD {
             let start_t = transition.map_or(frames[i].t_ms, |(_, t0, _)| t0);
             transition = Some((
                 i + 1,
@@ -760,6 +778,7 @@ pub fn select_keyframes(
                     said: None,
                     mark_id,
                     cursor: candidate.cursor,
+                    appshot: None,
                 },
                 frame.clone(),
             )
@@ -1022,6 +1041,14 @@ mod tests {
         let at: Vec<_> = selected.iter().map(|(k, _)| k.t).collect();
         assert_eq!(at, [20_000, 40_000]);
         assert!(marks.iter().all(|m| m.frame.is_some()));
+    }
+
+    #[test]
+    fn appshot_scene_trigger_fires_on_what_makes_a_scene_keyframe() {
+        let dark = Thumbnail::of(&frame(0, 0));
+        assert!(dark.is_scene_change(&Thumbnail::of(&frame(200, 80))));
+        assert!(!dark.is_scene_change(&Thumbnail::of(&frame(200, 0))));
+        assert!(!dark.is_scene_change(&Thumbnail::of(&frame(200, 12))));
     }
 
     #[test]

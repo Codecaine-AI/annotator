@@ -20,14 +20,21 @@ Shortcuts are `RegisterHotKey` plus low-level hooks and a key-state poller (inje
 
 `screens::displays()`/`current()`/`pointer()` read `win::monitors()` and the cursor in global pixels (`Screen::id` is the monitor's index, `scale` its DPI scale), so the picker opens on the pointer's monitor and follows it like on macOS: `ui::platform::move_picker_window` moves the picker's HWND, `InkOverlay::move_to` moves the overlay (off the UI thread, as inside an update GPUI misses the resize) and `ui::platform::display_at` maps a monitor to GPUI's display by its DIP origin.
 
-## agentContext and the command-line tool
+## App state and the command-line tool
 
-- `agentContext` looks up what clicks and marks land on through UI Automation (`win/uia.rs`, behind `ax::hit_test`; the rest of `ax.rs`, its prober and `apply`, is shared). It reads names, localized control types and automation ids, never a control's value, so nothing typed into a field (passwords included) is read. `cargo test win::uia -- --ignored --nocapture` names whatever is under the pointer. `ax_other.rs` stays the stub for systems with neither lookup.
+- App state (`"appState"`, Settings › Recording › For agents › Save app state) is off by default on Windows; the switch's caption there reads "Saves what is under each click and mark." There are no app shots on Windows: `appshot::walker()` is `None`, nothing is spooled, and `scrawl appshot` answers `no app shots in this capture`.
+- With app state on it looks up what clicks and marks land on through UI Automation (`win/uia.rs`, behind `ax::hit_test`; the rest of `ax.rs`, its prober and `apply`, is shared). It reads names, localized control types and automation ids, never a control's value, so nothing typed into a field (passwords included) is read, and its strings go through `privacy::clip` like the Mac's (no URL query). `cargo test win::uia -- --ignored --nocapture` names whatever is under the pointer. `ax_other.rs` stays the stub for systems with neither lookup.
 - Settings › Agents puts `scrawl` on PATH with a `scrawl.cmd` shim in `%LOCALAPPDATA%\Microsoft\WindowsApps`, which is on every user's PATH (`win/command_line.rs`, the same API as `command_line.rs`): a symbolic link needs Developer Mode and a hard link can't cross drives. The shim runs this `scrawl.exe` with every argument; another program called `scrawl` there is left alone.
 
 ## Not on Windows
 
-The cabled iPhone, video export, Sparkle (**Check for Updates…** opens the releases page) and reading the browser tab URL (the `sdk.js` page bridge still works).
+The cabled iPhone, video export, Sparkle (**Check for Updates…** opens upstream's releases page) and reading the browser tab URL (the `sdk.js` page bridge still works).
+
+These Annotator features differ on Windows:
+
+- The cancel key cancels a recording at once. There is no pause and resume (`docs/capture.md`).
+- The notification area menu has no **History…** item. Review's Video tab opens the movie in the default player (`win/helper.rs`, `play`).
+- The default transcriber is the on-device engine (`Engine::Apple`, Parakeet here), not Deepgram (`Engine::default`).
 
 ## Building and testing
 

@@ -95,6 +95,11 @@ pub fn export_audio(movie: &Path, wav: &Path) -> Result<()> {
     crate::win::media::export_audio(movie, wav)
 }
 
+/// Windows has no pause (Esc cancels a recording), so nothing calls this there.
+pub fn cut(_movie: &Path, _out: &Path, _keep: &[(u64, u64)]) -> Result<u64> {
+    bail!("cutting a movie needs AVFoundation (macOS)")
+}
+
 pub enum FrameTimes<'a> {
     /// Nearest decodable frame every N ms, stamped with its actual time.
     Every(u64),
@@ -108,6 +113,11 @@ pub fn frames(movie: &Path, times: FrameTimes, max_edge: u32) -> Result<Vec<Rgba
 }
 
 /// Renders `text` as a compact Unicode half-block QR code for the terminal.
+/// Opens the video in the default player (there is no AVPlayerView on Windows).
+pub fn play(movie: &Path, _title: &str, _stage: Option<[f32; 4]>) -> Result<std::process::Child> {
+    Ok(std::process::Command::new("explorer").arg(movie).spawn()?)
+}
+
 pub fn qr(_text: &str) -> Result<String> {
     bail!("QR codes need CoreImage (macOS)")
 }

@@ -117,7 +117,8 @@
       "id": "pins",
       "group": "record",
       "name": "Pins",
-      "says": "⇧-click drops a numbered pin: a brief pulse on screen, a mark on the keyframe.",
+      "says": "⇧-click drops a numbered pin: a red numbered circle on screen for 2 s, and the same one on the keyframe.",
+      "note": "On Windows the live pin is a brief pulse.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
       "shortcuts": [{ "keys": "⇧ click", "does": "Drop a numbered pin" }],
@@ -127,14 +128,27 @@
       "id": "undo-cancel",
       "group": "record",
       "name": "Undo and cancel",
-      "says": "Undo removes the last stroke; Esc cancels the selection or the capture.",
+      "says": "Undo removes the last stroke; Esc closes the picker, and pressed twice cancels a recording.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
       "shortcuts": [
         { "keys": "⌘Z", "does": "Undo the last stroke (Ctrl+Z on Windows)" },
-        { "keys": "Esc", "does": "Cancel the selection or capture" }
+        { "keys": "Esc", "does": "Close the picker" },
+        { "keys": "Esc Esc", "does": "Cancel the recording (two presses within 400 ms)" }
       ],
       "docs": ["README.md#capture-controls"]
+    },
+    {
+      "id": "pause-resume",
+      "group": "record",
+      "name": "Pause and resume",
+      "says": "One press of Esc pauses a recording from any app and the next resumes it. The capsule says Paused and offers Resume, and the paused time is cut out of the video, audio, transcript, keyframes, ink, clicks and window log.",
+      "status": "branch:cp4b-esc-pause",
+      "platforms": ["mac"],
+      "added": "2026-11-13",
+      "note": "Windows and Linux keep Esc as cancel. The microphone and the screen stay on while paused; what they record then is removed when the recording finishes.",
+      "shortcuts": [{ "keys": "Esc", "does": "Pause or resume the recording from any app (or F1 to F12, set in Settings)" }],
+      "docs": ["docs/capture.md", "README.md#capture-controls"]
     },
     {
       "id": "clicks",
@@ -183,6 +197,21 @@
         { "key": "playbackLevel", "value": "0–100 (20)", "does": "Percent of the volume to keep" }
       ],
       "docs": ["docs/onboarding-and-settings.md"]
+    },
+    {
+      "id": "live-audio",
+      "group": "record",
+      "name": "Live audio",
+      "says": "A waveform in the recording capsule shows the microphone is hearing you. Turn on live words and the words appear under it as you say them, whatever engine makes the transcript.",
+      "status": "main",
+      "platforms": ["mac"],
+      "added": "2026-10-28",
+      "note": "The waveform is on by default (Settings › Recording › Show live audio). A flat red line means the microphone is sending nothing. Live words are off by default (Show live words) and need the waveform on. They come from a separate macOS 26 SpeechAnalyzer stream, so they show with Apple Speech, Hex or a command transcriber, and the final transcript is unchanged.",
+      "config": [
+        { "key": "liveAudio", "value": "false", "does": "Hide the waveform while recording" },
+        { "key": "liveWords", "value": "true", "does": "Show the words as they're said under the waveform" }
+      ],
+      "docs": ["docs/capture.md", "docs/onboarding-and-settings.md"]
     },
     {
       "id": "live-transcribe",
@@ -263,6 +292,28 @@
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
       "docs": ["README.md#usage"]
+    },
+    {
+      "id": "history",
+      "group": "finish",
+      "name": "History",
+      "says": "History… in the menu lists every capture newest first with its date, length and apps (three, then +N, all of them in the tooltip). Double-click one to open it in the Review window.",
+      "status": "branch:cp5-history-video",
+      "platforms": ["mac"],
+      "added": "2026-11-13",
+      "note": "A Screen capture lists each app that came to the front, an Area capture each app whose window was on top over the region, in first-seen order. Captures made before this list the app they started on.",
+      "docs": ["docs/export-and-retention.md#history-and-the-video-tab"]
+    },
+    {
+      "id": "review-video",
+      "group": "finish",
+      "name": "Video in Review",
+      "says": "The Review window's Video tab plays the capture's video in the system player, over the stage. Its header lists every app the capture showed.",
+      "status": "branch:cp5-history-video",
+      "platforms": ["mac"],
+      "added": "2026-11-13",
+      "note": "The tab is hidden once retention has cleaned the video; the contact sheet, keyframes and transcript stay.",
+      "docs": ["docs/export-and-retention.md#history-and-the-video-tab"]
     },
     {
       "id": "recover",
@@ -356,18 +407,22 @@
     {
       "id": "agent-context",
       "group": "agent",
-      "name": "Agent context",
-      "says": "The summary names what clicks and marks land on, from Accessibility (UI Automation on Windows) and dev-page events.",
-      "status": "experiment:agentContext",
+      "name": "App state",
+      "says": "The summary names what clicks and marks land on, from Accessibility (UI Automation on Windows) and dev-page events. On macOS each keyframe also gets an app shot: the app, window title, URL and text tree of the window it shows, which an agent reads with scrawl appshot.",
+      "status": "main",
       "platforms": ["mac", "windows"],
       "added": "2026-10-19",
-      "docs": ["docs/keyframes-and-text.md"]
+      "note": "Off by default (Settings › Recording › Save app state), because an app shot can store the text of a Safari AutoFill popup. Windows has no app shots. No typed value, password or URL query is stored. An older experiments.agentContext value still counts while appState is not set.",
+      "config": [
+        { "key": "appState", "value": "true | false", "does": "Save app state with captures (off by default)" }
+      ],
+      "docs": ["docs/keyframes-and-text.md", "docs/windows.md"]
     },
     {
       "id": "screen-text",
       "group": "agent",
       "name": "Text under marks",
-      "says": "Reads the text under a mark or drag with Vision when Accessibility can't name it (with agentContext).",
+      "says": "Reads the text under a mark or drag with Vision when Accessibility can't name it (with app state on).",
       "status": "review:#56",
       "platforms": ["mac"],
       "added": "2026-10-21",
@@ -382,7 +437,7 @@
       "platforms": ["mac"],
       "note": "Windows and Linux use Parakeet on device.",
       "config": [
-        { "key": "transcriber", "value": "\"apple\" | \"hex\" | \"command\"", "does": "Which engine transcribes" },
+        { "key": "transcriber", "value": "\"deepgram\" | \"apple\" | \"hex\" | \"command\"", "does": "Which engine transcribes (Deepgram by default on macOS)" },
         { "key": "appleLocale", "value": "\"zh-TW\"", "does": "Apple Speech language; absent follows the Mac" }
       ],
       "docs": ["README.md#transcription"]
@@ -395,6 +450,17 @@
       "status": "stable@0.3.6",
       "platforms": ["windows", "linux"],
       "docs": ["docs/windows.md"]
+    },
+    {
+      "id": "deepgram",
+      "group": "agent",
+      "name": "Deepgram nova-3",
+      "says": "The default engine on macOS: Deepgram nova-3 transcribes the recording with measured word times and punctuation, and Apple Speech takes over when it can't.",
+      "status": "main",
+      "platforms": ["mac"],
+      "added": "2026-11-13",
+      "note": "Needs DEEPGRAM_API_KEY in the environment or ~/.config/codecaine/env. Without a key, on a timeout (120 s), a non-200 answer or an empty result, that recording uses Apple Speech and Settings › Recording names the reason. The language is hexLanguage (\"auto\" lets Deepgram detect it).",
+      "docs": ["docs/keyframes-and-text.md"]
     },
     {
       "id": "hex",
@@ -606,6 +672,19 @@
       "docs": ["README.md#settings"]
     },
     {
+      "id": "shortcuts-pane",
+      "group": "settings",
+      "name": "Shortcuts pane",
+      "says": "Settings › Shortcuts sets Record, Paste, Undo stroke, the draw modifier and the cancel key. Each works on the next recording, a key another row uses is refused with that row named, and the capsule shows the current keys.",
+      "status": "branch:cp4-shortcuts",
+      "platforms": ["mac"],
+      "added": "2026-11-13",
+      "note": "Windows keeps Record, Paste and Undo in General. Its draw modifier and cancel key follow the config but have no menu yet.",
+      "shortcuts": [{ "keys": "Esc", "does": "Pause or resume the recording from any app, or cancel it with two presses (or F1 to F12, set in Settings)" }],
+      "config": [{ "key": "shortcuts", "value": "{\"undo\": …, \"draw\": \"shift\" | \"option\" | \"control\" | \"command\", \"cancel\": \"escape\" | \"f1\" … \"f12\"}", "does": "Undo stroke, the draw modifier and the cancel key" }],
+      "docs": ["docs/onboarding-and-settings.md", "docs/capture.md"]
+    },
+    {
       "id": "launch-at-login",
       "group": "settings",
       "name": "Launch at login",
@@ -630,10 +709,10 @@
       "id": "retention",
       "group": "storage",
       "name": "Keep recordings",
-      "says": "Video and audio go to the Trash after 7 days and whole bundles after 30; Settings › Storage picks 7, 30 days or Forever.",
+      "says": "Recordings are kept forever by default; Settings › Storage can send video and audio to the Trash after 7 or 30 days and whole bundles after 30 or 90.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "config": [{ "key": "retention", "value": "{\"mediaDays\": 7, \"bundleDays\": 30}", "does": "How long to keep media and bundles; null keeps forever" }],
+      "config": [{ "key": "retention", "value": "{\"mediaDays\": null, \"bundleDays\": null}", "does": "How long to keep media and bundles; null or a missing field keeps forever (the default)" }],
       "docs": ["README.md#keeping-captures-small", "docs/export-and-retention.md"]
     },
     {

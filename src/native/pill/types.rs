@@ -50,7 +50,13 @@ pub enum PillAction {
     SelectMode(SelectionMode),
     SwitchRecording(SelectionMode),
     RecordSelected,
+    /// The Cancel button or ✕.
     Cancel,
+    /// The cancel key pressed while the pill has the keys: the picker closes; a recording
+    /// pauses or resumes on one press and cancels on two (`crate::pause`).
+    CancelKey,
+    /// The Pause or Resume button.
+    TogglePause,
     Finish,
     Paste(Option<[f32; 2]>),
     Inspect,
@@ -66,4 +72,6 @@ pub struct PillSnapshot {
     pub clock: String,
     pub reduced_motion: bool,
     pub style: PillStyle,
+    /// The cancel key's code (Settings › Shortcuts): pressed on the pill, it is `CancelKey`.
+    pub cancel_key: u16,
 }

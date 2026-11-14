@@ -1,10 +1,12 @@
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicI32, AtomicU32, AtomicU64, Ordering};
 use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::{Duration, Instant};
 
 use anyhow::{Context, Result};
+
+use crate::app_identity::Variant;
 
 use crate::model::{
     CaptureMode, InteractionEvent, RgbaFrame, SCALE, Stroke, TargetFrame, TargetInfo,
@@ -34,6 +36,9 @@ pub struct CandidateBuffer {
     cap: usize,
     budget: usize,
     interval: Duration,
+    /// The recording is paused (`crate::pause`): frames are not kept, so a long pause neither
+    /// fills the budget nor thins what was recorded.
+    paused: bool,
 }
 
 impl CandidateBuffer {
@@ -43,6 +48,7 @@ impl CandidateBuffer {
             cap: 0,
             budget: budget_bytes,
             interval: FRAME_SAMPLE_INTERVAL,
+            paused: false,
         }
     }
 
@@ -56,7 +62,14 @@ impl CandidateBuffer {
         self.frames.len()
     }
 
+    pub fn set_paused(&mut self, paused: bool) {
+        self.paused = paused;
+    }
+
     pub fn push(&mut self, frame: RgbaFrame, urgent: bool) {
+        if self.paused {
+            return;
+        }
         if self.cap == 0 {
             self.cap = (self.budget / frame.rgba.len().max(1)).clamp(60, 1_200);
         }
@@ -118,6 +131,39 @@ pub struct ScreenRecording {
     pub video_offset_ms: u64,
 }
 
+impl ScreenRecording {
+    /// Takes a paused recording's pauses out of the candidate frames, the movie and the
+    /// duration. `cuts` are on this recording's clock (the frames'). A movie that can't be cut
+    /// is deleted, so nothing recorded during a pause stays in the bundle; the keyframes then
+    /// come from the candidates. When every candidate was taken during a pause (paused before
+    /// the first one and never resumed), none is kept and a blank one of the same size stands
+    /// in, because a bundle needs a frame (as `ScreenCaptureSession::stop` sees to).
+    pub fn cut(&mut self, cuts: &crate::pause::Cuts) {
+        if cuts.is_empty() {
+            return;
+        }
+        let size = self.frames.first().map(|frame| (frame.width, frame.height));
+        cuts.cut_frames(&mut self.frames);
+        if let (true, Some((width, height))) = (self.frames.is_empty(), size) {
+            let blank = [0, 0, 0, 255].repeat(width as usize * height as usize);
+            self.frames.push(RgbaFrame::new(0, width, height, blank));
+        }
+        if let Some(movie) = self.video.take() {
+            match cuts.on_clock_from(self.video_offset_ms).cut_movie(&movie) {
+                Ok(()) => self.video = Some(movie),
+                Err(error) => {
+                    scrawl_log(format!(
+                        "The paused recording's movie could not be cut and is left out: {error:#}"
+                    ));
+                    let _ = std::fs::remove_file(&movie);
+                }
+            }
+        }
+        self.video_offset_ms = cuts.shift(self.video_offset_ms);
+        self.duration_ms = cuts.shift(self.duration_ms).max(100);
+    }
+}
+
 /// Live UI events emitted by the global input monitor to drive Scrawl's HUD & Review windows.
 #[derive(Clone, Debug)]
 pub enum LiveOverlayEvent {
@@ -159,7 +205,8 @@ impl Default for ShortcutConfig {
     }
 }
 
-/// Scrawl's two global shortcuts.
+/// Annotator's key combinations. Record and Paste are global hotkeys (Carbon,
+/// `RegisterHotKey`); Undo is matched only by the key tap or hook while a recording runs.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum ShortcutKind {
@@ -167,15 +214,18 @@ pub enum ShortcutKind {
     Record,
     /// Paste the latest capture into the app in front (⌥⇧V).
     Paste,
+    /// Take back the last stroke while recording (⌘Z).
+    Undo,
 }
 
 impl ShortcutKind {
-    pub const ALL: [Self; 2] = [Self::Record, Self::Paste];
+    pub const ALL: [Self; 3] = [Self::Record, Self::Paste, Self::Undo];
 
     pub fn default_config(self) -> ShortcutConfig {
         match self {
             Self::Record => ShortcutConfig::default_record(),
             Self::Paste => ShortcutConfig::default_paste(),
+            Self::Undo => ShortcutConfig::default_undo(),
         }
     }
 
@@ -184,6 +234,7 @@ impl ShortcutKind {
         match self {
             Self::Record => 's',
             Self::Paste => 'v',
+            Self::Undo => 'z',
         }
     }
 
@@ -191,6 +242,17 @@ impl ShortcutKind {
         match self {
             Self::Record => KEY_S,
             Self::Paste => KEY_V,
+            Self::Undo => KEY_Z,
+        }
+    }
+
+    /// The default's modifiers: the variant's for Record and Paste (`app_identity`), the
+    /// system's undo modifier (⌘, or Ctrl on Windows) for Undo.
+    fn default_modifiers_in(self, variant: Variant) -> u32 {
+        match self {
+            Self::Record | Self::Paste => variant.shortcut_modifiers(),
+            Self::Undo if cfg!(target_os = "windows") => CARBON_CONTROL_KEY,
+            Self::Undo => CARBON_CMD_KEY,
         }
     }
 
@@ -198,6 +260,7 @@ impl ShortcutKind {
         match self {
             Self::Record => "Record",
             Self::Paste => "Paste last capture",
+            Self::Undo => "Undo stroke",
         }
     }
 
@@ -208,19 +271,33 @@ impl ShortcutKind {
 }
 
 impl ShortcutConfig {
+    /// ⌥⇧S, or ⌃⌥S in Annotator Dev (`app_identity`).
     pub fn default_record() -> Self {
+        let modifiers = Variant::current().shortcut_modifiers();
         Self {
             key_code: u32::from(layout_s_keycode()),
-            carbon_modifiers: CARBON_OPTION_KEY | CARBON_SHIFT_KEY,
-            label: shortcut_label(CARBON_OPTION_KEY | CARBON_SHIFT_KEY, "S"),
+            carbon_modifiers: modifiers,
+            label: shortcut_label(modifiers, "S"),
         }
     }
 
+    /// ⌥⇧V, or ⌃⌥V in Annotator Dev.
     pub fn default_paste() -> Self {
+        let modifiers = Variant::current().shortcut_modifiers();
         Self {
             key_code: u32::from(layout_v_keycode()),
-            carbon_modifiers: CARBON_OPTION_KEY | CARBON_SHIFT_KEY,
-            label: shortcut_label(CARBON_OPTION_KEY | CARBON_SHIFT_KEY, "V"),
+            carbon_modifiers: modifiers,
+            label: shortcut_label(modifiers, "V"),
+        }
+    }
+
+    /// ⌘Z (Ctrl+Z on Windows) in both variants.
+    pub fn default_undo() -> Self {
+        let modifiers = ShortcutKind::Undo.default_modifiers_in(Variant::current());
+        Self {
+            key_code: u32::from(key_code_for_char('z').unwrap_or(KEY_Z)),
+            carbon_modifiers: modifiers,
+            label: shortcut_label(modifiers, "Z"),
         }
     }
 
@@ -238,10 +315,14 @@ impl ShortcutConfig {
         self.label.is_empty()
     }
 
-    /// Whether this is `kind`'s default, which also answers to its aliases (⌃⌥⇧, ⌘⌥⇧, ⌃⌥⌘
-    /// and the ANSI key).
+    /// Whether this is `kind`'s default, which in the live app also answers to its aliases
+    /// (⌃⌥⇧, ⌘⌥⇧, ⌃⌥⌘ and the ANSI key).
     pub fn is_default_for(&self, kind: ShortcutKind) -> bool {
-        self.carbon_modifiers == CARBON_OPTION_KEY | CARBON_SHIFT_KEY
+        self.is_default_in(Variant::current(), kind)
+    }
+
+    fn is_default_in(&self, variant: Variant, kind: ShortcutKind) -> bool {
+        self.carbon_modifiers == kind.default_modifiers_in(variant)
             && shortcut_parts(&self.label).1 == kind.default_char().to_ascii_uppercase().to_string()
     }
 
@@ -424,7 +505,38 @@ pub fn shortcut_matches(
         return true;
     }
     let is_key = keycode == layout_code || keycode == kind.ansi_code();
-    cfg.is_default_for(kind) && is_key && alt && (shift || (ctrl && cmd))
+    if !cfg.is_default_for(kind) || !is_key {
+        return false;
+    }
+    if kind == ShortcutKind::Undo {
+        return carbon_modifiers(cmd, ctrl, alt, shift) == cfg.carbon_modifiers;
+    }
+    Variant::current().shortcut_aliases() && alt && (shift || (ctrl && cmd))
+}
+
+/// Carbon modifier bits for the modifiers held.
+pub fn carbon_modifiers(cmd: bool, ctrl: bool, alt: bool, shift: bool) -> u32 {
+    [
+        (cmd, CARBON_CMD_KEY),
+        (ctrl, CARBON_CONTROL_KEY),
+        (alt, CARBON_OPTION_KEY),
+        (shift, CARBON_SHIFT_KEY),
+    ]
+    .into_iter()
+    .filter(|(held, _)| *held)
+    .fold(0, |bits, (_, bit)| bits | bit)
+}
+
+/// Whether the modifiers `held` (Carbon bits) are the draw modifier `draw` and nothing else:
+/// held alone it shows the laser, with a drag it inks, with a click it drops a pin.
+pub fn draws(draw: u32, held: u32) -> bool {
+    held == draw
+}
+
+/// Whether the draw modifier is down together with another one (as in ⌥⇧S): ink waits until
+/// the draw modifier comes up, so a chord's leftover modifier never draws.
+pub fn draw_in_chord(draw: u32, held: u32) -> bool {
+    held & draw != 0 && held & !draw != 0
 }
 
 /// The active layout's key for `kind`'s default letter (Windows' hooks and poller match on it).
@@ -436,16 +548,33 @@ pub fn layout_default_keycode(kind: ShortcutKind) -> u16 {
 /// The key codes and Carbon modifiers `cfg` registers: itself, plus for a default its aliases
 /// (⌃⌥⇧, ⌘⌥⇧, ⌃⌥⌘) on the active layout's key and the ANSI one.
 pub(crate) fn hotkey_combos(kind: ShortcutKind, cfg: &ShortcutConfig) -> Vec<(u32, u32)> {
+    hotkey_combos_in(Variant::current(), kind, cfg)
+}
+
+pub(crate) fn hotkey_combos_in(
+    variant: Variant,
+    kind: ShortcutKind,
+    cfg: &ShortcutConfig,
+) -> Vec<(u32, u32)> {
     if cfg.is_unset() {
         return Vec::new();
     }
     let mut combos = vec![(cfg.key_code, cfg.carbon_modifiers)];
-    if !cfg.is_default_for(kind) {
+    if !cfg.is_default_in(variant, kind) {
         return combos;
     }
     let mut codes = vec![cfg.key_code];
     if cfg.key_code != u32::from(kind.ansi_code()) {
         codes.push(u32::from(kind.ansi_code()));
+    }
+    if kind == ShortcutKind::Undo {
+        return codes
+            .into_iter()
+            .map(|code| (code, cfg.carbon_modifiers))
+            .collect();
+    }
+    if !variant.shortcut_aliases() {
+        return combos;
     }
     for code in codes {
         for mods in [
@@ -460,6 +589,29 @@ pub(crate) fn hotkey_combos(kind: ShortcutKind, cfg: &ShortcutConfig) -> Vec<(u3
         }
     }
     combos
+}
+
+/// Undo's combos as one atomic word: two key codes (the layout's and the ANSI key, the same
+/// for a custom one) and the modifiers. `u64::MAX` matches nothing.
+fn pack_undo(cfg: &ShortcutConfig) -> u64 {
+    let combos = hotkey_combos(ShortcutKind::Undo, cfg);
+    let Some(&(a, mods)) = combos.first() else {
+        return u64::MAX;
+    };
+    let b = combos.get(1).map_or(a, |&(b, _)| b);
+    (u64::from(a & 0xFFFF) << 32) | (u64::from(b & 0xFFFF) << 16) | u64::from(mods & 0xFFFF)
+}
+
+fn undo_matches(packed: u64, keycode: u16, held: u32) -> bool {
+    if packed == u64::MAX {
+        return false;
+    }
+    let (a, b, mods) = (
+        packed >> 32 & 0xFFFF,
+        packed >> 16 & 0xFFFF,
+        packed & 0xFFFF,
+    );
+    u64::from(held) == mods && (u64::from(keycode) == a || u64::from(keycode) == b)
 }
 
 fn clean_label(input: &str) -> String {
@@ -639,6 +791,15 @@ impl ScreenCaptureSession {
         self.started_at.elapsed().as_millis() as u64
     }
 
+    /// While paused no candidate frame is kept. The movie goes on; `pause::Cuts` takes the
+    /// pause out of it at finish.
+    pub fn set_paused(&self, paused: bool) {
+        self.frames
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .set_paused(paused);
+    }
+
     pub fn stop(mut self) -> ScreenRecording {
         let duration_ms = self.elapsed_ms();
         self.stopping.store(true, Ordering::Release);
@@ -691,6 +852,13 @@ pub struct SharedCaptureTelemetry {
     /// The record shortcut (`crate::settings` loads and saves it).
     pub shortcut: Mutex<ShortcutConfig>,
     pub paste_shortcut: Mutex<ShortcutConfig>,
+    /// Undo, the draw modifier and the cancel key, as Settings shows them.
+    controls: Mutex<crate::settings::Shortcuts>,
+    /// The same three as the key tap and the poller match them, swapped whole on a change:
+    /// Undo's combos (`pack_undo`), the draw modifier's Carbon bit, the cancel key's code.
+    undo_combo: AtomicU64,
+    draw_mask: AtomicU32,
+    cancel_key: AtomicU32,
     /// Settings is recording a new shortcut: none of Scrawl's fire (`pause_shortcuts`).
     pub shortcuts_paused: AtomicBool,
     pub started_at: Mutex<Instant>,
@@ -729,8 +897,14 @@ pub struct SharedCaptureTelemetry {
     tap_tried_ms: AtomicU64,
     /// Whether key presses are arriving (macOS's key tap, Windows' keyboard hook).
     tap_live: AtomicBool,
-    /// Esc went down since the UI loop last looked (`take_escape`).
-    escape_pressed: AtomicBool,
+    /// When the cancel key went down, for each press since the UI loop last looked
+    /// (`take_escape`, `take_cancel_presses`).
+    cancel_presses: Mutex<Vec<Instant>>,
+    /// The recording is paused (`crate::pause`): `active` is off so no click, ink or key is
+    /// recorded, and the overlay keeps drawing what is already there.
+    paused: AtomicBool,
+    /// Whether input was being recorded when the pause began, to put back at resume.
+    active_before_pause: AtomicBool,
     /// A Screen recording started straight from the shortcut: the overlay flashes an edge glow.
     pub start_glow: AtomicBool,
     /// Clicks are arriving (macOS's global mouse monitor, Windows' mouse hook). Until then the
@@ -738,8 +912,8 @@ pub struct SharedCaptureTelemetry {
     mouse_live: AtomicBool,
     last_shortcut_ms: AtomicU64,
     drag_start: Mutex<Option<(u64, f32, f32, Option<String>, TargetFrame)>>,
-    /// The `agentContext` experiment was on when this capture started: clicks and strokes are
-    /// looked up in the Accessibility tree (`crate::ax`, macOS only).
+    /// App state was on when this capture started (`handoff::app_state`): clicks and strokes
+    /// are looked up in the Accessibility tree (`crate::ax`).
     agent_context: AtomicBool,
     /// A ⇧-press inside the target: when, where (global points) and on which frame.
     shift_press: Mutex<Option<(u64, f64, f64, TargetFrame)>>,
@@ -754,8 +928,12 @@ impl SharedCaptureTelemetry {
             selecting: AtomicBool::new(false),
             shift_held: AtomicBool::new(false),
             capture_mode: AtomicU64::new(0),
-            shortcut: Mutex::new(shortcuts.record),
-            paste_shortcut: Mutex::new(shortcuts.paste),
+            undo_combo: AtomicU64::new(pack_undo(&shortcuts.undo)),
+            draw_mask: AtomicU32::new(shortcuts.draw.carbon()),
+            cancel_key: AtomicU32::new(shortcuts.cancel.key_code()),
+            shortcut: Mutex::new(shortcuts.record.clone()),
+            paste_shortcut: Mutex::new(shortcuts.paste.clone()),
+            controls: Mutex::new(shortcuts),
             shortcuts_paused: AtomicBool::new(false),
             started_at: Mutex::new(Instant::now()),
             picker_started_at: Mutex::new(Instant::now()),
@@ -783,7 +961,9 @@ impl SharedCaptureTelemetry {
             tap_starting: AtomicBool::new(false),
             tap_tried_ms: AtomicU64::new(0),
             tap_live: AtomicBool::new(false),
-            escape_pressed: AtomicBool::new(false),
+            cancel_presses: Mutex::new(Vec::new()),
+            paused: AtomicBool::new(false),
+            active_before_pause: AtomicBool::new(false),
             start_glow: AtomicBool::new(false),
             mouse_live: AtomicBool::new(false),
             last_shortcut_ms: AtomicU64::new(0),
@@ -863,6 +1043,83 @@ impl SharedCaptureTelemetry {
         (lock(&self.shortcut), lock(&self.paste_shortcut))
     }
 
+    /// All five controls: Record and Paste as registered, the other three as last set.
+    pub fn controls(&self) -> crate::settings::Shortcuts {
+        let (record, paste) = self.shortcuts();
+        crate::settings::Shortcuts {
+            record,
+            paste,
+            ..self
+                .controls
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .clone()
+        }
+    }
+
+    /// Takes Undo, the draw modifier and the cancel key from `shortcuts`; the next key press
+    /// and poll use them.
+    pub fn set_recording_keys(&self, shortcuts: &crate::settings::Shortcuts) {
+        self.undo_combo
+            .store(pack_undo(&shortcuts.undo), Ordering::Release);
+        self.draw_mask
+            .store(shortcuts.draw.carbon(), Ordering::Release);
+        self.cancel_key
+            .store(shortcuts.cancel.key_code(), Ordering::Release);
+        *self
+            .controls
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = shortcuts.clone();
+    }
+
+    /// The draw modifier's Carbon bit.
+    pub fn draw_mask(&self) -> u32 {
+        self.draw_mask.load(Ordering::Acquire)
+    }
+
+    /// Whether a key press (`held`: Carbon bits) is the undo shortcut.
+    pub fn is_undo(&self, keycode: u16, held: u32) -> bool {
+        undo_matches(self.undo_combo.load(Ordering::Acquire), keycode, held)
+    }
+
+    /// Whether a key press is the cancel key. ⌥ and ⇧ may still be down from the record
+    /// shortcut, and ⇧ is down while drawing; with ⌘ or ⌃ it's some other app's shortcut.
+    /// Settings lets no shortcut share the key, whatever its modifiers (`settings::clash`), so
+    /// a press is never Undo as well.
+    pub fn is_cancel(&self, keycode: u16, held: u32) -> bool {
+        !self.shortcuts_paused.load(Ordering::Acquire)
+            && u32::from(keycode) == self.cancel_key.load(Ordering::Acquire)
+            && held & (CARBON_CMD_KEY | CARBON_CONTROL_KEY) == 0
+    }
+
+    /// Undo's key codes and modifiers, for a poller that reads key state (Windows).
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
+    pub fn undo_keys(&self) -> Option<([u16; 2], u32)> {
+        let packed = self.undo_combo.load(Ordering::Acquire);
+        (packed != u64::MAX).then(|| {
+            let code = |shift: u32| (packed >> shift & 0xFFFF) as u16;
+            ([code(32), code(16)], (packed & 0xFFFF) as u32)
+        })
+    }
+
+    /// The cancel key's code.
+    #[cfg_attr(target_os = "macos", allow(dead_code))]
+    pub fn cancel_key(&self) -> u16 {
+        self.cancel_key.load(Ordering::Acquire) as u16
+    }
+
+    /// The cancel key went down (in any app): `take_escape` and `take_cancel_presses` report it.
+    pub fn note_cancel(&self) {
+        let mut presses = self
+            .cancel_presses
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        // The UI loop takes them every few ms; this only bounds a stalled one.
+        if presses.len() < 32 {
+            presses.push(Instant::now());
+        }
+    }
+
     pub fn set_capture_mode(&self, mode: CaptureMode) {
         let code = match mode {
             CaptureMode::Display => 0,
@@ -936,8 +1193,10 @@ impl SharedCaptureTelemetry {
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .clear();
         self.shift_held.store(false, Ordering::Release);
+        self.paused.store(false, Ordering::Release);
+        self.active_before_pause.store(false, Ordering::Release);
         self.window_log_request.store(false, Ordering::Release);
-        let agent_context = crate::handoff::experiment(crate::handoff::AGENT_CONTEXT);
+        let agent_context = crate::handoff::app_state();
         self.agent_context.store(agent_context, Ordering::Release);
         if agent_context {
             crate::ax::Prober::shared().begin();
@@ -956,9 +1215,90 @@ impl SharedCaptureTelemetry {
         scrawl_log(format!("session clicks from {clicks}, keys from {keys}"));
     }
 
-    /// Whether Esc went down since the last call (a pending shortcut or an open picker cancels on it).
+    /// Whether the cancel key went down since the last call (a pending shortcut and an open
+    /// picker cancel on it).
     pub fn take_escape(&self) -> bool {
-        self.escape_pressed.swap(false, Ordering::AcqRel)
+        !self.take_cancel_presses().is_empty()
+    }
+
+    /// The cancel key's presses since the last call, each as milliseconds on the capture clock
+    /// (`elapsed_ms`), oldest first: a recording pauses on one and cancels on two close together
+    /// (`crate::pause`).
+    pub fn take_cancel_presses(&self) -> Vec<u64> {
+        let presses = std::mem::take(
+            &mut *self
+                .cancel_presses
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner),
+        );
+        if presses.is_empty() {
+            return Vec::new();
+        }
+        let started_at = *self
+            .started_at
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        presses
+            .into_iter()
+            .map(|at| at.saturating_duration_since(started_at).as_millis() as u64)
+            .collect()
+    }
+
+    /// Whether key presses reach Annotator from every app (the key tap or hook is on).
+    pub fn keys_live(&self) -> bool {
+        self.tap_live.load(Ordering::Acquire)
+    }
+
+    /// The recording pauses: what is being drawn is finished as it stands, and no click, ink or
+    /// key is recorded until `resume_input`.
+    pub fn pause_input(&self) {
+        if self.paused.swap(true, Ordering::AcqRel) {
+            return;
+        }
+        let was_active = self.active.swap(false, Ordering::AcqRel);
+        self.active_before_pause
+            .store(was_active, Ordering::Release);
+        self.end_gestures();
+    }
+
+    /// The recording resumes.
+    pub fn resume_input(&self) {
+        if self.paused.swap(false, Ordering::AcqRel)
+            && self.active_before_pause.swap(false, Ordering::AcqRel)
+        {
+            self.active.store(true, Ordering::Release);
+        }
+    }
+
+    /// Whether the overlay has something to draw: a recording, paused or not.
+    pub fn overlay_live(&self) -> bool {
+        self.active.load(Ordering::Acquire) || self.paused.load(Ordering::Acquire)
+    }
+
+    /// Ends a press, drag, laser trail or ink stroke in progress, keeping what was drawn.
+    fn end_gestures(&self) {
+        *self
+            .drag_start
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+        *self
+            .shift_press
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
+        self.shift_held.store(false, Ordering::Release);
+        self.finish_active_laser(None);
+        if let Some(ink) = self
+            .live_ink
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+            && ink.pts.len() >= 3
+        {
+            self.strokes
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner)
+                .push(ink);
+        }
     }
 
     pub fn elapsed_ms(&self) -> u64 {
@@ -983,9 +1323,9 @@ impl SharedCaptureTelemetry {
             && screen_y <= frame.y + frame.height
     }
 
-    /// Whether to look up what clicks and strokes land on: `agentContext` is on, the target is
-    /// this Mac's screen (not the iPhone mirror) and Accessibility is granted.
-    fn probing(&self) -> bool {
+    /// Whether to look up what clicks and strokes land on, and to take app shots: app state is
+    /// on, the target is this Mac's screen (not the iPhone mirror) and Accessibility is granted.
+    pub fn probing(&self) -> bool {
         self.agent_context.load(Ordering::Acquire)
             && self.capture_mode.load(Ordering::Acquire) != 3
             && accessibility_granted()
@@ -1016,6 +1356,10 @@ impl SharedCaptureTelemetry {
             Some((t_ms, nx, ny, None, start_frame));
         if self.probing() {
             crate::ax::Prober::shared().probe(crate::ax::Target::Pointer(t_ms), screen_x, screen_y);
+            // The click changes the window: an app shot once it has settled.
+            if let Some(walker) = crate::appshot::walker() {
+                walker.request(crate::appshot::SETTLE);
+            }
         }
     }
 
@@ -1083,9 +1427,10 @@ impl SharedCaptureTelemetry {
             Some((t_ms, screen_x, screen_y, frame));
     }
 
-    /// The button of a ⇧-press came up (with or without ⇧ still held). A ⇧-click drops the next
-    /// numbered pin where it went down, unless ink was already drawn in this ⇧ hold: a click in
-    /// the middle of a drawing belongs to the drawing, so it neither pins nor counts as a click.
+    /// The button of a ⇧-press came up (with or without ⇧ still held; ⇧ is the draw modifier,
+    /// unless Settings changed it). Every ⇧-click drops the next numbered pin where it went
+    /// down. Ink the hold drew before the press stays: it becomes a stroke that ends at the
+    /// press, and ink after the click starts a new one.
     /// A ⇧-drag is left to the ink the poller is drawing. Returns whether a ⇧-press was waiting,
     /// so the release isn't also taken as a click's.
     fn shift_up(&self, t_ms: u64, screen_x: f64, screen_y: f64) -> bool {
@@ -1106,17 +1451,16 @@ impl SharedCaptureTelemetry {
         {
             return true;
         }
-        {
-            let mut live = self
-                .live_ink
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner);
-            if live.as_ref().is_some_and(|ink| drew_before(ink, t0)) {
-                return true;
-            }
-            // ⇧ draws as it's held, so the live ink is only the click's jitter; further ink
-            // starts a new stroke.
-            *live = None;
+        // ⇧ draws as it's held. A line drawn before the press is kept without the click's
+        // jitter; with nothing drawn first, the live ink is only that jitter and goes.
+        let drawn = self
+            .live_ink
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take()
+            .and_then(|ink| ink_before(ink, t0));
+        if let Some(ink) = drawn {
+            self.commit_ink(ink);
         }
         let (nx, ny, fw, fh) = self.normalize_point(x0, y0);
         let mut strokes = self
@@ -1142,6 +1486,28 @@ impl SharedCaptureTelemetry {
         self.window_log_request.store(true, Ordering::Release);
         let _ = self.ui_sender.try_send(LiveOverlayEvent::RequestSnapshot);
         true
+    }
+
+    /// Keeps finished ink as a stroke, and with app state on looks up what it was drawn on.
+    fn commit_ink(&self, stroke: Stroke) {
+        if self.probing() {
+            let frame = *self
+                .target_frame
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner);
+            if let Some((x, y)) = crate::ax::stroke_probe_point(&stroke, frame) {
+                crate::ax::Prober::shared().probe(crate::ax::Target::Stroke(stroke.t0), x, y);
+            }
+            // An app shot of what the mark is on.
+            if let Some(walker) = crate::appshot::walker() {
+                walker.request(crate::appshot::SETTLE);
+            }
+        }
+        self.strokes
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .push(stroke);
+        let _ = self.ui_sender.try_send(LiveOverlayEvent::RequestSnapshot);
     }
 
     /// The helper process whose window is the capture target (the iPhone mirror).
@@ -1242,27 +1608,9 @@ impl SharedCaptureTelemetry {
     pub fn finish_session(&self) -> (Vec<InteractionEvent>, Vec<Stroke>) {
         self.active.store(false, Ordering::Release);
         self.selecting.store(false, Ordering::Release);
-        *self
-            .drag_start
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
-        *self
-            .shift_press
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
-        self.finish_active_laser(None);
-        if let Some(ink) = self
-            .live_ink
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .take()
-            && ink.pts.len() >= 3
-        {
-            self.strokes
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .push(ink);
-        }
+        self.paused.store(false, Ordering::Release);
+        self.active_before_pause.store(false, Ordering::Release);
+        self.end_gestures();
         let mut events = std::mem::take(
             &mut *self
                 .events
@@ -1359,6 +1707,23 @@ fn is_real_ink(stroke: &Stroke) -> bool {
     drew_before(stroke, u64::MAX)
 }
 
+/// The part of `stroke` drawn before `before_ms`, when that much is ink worth keeping.
+fn ink_before(mut stroke: Stroke, before_ms: u64) -> Option<Stroke> {
+    if !drew_before(&stroke, before_ms) {
+        return None;
+    }
+    let at = |p: &[i32]| stroke.t0.saturating_add(p[2].max(0) as u64);
+    let kept = stroke
+        .pts
+        .chunks_exact(3)
+        .take_while(|p| at(p) < before_ms)
+        .count();
+    let end = at(&stroke.pts[(kept - 1) * 3..kept * 3]);
+    stroke.pts.truncate(kept * 3);
+    stroke.t1 = end;
+    Some(stroke)
+}
+
 fn same_target_frame(a: TargetFrame, b: TargetFrame) -> bool {
     (a.x - b.x).abs() <= 0.5
         && (a.y - b.y).abs() <= 0.5
@@ -1411,31 +1776,15 @@ fn track_shift_ink(
         }
     } else if !pure_shift && prev_shift_ink {
         telemetry.shift_held.store(false, Ordering::Release);
-        if let Some(stroke) = telemetry
+        let finished = telemetry
             .live_ink
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .take()
             // Ignore stationary Shift taps (e.g. typing a capital letter without moving the mouse).
-            && is_real_ink(&stroke)
-        {
-            if telemetry.probing() {
-                let frame = *telemetry
-                    .target_frame
-                    .lock()
-                    .unwrap_or_else(std::sync::PoisonError::into_inner);
-                if let Some((x, y)) = crate::ax::stroke_probe_point(&stroke, frame) {
-                    crate::ax::Prober::shared().probe(crate::ax::Target::Stroke(stroke.t0), x, y);
-                }
-            }
-            telemetry
-                .strokes
-                .lock()
-                .unwrap_or_else(std::sync::PoisonError::into_inner)
-                .push(stroke);
-            let _ = telemetry
-                .ui_sender
-                .try_send(LiveOverlayEvent::RequestSnapshot);
+            .filter(is_real_ink);
+        if let Some(stroke) = finished {
+            telemetry.commit_ink(stroke);
         }
     }
 }
@@ -1690,6 +2039,91 @@ mod tests {
         assert_eq!(button.as_deref(), Some("left"));
     }
 
+    /// Two quick presses of the cancel key cancel a recording and one pauses it, so the UI
+    /// loop must get each press, however late it looks.
+    #[test]
+    fn every_press_of_the_cancel_key_reaches_the_ui_loop() {
+        let (sender, _receiver) = flume::unbounded();
+        let telemetry = SharedCaptureTelemetry::new(sender);
+        assert!(telemetry.take_cancel_presses().is_empty());
+        telemetry.note_cancel();
+        telemetry.note_cancel();
+        let presses = telemetry.take_cancel_presses();
+        assert_eq!(presses.len(), 2);
+        assert!(presses[0] <= presses[1], "{presses:?}");
+        assert!(telemetry.take_cancel_presses().is_empty());
+        // The picker and a pending shortcut only ask whether it went down.
+        telemetry.note_cancel();
+        assert!(telemetry.take_escape());
+        assert!(!telemetry.take_escape());
+    }
+
+    /// Pausing keeps the ink being drawn and records nothing more until the recording resumes.
+    #[test]
+    fn a_pause_keeps_the_stroke_in_progress_and_stops_input_until_resume() {
+        let (sender, _receiver) = flume::unbounded();
+        let telemetry = SharedCaptureTelemetry::new(sender);
+        let frame = TargetFrame {
+            x: 0.0,
+            y: 0.0,
+            width: 1728.0,
+            height: 1117.0,
+            scale: 2.0,
+        };
+        telemetry.reset_for_session(frame);
+        track_shift_ink(&telemetry, (100.0, 100.0), true, false);
+        track_shift_ink(&telemetry, (300.0, 240.0), true, true);
+        telemetry.pause_input();
+        assert!(!telemetry.active.load(Ordering::Acquire));
+        assert!(telemetry.overlay_live(), "the ink stays on screen");
+        assert!(telemetry.live_ink.lock().unwrap().is_none());
+        assert_eq!(telemetry.strokes.lock().unwrap().len(), 1);
+        telemetry.resume_input();
+        assert!(telemetry.active.load(Ordering::Acquire));
+        let (_, strokes) = telemetry.finish_session();
+        assert_eq!(strokes.len(), 1);
+        assert_eq!(strokes[0].pts.len(), 6);
+
+        // An iPhone recording waits for its movie before it takes input; a pause and resume
+        // before then don't start it early.
+        telemetry.reset_for_session(frame);
+        telemetry.active.store(false, Ordering::Release);
+        telemetry.pause_input();
+        telemetry.resume_input();
+        assert!(!telemetry.active.load(Ordering::Acquire));
+        assert!(!telemetry.overlay_live());
+    }
+
+    #[test]
+    fn dev_defaults_register_none_of_the_live_apps_keys() {
+        let default_in = |variant: Variant, kind: ShortcutKind| {
+            let modifiers = variant.shortcut_modifiers();
+            let key = if kind == ShortcutKind::Record {
+                "S"
+            } else {
+                "V"
+            };
+            ShortcutConfig {
+                key_code: u32::from(kind.ansi_code()),
+                carbon_modifiers: modifiers,
+                label: shortcut_label(modifiers, key),
+            }
+        };
+        for kind in ShortcutKind::ALL {
+            let live = hotkey_combos_in(Variant::Live, kind, &default_in(Variant::Live, kind));
+            let dev = hotkey_combos_in(Variant::Dev, kind, &default_in(Variant::Dev, kind));
+            assert_eq!(dev.len(), 1, "{kind:?}: no aliases in Dev");
+            assert!(
+                !live.contains(&dev[0]),
+                "{kind:?}: {dev:?} is one of {live:?}"
+            );
+        }
+        if cfg!(target_os = "macos") {
+            assert_eq!(default_in(Variant::Dev, ShortcutKind::Record).label, "⌃⌥S");
+            assert_eq!(default_in(Variant::Dev, ShortcutKind::Paste).label, "⌃⌥V");
+        }
+    }
+
     #[test]
     fn the_capture_shortcut_matches_its_aliases_and_a_custom_one() {
         let s = 1_u16; // the S key on this layout
@@ -1881,6 +2315,169 @@ mod tests {
         telemetry
     }
 
+    /// Settings' changes to Undo, the draw modifier and the cancel key reach the next key press
+    /// without a restart.
+    #[test]
+    fn undo_cancel_and_draw_follow_settings_at_once() {
+        use crate::settings::{CancelKey, DrawModifier, Shortcuts};
+        let telemetry = session(1000.0, 1000.0);
+        let menu = if cfg!(target_os = "windows") {
+            CARBON_CONTROL_KEY
+        } else {
+            CARBON_CMD_KEY
+        };
+        let mut shortcuts = Shortcuts::default();
+        telemetry.set_recording_keys(&shortcuts);
+        let z = shortcuts.undo.key_code as u16;
+        assert!(telemetry.is_undo(z, menu));
+        assert!(telemetry.is_undo(KEY_Z, menu), "the ANSI Z too");
+        assert!(!telemetry.is_undo(z, menu | CARBON_SHIFT_KEY));
+        let esc = CancelKey::ESCAPE.key_code() as u16;
+        assert!(telemetry.is_cancel(esc, 0));
+        assert!(
+            telemetry.is_cancel(esc, CARBON_OPTION_KEY | CARBON_SHIFT_KEY),
+            "with the record shortcut's ⌥⇧ still down"
+        );
+        assert!(!telemetry.is_cancel(esc, CARBON_CMD_KEY));
+        assert_eq!(telemetry.draw_mask(), CARBON_SHIFT_KEY);
+
+        // A custom undo matches only itself; F5 cancels instead of Esc; ⌥ draws.
+        let u = shortcuts.undo.key_code + 1;
+        shortcuts.undo = ShortcutConfig {
+            key_code: u,
+            carbon_modifiers: CARBON_CONTROL_KEY | CARBON_OPTION_KEY,
+            label: "⌃⌥U".into(),
+        };
+        shortcuts.cancel = CancelKey::parse("f5").unwrap();
+        shortcuts.draw = DrawModifier::Option;
+        telemetry.set_recording_keys(&shortcuts);
+        assert!(telemetry.is_undo(u as u16, CARBON_CONTROL_KEY | CARBON_OPTION_KEY));
+        assert!(!telemetry.is_undo(z, menu));
+        assert!(!telemetry.is_undo(KEY_Z, menu));
+        assert!(!telemetry.is_cancel(esc, 0));
+        assert!(telemetry.is_cancel(shortcuts.cancel.key_code() as u16, 0));
+        assert_eq!(telemetry.draw_mask(), CARBON_OPTION_KEY);
+        assert_eq!(telemetry.controls().draw, DrawModifier::Option);
+
+        // While Settings records a shortcut, the cancel key is the recorder's.
+        telemetry.shortcuts_paused.store(true, Ordering::Release);
+        assert!(!telemetry.is_cancel(shortcuts.cancel.key_code() as u16, 0));
+    }
+
+    /// Paused before the first candidate frame and finished without resuming: the candidates at
+    /// 300 and 500 ms hold pixels recorded entirely during the pause, so neither is kept. The
+    /// bundle still needs a frame, and gets a blank one of the same size.
+    #[test]
+    fn a_recording_paused_before_its_first_frame_keeps_no_paused_image() {
+        let shown = |t_ms| RgbaFrame::new(t_ms, 2, 1, vec![200, 30, 30, 255, 30, 200, 30, 255]);
+        let mut recording = ScreenRecording {
+            frames: vec![shown(300), shown(500)],
+            video: None,
+            duration_ms: 900,
+            video_offset_ms: 0,
+        };
+        recording.cut(&crate::pause::Cuts::new(vec![crate::pause::Span {
+            start_ms: 100,
+            end_ms: crate::pause::Span::OPEN,
+        }]));
+        assert_eq!(recording.frames.len(), 1);
+        let frame = &recording.frames[0];
+        assert_eq!(
+            frame.rgba,
+            [0, 0, 0, 255, 0, 0, 0, 255],
+            "pixels from the pause stayed"
+        );
+        assert_eq!((frame.t_ms, frame.width, frame.height), (0, 2, 1));
+        assert_eq!(recording.duration_ms, 100);
+
+        // A frame from before the pause is kept as it is, with no blank beside it.
+        let mut recording = ScreenRecording {
+            frames: vec![shown(50), shown(300)],
+            video: None,
+            duration_ms: 900,
+            video_offset_ms: 0,
+        };
+        recording.cut(&crate::pause::Cuts::new(vec![crate::pause::Span {
+            start_ms: 100,
+            end_ms: crate::pause::Span::OPEN,
+        }]));
+        assert_eq!(recording.frames.len(), 1);
+        assert_eq!(recording.frames[0].rgba, shown(50).rgba);
+    }
+
+    /// With any shortcuts Settings accepts, no key press is both Undo and the cancel key (Undo
+    /// on ⌥F5 with F5 as the cancel key would pause the recording), and the cancel key goes on
+    /// working with ⌥ or ⇧ held: ⇧ is down while drawing.
+    #[test]
+    fn no_undo_settings_accepts_is_also_the_cancel_key() {
+        use crate::settings::{CancelKey, Control, Shortcuts, check};
+        let telemetry = session(1000.0, 1000.0);
+        let all = [
+            CARBON_CMD_KEY,
+            CARBON_SHIFT_KEY,
+            CARBON_OPTION_KEY,
+            CARBON_CONTROL_KEY,
+        ];
+        let masks = || {
+            (0..16_u32).map(|bits| {
+                (0..4)
+                    .filter(|bit| bits >> bit & 1 == 1)
+                    .fold(0, |mask, bit| mask | all[bit])
+            })
+        };
+        for cancel in CancelKey::all() {
+            let key = cancel.key_code() as u16;
+            for undo_modifiers in masks() {
+                let mut shortcuts = Shortcuts::default();
+                shortcuts.cancel = cancel;
+                shortcuts.undo = ShortcutConfig {
+                    key_code: cancel.key_code(),
+                    carbon_modifiers: undo_modifiers,
+                    label: shortcut_label(undo_modifiers, &cancel.label()),
+                };
+                telemetry.set_recording_keys(&shortcuts);
+                for held in [0, CARBON_SHIFT_KEY, CARBON_OPTION_KEY] {
+                    assert!(
+                        telemetry.is_cancel(key, held),
+                        "{} with {held:#x}",
+                        cancel.label()
+                    );
+                }
+                assert!(!telemetry.is_cancel(key, CARBON_CMD_KEY));
+                assert!(!telemetry.is_cancel(key, CARBON_CONTROL_KEY));
+                if check(&shortcuts, Control::Shortcut(ShortcutKind::Undo)).is_err() {
+                    continue;
+                }
+                for held in masks() {
+                    assert!(
+                        !(telemetry.is_undo(key, held) && telemetry.is_cancel(key, held)),
+                        "Settings accepts Undo {} with cancel key {}, and that press is both",
+                        shortcuts.undo.label,
+                        cancel.label()
+                    );
+                }
+            }
+        }
+    }
+
+    /// The draw modifier alone draws (laser, ink, pins); with another modifier it is part of a
+    /// chord, and ink waits for it to come up.
+    #[test]
+    fn only_the_draw_modifier_alone_draws() {
+        let opt = CARBON_OPTION_KEY;
+        assert!(draws(opt, opt));
+        assert!(!draws(opt, opt | CARBON_SHIFT_KEY));
+        assert!(!draws(opt, CARBON_SHIFT_KEY));
+        assert!(!draws(opt, 0));
+        assert!(draw_in_chord(opt, opt | CARBON_SHIFT_KEY));
+        assert!(!draw_in_chord(opt, opt));
+        assert!(!draw_in_chord(opt, CARBON_SHIFT_KEY | CARBON_CMD_KEY));
+        assert_eq!(
+            carbon_modifiers(true, false, true, false),
+            CARBON_CMD_KEY | CARBON_OPTION_KEY
+        );
+    }
+
     #[test]
     fn a_long_still_shift_press_drops_no_pin() {
         let down = (1_000, 10.0, 10.0);
@@ -1891,11 +2488,12 @@ mod tests {
         assert!(!is_pin_click(down, (1_100, 10.0, 10.0 + slop)));
     }
 
-    /// The poller draws ink while ⇧ is held. A ⇧-click after ink was drawn in the same hold is
-    /// part of the drawing: no pin, and the stroke carries on whole. A ⇧-click with nothing drawn
-    /// first (only its own jitter) drops a pin and leaves no stroke.
+    /// The poller draws ink while ⇧ is held. A ⇧-click after ink was drawn in the same hold
+    /// drops a pin and keeps the line: the stroke ends where the button went down, without the
+    /// click's own jitter, and it comes before its pin. A ⇧-click with nothing drawn first (only
+    /// its jitter) drops a pin and leaves no stroke.
     #[test]
-    fn a_shift_click_mid_drawing_drops_no_pin() {
+    fn a_shift_click_after_drawing_drops_a_pin_and_keeps_the_line() {
         let telemetry = session(1000.0, 1000.0);
         let ink = |pts: &[(i32, i32, i32)]| Stroke {
             t0: 0,
@@ -1910,31 +2508,29 @@ mod tests {
         let press = telemetry.elapsed_ms() + 50;
         let p = press as i32;
         let s = SCALE;
-        // A line drawn while ⇧ was held, then a click at its end.
+        // ⇧ first, a line to the target, then a click at its end. The last point is the
+        // click's jitter.
         let line = ink(&[
             (s / 10, s / 2, 0),
             (s / 5, s / 2, p - 20),
             (s / 5 + s / 500, s / 2, p + 5),
         ]);
-        *telemetry.live_ink.lock().unwrap() = Some(line.clone());
+        *telemetry.live_ink.lock().unwrap() = Some(line);
         telemetry.shift_down(press, 200.0, 500.0);
         assert!(telemetry.shift_up(press + 80, 201.0, 500.0));
-        assert_eq!(telemetry.live_ink.lock().unwrap().as_ref(), Some(&line));
-        // Letting go of ⇧ commits it as one stroke.
-        let at = (200.0, 500.0);
-        track_shift_ink(&telemetry, at, false, true);
+        // Ink after the click starts a new stroke.
+        assert!(telemetry.live_ink.lock().unwrap().is_none());
 
-        // Drawn long before the press still counts: the hold is a drawing.
+        // A line drawn long before the press is kept the same way.
         *telemetry.live_ink.lock().unwrap() = Some(ink(&[(s / 10, s / 10, 0), (s / 5, s / 10, 1)]));
         let t = telemetry.elapsed_ms() + 5_000;
         telemetry.shift_down(t, 200.0, 100.0);
         assert!(telemetry.shift_up(t + 60, 200.0, 100.0));
-        *telemetry.live_ink.lock().unwrap() = None;
 
-        // A ⇧-click with only its own few points of jitter is a pin.
+        // A ⇧-click with only its own few points of jitter is a pin alone.
         let jitter = ink(&[(s / 2, s / 2, 0), (s / 2 + 2, s / 2, 30)]);
         *telemetry.live_ink.lock().unwrap() = Some(jitter);
-        let t = telemetry.elapsed_ms();
+        let t = telemetry.elapsed_ms() + 6_000;
         telemetry.shift_down(t, 500.0, 500.0);
         assert!(telemetry.shift_up(t + 60, 500.0, 500.0));
         assert!(telemetry.live_ink.lock().unwrap().is_none());
@@ -1942,7 +2538,77 @@ mod tests {
         let (events, strokes) = telemetry.finish_session();
         assert!(events.is_empty(), "{events:?}");
         let kinds: Vec<_> = strokes.iter().map(|s| (s.pin, s.pts.len() / 3)).collect();
-        assert_eq!(kinds, vec![(None, 3), (Some(1), 1)]);
+        assert_eq!(
+            kinds,
+            vec![
+                (None, 2),
+                (Some(1), 1),
+                (None, 2),
+                (Some(2), 1),
+                (Some(3), 1)
+            ]
+        );
+        // The first line ends at its last point before the press, where the pin is.
+        assert_eq!(strokes[0].t1, press - 20);
+        assert_eq!(
+            strokes[0].normalized_points()[1],
+            strokes[1].normalized_points()[0]
+        );
+    }
+
+    /// Holding ⇧ and clicking three places drops three pins, and the lines the poller draws on
+    /// the way from one pin to the next stay, each before the pin it ends at. The next hold
+    /// carries on the numbering.
+    #[test]
+    fn shift_clicks_in_one_hold_each_drop_a_pin() {
+        let telemetry = session(1000.0, 1000.0);
+        let hold = |from: f64, to: f64| {
+            let mut x = from;
+            while x <= to {
+                track_shift_ink(&telemetry, (x, 500.0), true, true);
+                x += 10.0;
+            }
+        };
+        let click = |x: f64| {
+            // Later than every point the poller has drawn so far.
+            let t = telemetry.elapsed_ms() + 1_000;
+            telemetry.shift_down(t, x, 500.0);
+            assert!(telemetry.shift_up(t + 60, x, 500.0));
+        };
+        hold(100.0, 100.0);
+        click(100.0);
+        hold(100.0, 300.0);
+        click(300.0);
+        hold(300.0, 500.0);
+        click(500.0);
+        // Still holding ⇧: a line after the last pin.
+        hold(500.0, 700.0);
+        track_shift_ink(&telemetry, (700.0, 500.0), false, true);
+
+        // The next hold: ⇧ first, a line, then a click.
+        hold(100.0, 300.0);
+        click(300.0);
+        track_shift_ink(&telemetry, (300.0, 500.0), false, true);
+
+        let (events, strokes) = telemetry.finish_session();
+        assert!(events.is_empty(), "{events:?}");
+        let kinds: Vec<_> = strokes
+            .iter()
+            .map(|s| (s.pin, s.normalized_points()[0][0]))
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![
+                (Some(1), 0.1),
+                (None, 0.1),
+                (Some(2), 0.3),
+                (None, 0.3),
+                (Some(3), 0.5),
+                (None, 0.5),
+                (None, 0.1),
+                (Some(4), 0.3)
+            ]
+        );
     }
 
     #[test]

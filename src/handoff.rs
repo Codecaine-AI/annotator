@@ -63,7 +63,8 @@ pub fn configured_captures_dir(value: &str) -> Option<PathBuf> {
     }
 }
 
-/// `~/Library/Application Support/scrawl/captures` on macOS, `%LOCALAPPDATA%\scrawl\captures`
+/// `~/Library/Application Support/scrawl/captures` on macOS (`scrawl-dev` in Annotator Dev,
+/// `app_identity`), `%LOCALAPPDATA%\scrawl\captures`
 /// on Windows (local, not roaming: the movies are large).
 pub fn builtin_captures_dir() -> PathBuf {
     if cfg!(target_os = "windows") {
@@ -72,9 +73,8 @@ pub fn builtin_captures_dir() -> PathBuf {
             .join("scrawl")
             .join("captures")
     } else {
-        dirs::home_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("Library/Application Support/scrawl/captures")
+        crate::app_identity::Variant::current()
+            .captures_dir(&dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")))
     }
 }
 
@@ -137,8 +137,10 @@ pub fn resolve_bundle_dir(path_or_id: &Path) -> Result<PathBuf> {
         path.canonicalize()
             .with_context(|| format!("Could not resolve {}", path.display()))?,
     );
+    // A folder with a manifest is a bundle whatever it is called: `scrawl reprocess --out` takes
+    // any name.
     ensure!(
-        path.extension().is_some_and(|ext| ext == "scrawl"),
+        path.extension().is_some_and(|ext| ext == "scrawl") || path.join("scrawl.json").is_file(),
         "Expected a .scrawl directory: {}",
         path.display()
     );
@@ -185,6 +187,14 @@ fn plain_path(path: PathBuf) -> PathBuf {
         Some(rest) if rest.as_bytes().get(1) == Some(&b':') => PathBuf::from(rest),
         _ => path,
     }
+}
+
+/// The bundle's video file: the one `scrawl.json` names (`recording.mp4` or `.mov`), or
+/// `recording.mp4` when it names none. It may be gone (`retention` cleans old videos).
+pub fn bundle_video(directory: &Path, bundle: Option<&ScrawlBundle>) -> PathBuf {
+    bundle
+        .and_then(|b| b.video.as_deref())
+        .map_or_else(|| directory.join("recording.mp4"), |v| directory.join(v))
 }
 
 pub fn load_bundle(bundle_dir: &Path) -> Result<(PathBuf, ScrawlBundle)> {
@@ -458,6 +468,14 @@ pub struct Config {
     pub lower_playback: Option<bool>,
     #[serde(default)]
     pub playback_level: Option<u8>,
+    /// Show what the microphone hears while recording: a waveform in the capsule (`live_audio`,
+    /// default on).
+    #[serde(default)]
+    pub live_audio: Option<bool>,
+    /// Also show the words as they're said, from an Apple Speech stream of their own, whatever
+    /// engine makes the transcript (`live_audio`, default off).
+    #[serde(default)]
+    pub live_words: Option<bool>,
     /// The Hex model to use when `transcriber` is `"hex"` (default: the first ready one of
     /// `hex::PREFERRED_MODELS`).
     #[serde(default)]
@@ -474,8 +492,13 @@ pub struct Config {
     /// Visual style of the native recording pill: `"black"` (default) or `"glass"` (`NSGlassEffectView`).
     #[serde(default)]
     pub pill_style: Option<String>,
-    /// Behaviour Kit tries locally before it ships (`{"agentContext": true}`); see `experiment`.
-    /// Read leniently (`lenient_experiments`), so a stray value never fails the file.
+    /// Save app state with each capture (`app_state`): what clicks and marks land on, and on
+    /// macOS an app shot of the window under each keyframe. Absent follows an older
+    /// `experiments.agentContext`, else it is off.
+    #[serde(default)]
+    pub app_state: Option<bool>,
+    /// Behaviour Kit tries locally before it ships (`{"liveTranscribe": true}`); see
+    /// `experiment`. Read leniently (`lenient_experiments`), so a stray value never fails the file.
     #[serde(default, deserialize_with = "lenient_experiments")]
     pub experiments: std::collections::BTreeMap<String, bool>,
     /// The microphone Mac captures record from (`mic`); absent follows the macOS default.
@@ -564,8 +587,8 @@ fn log_config_once(message: String) {
     }
 }
 
-/// More of what Scrawl already knows in the summary: marks, shortcuts, drags and windows inline
-/// at their time, numbered marks on shared frames, where a screen changed.
+/// The older name of app state (`app_state`): an `experiments.agentContext` value still counts
+/// when `appState` is absent, and `--experiment agentContext` forces app state on.
 pub const AGENT_CONTEXT: &str = "agentContext";
 
 /// Transcribe Mac recordings while they record, so finishing only waits for the last words
@@ -582,27 +605,44 @@ pub fn enable_experiment(name: &str) {
         .push(name.to_owned());
 }
 
-/// Whether an experiment is on: `"experiments": {"<name>": true}` in `config.json`, or
-/// `enable_experiment` in this process. Off by default; tests see only `enable_experiment`.
-pub fn experiment(name: &str) -> bool {
-    let overridden = EXPERIMENT_OVERRIDES
+fn experiment_enabled_here(name: &str) -> bool {
+    EXPERIMENT_OVERRIDES
         .lock()
         .unwrap_or_else(std::sync::PoisonError::into_inner)
         .iter()
-        .any(|n| n == name);
+        .any(|n| n == name)
+}
+
+/// Whether an experiment is on: `"experiments": {"<name>": true}` in `config.json`, or
+/// `enable_experiment` in this process. Off by default; tests see only `enable_experiment`.
+pub fn experiment(name: &str) -> bool {
+    let overridden = experiment_enabled_here(name);
     if overridden || cfg!(test) {
         return overridden;
     }
     config().experiments.get(name).copied().unwrap_or(false)
 }
 
+/// Whether captures save app state (`appState` in `config.json`, Settings › Recording › Save app
+/// state): the summary names what clicks and marks land on, and on macOS each keyframe gets an
+/// app shot (`crate::appshot`). `--experiment agentContext` forces it on for one run; tests see
+/// only that (`enable_experiment`), never the config file.
+pub fn app_state() -> bool {
+    let forced = experiment_enabled_here(AGENT_CONTEXT);
+    if forced || cfg!(test) {
+        return forced;
+    }
+    config().saves_app_state()
+}
+
 pub fn default_config_path() -> PathBuf {
     std::env::var_os("SCRAWL_CONFIG")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
-            dirs::home_dir()
-                .unwrap_or_else(|| PathBuf::from("."))
-                .join(".config/scrawl/config.json")
+            crate::app_identity::Variant::current().config_file(
+                &dirs::home_dir().unwrap_or_else(|| PathBuf::from(".")),
+                "config.json",
+            )
         })
 }
 
@@ -834,6 +874,29 @@ pub fn native_pill() -> bool {
         }
     }
     config().native_pill.unwrap_or(true)
+}
+
+/// Whether recordings show what the microphone hears (`liveAudio` in `config.json`, default on).
+pub fn live_audio() -> bool {
+    config().shows_live_audio()
+}
+
+impl Config {
+    /// `appState` when set, else an older `experiments.agentContext`, else off: app shots can
+    /// store the text of a Safari AutoFill popup, so nobody gets them without asking.
+    pub fn saves_app_state(&self) -> bool {
+        self.app_state
+            .or_else(|| self.experiments.get(AGENT_CONTEXT).copied())
+            .unwrap_or(false)
+    }
+
+    pub fn shows_live_audio(&self) -> bool {
+        self.live_audio.unwrap_or(true)
+    }
+
+    pub fn shows_live_words(&self) -> bool {
+        self.live_words.unwrap_or(false)
+    }
 }
 
 /// Configured capsule style (`pillStyle` in `config.json`, default `"black"`).
@@ -1530,7 +1593,7 @@ pub fn send_bundle_to_session(bundle_dir: &Path, session: &str) -> Result<()> {
             "files": [{
                 "uri": file_uri(&contact_sheet),
                 "name": "contact-sheet.png",
-                "description": "Scrawl contact sheet: the capture's keyframes in order",
+                "description": "Annotator contact sheet: the capture's keyframes in order",
             }],
             "delivery": "queue",
         })),
@@ -1576,9 +1639,7 @@ pub fn extract_frames_range(
     let directory = resolve_bundle_dir(bundle_dir)?;
     let loaded = load_bundle(&directory).ok().map(|(_, bundle)| bundle);
     let offset_ms = loaded.as_ref().map_or(0, |b| b.video_offset_ms);
-    let video = loaded
-        .and_then(|bundle| bundle.video)
-        .map_or_else(|| directory.join("recording.mp4"), |v| directory.join(v));
+    let video = bundle_video(&directory, loaded.as_ref());
     if video.is_file() && from_ms < to_ms {
         let output_dir = directory
             .join("zoom")
@@ -1775,6 +1836,13 @@ mod tests {
         );
         assert!(resolve_bundle_dir(&fixture.0).is_err());
         assert!(resolve_bundle_dir(&fixture.0.join("missing.scrawl")).is_err());
+        // A bundle rebuilt into a folder of another name (`scrawl reprocess --out /tmp/again`).
+        let renamed = fixture.0.join("again");
+        fs::rename(&older, &renamed).unwrap();
+        assert_eq!(
+            resolve_bundle_dir(&renamed).unwrap(),
+            plain_path(renamed.canonicalize().unwrap())
+        );
     }
 
     #[test]
@@ -2089,6 +2157,33 @@ mod tests {
         let cfg = load_config_from(&path);
         assert_eq!(cfg.agent_host.as_deref(), Some("pro"));
         assert_eq!(cfg.usb_apps.len(), 1);
+    }
+
+    #[test]
+    fn app_state_is_off_by_default_and_the_setting_beats_the_old_experiment() {
+        let config = |json: &str| config_from_value(serde_json::from_str(json).unwrap());
+        assert!(
+            !config("{}").saves_app_state(),
+            "an empty config saves no app state"
+        );
+        assert!(config(r#"{"appState": true}"#).saves_app_state());
+        assert!(!config(r#"{"appState": false}"#).saves_app_state());
+        assert!(
+            !config(r#"{"appState": false, "experiments": {"agentContext": true}}"#)
+                .saves_app_state(),
+            "the setting wins over the experiment"
+        );
+        assert!(
+            config(r#"{"appState": true, "experiments": {"agentContext": false}}"#)
+                .saves_app_state()
+        );
+        assert!(config(r#"{"experiments": {"agentContext": true}}"#).saves_app_state());
+        assert!(
+            !config(r#"{"experiments": {"agentContext": false}}"#).saves_app_state(),
+            "an older choice to keep it off still holds"
+        );
+        // A value that isn't true or false is dropped, so the default applies.
+        assert!(!config(r#"{"appState": "maybe"}"#).saves_app_state());
     }
 
     #[test]

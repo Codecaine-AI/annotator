@@ -286,20 +286,20 @@ pub fn missing(why: &str, locale: &str, error: Option<&str>) -> MissingTranscrip
     match why {
         "downloading" => MissingTranscript {
             reason: format!(
-                "{model} was still downloading. The audio is saved, and Scrawl adds the \
+                "{model} was still downloading. The audio is saved, and Annotator adds the \
                  transcript to this bundle when the download finishes."
             ),
             retry: true,
         },
         "permission" => MissingTranscript {
-            reason: "Speech Recognition is off for Scrawl. The audio is saved, and Scrawl adds \
-                     the transcript to this bundle once it's on (Scrawl Settings › Permissions)."
+            reason: "Speech Recognition is off for Annotator. The audio is saved, and Annotator adds \
+                     the transcript to this bundle once it's on (Annotator Settings › Permissions)."
                 .to_owned(),
             retry: true,
         },
         "dictation" => MissingTranscript {
             reason: "Dictation's on-device model isn't on this Mac. Turn on Dictation in System \
-                     Settings › Keyboard, and Scrawl adds the transcript to this bundle once it's \
+                     Settings › Keyboard, and Annotator adds the transcript to this bundle once it's \
                      there."
                 .to_owned(),
             retry: true,
@@ -307,13 +307,13 @@ pub fn missing(why: &str, locale: &str, error: Option<&str>) -> MissingTranscrip
         "unsupported" => MissingTranscript {
             reason: format!(
                 "this Mac has no Apple speech model for {locale}. Hex can transcribe instead \
-                 (Scrawl Settings › Recording)."
+                 (Annotator Settings › Recording)."
             ),
             retry: false,
         },
         _ => MissingTranscript {
             reason: format!(
-                "{model} couldn't be installed{}. The audio is saved, and Scrawl adds the \
+                "{model} couldn't be installed{}. The audio is saved, and Annotator adds the \
                  transcript to this bundle if a later try works.",
                 error.map(|e| format!(" ({e})")).unwrap_or_default()
             ),
@@ -529,7 +529,7 @@ mod tests {
             off.retry
                 && off
                     .reason
-                    .starts_with("Speech Recognition is off for Scrawl.")
+                    .starts_with("Speech Recognition is off for Annotator.")
         );
     }
 }

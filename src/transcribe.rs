@@ -1,10 +1,12 @@
-//! Transcription: Apple's SpeechAnalyzer through `scrawl-helper` (measured word and segment
+//! Transcription: Deepgram nova-3 by default on macOS (`crate::deepgram`; measured word times and
+//! punctuation), Apple's SpeechAnalyzer through `scrawl-helper` (measured word and segment
 //! timings), Hex when `"transcriber": "hex"` is set and Hex is connected (`crate::hex`; word
 //! times estimated), or a program of the user's when `"transcriber": "command"`
-//! (`crate::command_transcriber`). Any Hex or command trouble falls back to Apple for that
-//! recording.
+//! (`crate::command_transcriber`). Any Deepgram, Hex or command trouble falls back to Apple for
+//! that recording; Deepgram's reason stays in `deepgram_fallback` for Settings.
 
 use std::path::Path;
+use std::sync::Mutex;
 use std::sync::atomic::{AtomicU8, Ordering};
 
 use anyhow::Result;
@@ -12,12 +14,23 @@ use anyhow::Result;
 use crate::audio::RecordedAudio;
 use crate::model::TranscriptData;
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Engine {
-    #[default]
     Apple,
     Hex,
     Command,
+    Deepgram,
+}
+
+/// Deepgram on macOS; elsewhere the on-device engine.
+impl Default for Engine {
+    fn default() -> Self {
+        if cfg!(target_os = "macos") {
+            Self::Deepgram
+        } else {
+            Self::Apple
+        }
+    }
 }
 
 impl Engine {
@@ -26,6 +39,7 @@ impl Engine {
             "apple" => Some(Self::Apple),
             "hex" => Some(Self::Hex),
             "command" => Some(Self::Command),
+            "deepgram" => Some(Self::Deepgram),
             _ => None,
         }
     }
@@ -35,10 +49,12 @@ impl Engine {
             Self::Apple => "apple",
             Self::Hex => "hex",
             Self::Command => "command",
+            Self::Deepgram => "deepgram",
         }
     }
 
-    /// The configured engine: `"transcriber"` in the config file, Apple when missing or unknown.
+    /// The configured engine: `"transcriber"` in the config file, the default when missing or
+    /// unknown.
     pub fn configured() -> Self {
         crate::handoff::transcriber()
             .as_deref()
@@ -52,6 +68,7 @@ impl Engine {
             1 => Self::Apple,
             2 => Self::Hex,
             3 => Self::Command,
+            4 => Self::Deepgram,
             _ => Self::configured(),
         }
     }
@@ -67,6 +84,19 @@ pub const LOCAL_ENGINE_TITLE: &str = "Parakeet (on this PC)";
 static OVERRIDE: AtomicU8 = AtomicU8::new(0);
 static LOGGED_NOT_CONNECTED: std::sync::Once = std::sync::Once::new();
 static LOGGED_NO_COMMAND: std::sync::Once = std::sync::Once::new();
+/// Why the last recording that preferred Deepgram used Apple instead; cleared by a success.
+static DEEPGRAM_FALLBACK: Mutex<Option<String>> = Mutex::new(None);
+
+/// The reason the last Deepgram recording fell back to Apple, if the last one did.
+pub fn deepgram_fallback() -> Option<String> {
+    DEEPGRAM_FALLBACK.lock().ok()?.clone()
+}
+
+fn note_deepgram(reason: Option<String>) {
+    if let Ok(mut last) = DEEPGRAM_FALLBACK.lock() {
+        *last = reason;
+    }
+}
 
 /// What the Settings window's Transcription controls show. A Hex preference stays saved while Hex
 /// is away, but the active choice follows what recordings would really use.
@@ -124,6 +154,7 @@ pub fn set_override(engine: Engine) {
             Engine::Apple => 1,
             Engine::Hex => 2,
             Engine::Command => 3,
+            Engine::Deepgram => 4,
         },
         Ordering::Relaxed,
     );
@@ -139,18 +170,36 @@ pub fn transcribe(wav: Option<&Path>, audio: Option<&RecordedAudio>) -> Transcri
     };
     let live = audio.live.take();
     let engine = Engine::preferred();
-    run(
+    heard(
+        audio,
         engine,
         || match engine {
             Engine::Apple => Ok(None),
             Engine::Hex => try_hex(audio),
             Engine::Command => try_command(wav, audio),
+            Engine::Deepgram => crate::deepgram::transcribe(wav, &crate::handoff::hex_language())
+                .map(Some)
+                .map_err(anyhow::Error::from),
         },
         || {
             live.and_then(|live| finish_live(live, audio))
                 .unwrap_or_else(|| apple(wav))
         },
     )
+}
+
+/// What `engine`, or Apple after it, made of `audio`, on the capture clock. Every engine times
+/// its words from the first sample it is given, and the microphone heard that sample
+/// `audio.offset_ms` into the capture, so this one place moves them all.
+fn heard(
+    audio: &RecordedAudio,
+    engine: Engine,
+    other: impl FnOnce() -> Result<Option<TranscriptData>>,
+    apple: impl FnOnce() -> TranscriptData,
+) -> TranscriptData {
+    let mut transcript = run(engine, other, apple);
+    transcript.delay(audio.offset_ms);
+    transcript
 }
 
 /// The transcript made while recording, or `None` (logged) to transcribe the WAV instead.
@@ -190,13 +239,25 @@ fn run(
         Engine::Apple => return apple(),
         Engine::Hex => "Hex",
         Engine::Command => "Command",
+        Engine::Deepgram => crate::deepgram::TITLE,
     };
+    let deepgram = engine == Engine::Deepgram;
     match other() {
-        Ok(Some(transcript)) => return transcript,
+        Ok(Some(transcript)) => {
+            if deepgram {
+                note_deepgram(None);
+            }
+            return transcript;
+        }
         Ok(None) => {}
-        Err(error) => crate::capture::scrawl_log(format!(
-            "{name} transcription failed, using {LOCAL_ENGINE_TITLE}: {error:#}"
-        )),
+        Err(error) => {
+            crate::capture::scrawl_log(format!(
+                "{name} transcription failed, using {LOCAL_ENGINE_TITLE}: {error:#}"
+            ));
+            if deepgram {
+                note_deepgram(Some(format!("{error:#}")));
+            }
+        }
     }
     apple()
 }
@@ -280,8 +341,115 @@ mod tests {
         assert_eq!(Engine::parse("hex"), Some(Engine::Hex));
         assert_eq!(Engine::parse(" Apple "), Some(Engine::Apple));
         assert_eq!(Engine::parse("Command"), Some(Engine::Command));
+        assert_eq!(Engine::parse(" Deepgram"), Some(Engine::Deepgram));
         assert_eq!(Engine::parse("whisper"), None);
-        assert_eq!(Engine::default(), Engine::Apple);
+        let default = if cfg!(target_os = "macos") {
+            Engine::Deepgram
+        } else {
+            Engine::Apple
+        };
+        assert_eq!(Engine::default(), default);
+    }
+
+    /// `run` notes Deepgram's outcome in one place for the whole process; tests that go
+    /// through it with Deepgram take turns.
+    static DEEPGRAM_NOTE: Mutex<()> = Mutex::new(());
+
+    /// Every engine times its words from the first sample of the WAV, and the microphone heard
+    /// that sample `offset_ms` into the capture: a word 1 s into a WAV that started 200 ms
+    /// late was said at 1.2 s, where the clicks and the frames of that moment are.
+    #[test]
+    fn every_engine_s_times_are_put_on_the_capture_clock() {
+        use crate::model::{TranscriptSegment, WordTiming};
+        let _turn = DEEPGRAM_NOTE.lock().unwrap_or_else(|e| e.into_inner());
+        let wav = crate::audio::encode_wav_16k(&[0.0; 16]).unwrap();
+        let late = |offset_ms| RecordedAudio {
+            offset_ms,
+            ..crate::audio::recorded_audio_from_wav(wav.clone()).unwrap()
+        };
+        let timed = |source: &str| TranscriptData {
+            source: source.into(),
+            text: "hello".into(),
+            segments: vec![TranscriptSegment {
+                t0: 1_000,
+                t1: 1_400,
+                text: "hello".into(),
+            }],
+            words: vec![WordTiming {
+                t0: 1_000,
+                t1: 1_400,
+                text: "hello".into(),
+            }],
+            ..Default::default()
+        };
+        let times = |transcript: &TranscriptData| {
+            (
+                (transcript.words[0].t0, transcript.words[0].t1),
+                (transcript.segments[0].t0, transcript.segments[0].t1),
+            )
+        };
+        for (engine, source) in [
+            (Engine::Apple, "speech-analyzer"),
+            (Engine::Hex, "hex:parakeet_v3"),
+            (Engine::Command, "command:whisper-scrawl"),
+            (Engine::Deepgram, "deepgram:nova-3"),
+        ] {
+            let transcript = heard(
+                &late(200),
+                engine,
+                || Ok(Some(timed(source))),
+                || timed("speech-analyzer"),
+            );
+            assert_eq!(transcript.source, source);
+            assert_eq!(
+                times(&transcript),
+                ((1_200, 1_600), (1_200, 1_600)),
+                "{source}"
+            );
+            // Audio that began with the capture clock (a WAV read back, an iPhone movie's).
+            let on_time = heard(
+                &late(0),
+                engine,
+                || Ok(Some(timed(source))),
+                || timed("speech-analyzer"),
+            );
+            assert_eq!(times(&on_time), ((1_000, 1_400), (1_000, 1_400)));
+        }
+        // Apple, answering for an engine that failed.
+        let fallback = heard(
+            &late(200),
+            Engine::Hex,
+            || Err(anyhow::anyhow!("took too long")),
+            || timed("speech-analyzer"),
+        );
+        assert_eq!(times(&fallback), ((1_200, 1_600), (1_200, 1_600)));
+    }
+
+    #[test]
+    fn deepgram_failure_uses_apple_and_names_the_reason_until_a_success() {
+        use crate::deepgram::Failure;
+        let _turn = DEEPGRAM_NOTE.lock().unwrap_or_else(|e| e.into_inner());
+        for (failure, reason) in [
+            (Failure::NoKey, "no DEEPGRAM_API_KEY"),
+            (Failure::Timeout, "no answer within 120 s"),
+            (Failure::Status(500), "Deepgram answered HTTP 500"),
+            (Failure::Empty, "Deepgram heard no words"),
+        ] {
+            let result = run(
+                Engine::Deepgram,
+                || Err(failure.into()),
+                || named("speech-analyzer"),
+            );
+            assert_eq!(result.source, "speech-analyzer");
+            assert_eq!(deepgram_fallback().as_deref(), Some(reason));
+        }
+        let result = run(
+            Engine::Deepgram,
+            || Ok(Some(named("deepgram:nova-3"))),
+            || panic!("Apple must not be asked"),
+        );
+        assert_eq!(result.source, "deepgram:nova-3");
+        assert_eq!(deepgram_fallback(), None);
     }
 
     #[test]
