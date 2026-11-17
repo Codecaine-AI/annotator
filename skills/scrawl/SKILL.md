@@ -65,6 +65,22 @@ It prints the path of a PNG sheet of frames around that moment, the time of each
 
 `--mark` takes a mark's number from the text or its id (`m2`) and centres the sheet on the time it was drawn, with only that mark's ink, drawn whole from the moment it starts. `scrawl inspect <bundle> --marks` lists every mark (`#2 ✎② 0:09 marked (2 strokes) · m2`: keyframe, number, time, shape, what it was drawn on, id), and `--marks --json` gives the same as JSON.
 
+### Measure sizes and spacing
+
+When the person talks about size, width, height, spacing, a gap, padding, alignment, or something that looks too big, too small or off, measure it before you answer or change code. Never estimate a size from the image.
+
+1. Find the keyframe that shows the component, from their words and their marks.
+2. Pick a point on the component's surface, or a region around the parts to compare. Give each as fractions of that keyframe's image (`frames/frame-NN.png`), from 0 to 1. A point a few pixels off still finds the same box.
+3. Run `scrawl measure`:
+
+```sh
+scrawl measure <bundle> --frame 3 --at 0.42,0.31                # the box that holds the point
+scrawl measure <bundle> --frame 3 --region 0.1,0.2,0.9,0.6      # every box in the region and the gaps between them
+scrawl measure <bundle> --frame 3 --at 0.42,0.31 --json
+```
+
+A region over text gives one box per word, so draw the region tight around the parts you compare. Sizes come in pt, which match CSS px and SwiftUI points, and in screen px. An iPhone capture without a screen size gives px only. Compare each pt value with the project's design tokens, such as its spacing scale and max widths, and name the token that fits or the one it misses. When the source code sets the value, read it there too: the measure shows what rendered on screen.
+
 ### Other commands
 
 ```sh
