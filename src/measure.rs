@@ -24,6 +24,9 @@ const FILL_CAP: f64 = 0.5;
 const MIN_SIDE_PT: f64 = 6.0;
 /// Region mode keeps at most this many boxes, largest first.
 const MAX_BOXES: usize = 30;
+/// Region mode joins parts on one row that are at most this far apart (pt), so the letters of a
+/// word are one box and never a gap.
+const JOIN_PT: f64 = 1.5;
 
 /// A pixel rect: `x..x + width`, `y..y + height`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -283,15 +286,18 @@ fn background(frame: &RgbaFrame, r: PxBox) -> [u8; 3] {
 }
 
 /// The top-level parts inside `region` (in frame px): pixels off the region's background,
-/// 8-connected, without parts inside another, parts under `min_side` px on either side, and
-/// beyond the `max` largest. In reading order.
+/// 8-connected and also joined across up to `join` background px along a row, without parts
+/// inside another, parts under `min_side` px on either side, and beyond the `max` largest. In
+/// reading order.
 pub fn boxes_in(
     frame: &RgbaFrame,
     region: PxBox,
     tolerance: u8,
+    join: u32,
     min_side: u32,
     max: usize,
 ) -> Vec<PxBox> {
+    let reach = join as usize + 1;
     let bg = background(frame, region);
     let (rw, rh) = (region.width as usize, region.height as usize);
     let mut mask = vec![false; rw * rh];
@@ -319,7 +325,8 @@ pub fn boxes_in(
             x1 = x1.max(x);
             y1 = y1.max(y);
             for ny in y.saturating_sub(1)..=(y + 1).min(rh - 1) {
-                for nx in x.saturating_sub(1)..=(x + 1).min(rw - 1) {
+                let r = if ny == y { reach } else { 1 };
+                for nx in x.saturating_sub(r)..=(x + r).min(rw - 1) {
                     let i = ny * rw + nx;
                     if mask[i] {
                         mask[i] = false;
@@ -351,8 +358,31 @@ pub fn boxes_in(
         .collect();
     kept.sort_by_key(|b| std::cmp::Reverse(b.area()));
     kept.truncate(max);
-    kept.sort_by_key(|b| (b.y, b.x));
-    kept
+    reading_order(kept)
+}
+
+/// Lines top to bottom, each left to right: a box joins the line whose first box's rows hold its
+/// vertical centre, so words a px or two apart in height stay on one line.
+fn reading_order(mut boxes: Vec<PxBox>) -> Vec<PxBox> {
+    boxes.sort_by_key(|b| (b.y, b.x));
+    let mut lines: Vec<Vec<PxBox>> = Vec::new();
+    for b in boxes {
+        let centre = b.y + b.height / 2;
+        match lines
+            .iter_mut()
+            .find(|line| line[0].y <= centre && centre < line[0].y1())
+        {
+            Some(line) => line.push(b),
+            None => lines.push(vec![b]),
+        }
+    }
+    lines
+        .into_iter()
+        .flat_map(|mut line| {
+            line.sort_by_key(|b| b.x);
+            line
+        })
+        .collect()
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -757,7 +787,8 @@ pub fn measure_picture(
                 height: y1 - y0,
             };
             let min_side = (MIN_SIDE_PT * ppp).round().max(1.0) as u32;
-            let boxes = boxes_in(img, region, MASK_TOLERANCE, min_side, MAX_BOXES);
+            let join = (JOIN_PT * ppp).round().max(1.0) as u32;
+            let boxes = boxes_in(img, region, MASK_TOLERANCE, join, min_side, MAX_BOXES);
             if boxes.is_empty() {
                 warnings.push("no boxes found: the region looks like one plain color".into());
             }
@@ -999,13 +1030,33 @@ mod tests {
             width: 900,
             height: 400,
         };
-        let boxes = boxes_in(&f, region, MASK_TOLERANCE, 12, MAX_BOXES);
+        let boxes = boxes_in(&f, region, MASK_TOLERANCE, 3, 12, MAX_BOXES);
         assert_eq!(boxes.len(), 2, "{boxes:?}");
         assert_box(boxes[0], 192, 280, 320, 184);
         assert_box(boxes[1], 552, 280, 320, 184);
         let gaps = nearest_gaps(&boxes);
         assert_eq!(gaps.len(), 1);
         assert!(close(gaps[0].px, 40) && gaps[0].axis == Axis::Horizontal);
+    }
+
+    #[test]
+    fn letters_a_few_px_apart_are_one_box_and_a_word_space_is_a_gap() {
+        // Two "words" of 8×12 px letters: 2 px between letters, 10 px between the words.
+        let mut f = canvas(200, 40, CARD);
+        for x in [10, 20, 30, 50, 60] {
+            rect(&mut f, x, 10, 8, 12, TEXT);
+        }
+        let region = PxBox {
+            x: 0,
+            y: 0,
+            width: 200,
+            height: 40,
+        };
+        let boxes = boxes_in(&f, region, MASK_TOLERANCE, 3, 6, MAX_BOXES);
+        assert_eq!(boxes.len(), 2, "{boxes:?}");
+        assert_box(boxes[0], 10, 10, 28, 12);
+        assert_box(boxes[1], 50, 10, 18, 12);
+        assert_eq!(nearest_gaps(&boxes)[0].px, 12);
     }
 
     #[test]
@@ -1229,6 +1280,14 @@ mod tests {
         assert_eq!(code, 2);
         assert_eq!(text, "--frame 3 is out of range: this capture has keyframes 1 to 2\n");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn boxes_a_px_apart_in_height_read_as_one_line() {
+        let b = |x, y, height| PxBox { x, y, width: 10, height };
+        // A word one px lower, left of a taller one, and a second line below.
+        let order = reading_order(vec![b(300, 10, 20), b(100, 11, 18), b(50, 60, 20)]);
+        assert_eq!(order, vec![b(100, 11, 18), b(300, 10, 20), b(50, 60, 20)]);
     }
 
     #[test]
