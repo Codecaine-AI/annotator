@@ -200,7 +200,7 @@ fn crop_at(bundle: &ScrawlBundle, t: u64) -> Option<crate::autocrop::Rect> {
 }
 
 /// The auto-crop of the `k`th keyframe (0-based).
-fn crop_of(bundle: &ScrawlBundle, k: usize) -> Option<crate::autocrop::Rect> {
+pub(crate) fn crop_of(bundle: &ScrawlBundle, k: usize) -> Option<crate::autocrop::Rect> {
     let crop = bundle.autocrop.as_ref()?.crops.get(k)?;
     (crop.kind != crate::autocrop::CropKind::Full).then(|| crop.rect(&bundle.target.frame))
 }
