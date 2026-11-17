@@ -76,6 +76,7 @@ const EVENT_LEFT_MOUSE_DOWN: u32 = 1;
 const EVENT_LEFT_MOUSE_UP: u32 = 2;
 const EVENT_RIGHT_MOUSE_DOWN: u32 = 3;
 const EVENT_RIGHT_MOUSE_UP: u32 = 4;
+const EVENT_LEFT_MOUSE_DRAGGED: u32 = 6;
 const EVENT_KEY_DOWN: u32 = 10;
 const EVENT_SCROLL_WHEEL: u32 = 22;
 const EVENT_TAP_DISABLED_BY_TIMEOUT: u32 = u32::MAX - 1;
@@ -1554,13 +1555,17 @@ fn stop_key_tap(telemetry: &SharedCaptureTelemetry) {
 
 /// Makes the key tap on its own thread and runs it until `stop_key_tap`. It's an active tap
 /// (`kCGEventTapOptionDefault`), which needs Accessibility; a listen-only one would need Input
-/// Monitoring. It hands every event on unchanged.
+/// Monitoring. It hands every key on unchanged. It also sees the left button, and keeps a
+/// draw-press from the app under the pointer (`left_button_kept`).
 fn spawn_key_tap(telemetry: Arc<SharedCaptureTelemetry>) {
     let starting = Arc::clone(&telemetry);
     let spawned = thread::Builder::new()
         .name("scrawl-key-tap".into())
         .spawn(move || {
-            let mask = 1_u64 << EVENT_KEY_DOWN;
+            let mask = (1_u64 << EVENT_KEY_DOWN)
+                | (1 << EVENT_LEFT_MOUSE_DOWN)
+                | (1 << EVENT_LEFT_MOUSE_DRAGGED)
+                | (1 << EVENT_LEFT_MOUSE_UP);
             let user_info = Arc::into_raw(Arc::clone(&telemetry))
                 .cast_mut()
                 .cast::<c_void>();
@@ -1609,7 +1614,42 @@ fn spawn_key_tap(telemetry: Arc<SharedCaptureTelemetry>) {
     }
 }
 
-/// Key presses in any app, from the key tap. Always returns the event unchanged.
+/// `kCGEventSourceUnixProcessID`: the process that posted an event.
+const EVENT_SOURCE_UNIX_PROCESS_ID: u32 = 41;
+
+/// A left button event at the key tap: whether to keep it from the app under the pointer.
+/// A press that drops a pin or draws ink (`SharedCaptureTelemetry::block_press`) is kept with
+/// its drags and its release; the pin and the ink are recorded here and by the HID poller, as
+/// the mouse monitor never sees a kept event. Events Annotator posts itself pass.
+fn left_button_kept(telemetry: &SharedCaptureTelemetry, event_type: u32, event: EventRef) -> bool {
+    match event_type {
+        EVENT_LEFT_MOUSE_DOWN => {
+            let own = unsafe { CGEventGetIntegerValueField(event, EVENT_SOURCE_UNIX_PROCESS_ID) }
+                == i64::from(std::process::id());
+            if own {
+                telemetry.forget_press();
+                return false;
+            }
+            let held = carbon_flags(unsafe { CGEventGetFlags(event) });
+            let loc = unsafe { CGEventGetLocation(event) };
+            telemetry.block_press(telemetry.elapsed_ms(), loc.x, loc.y, held, || {
+                telemetry.on_scrawl_window(loc.x, loc.y)
+            })
+        }
+        EVENT_LEFT_MOUSE_DRAGGED => telemetry.press_blocked(),
+        EVENT_LEFT_MOUSE_UP => {
+            if !telemetry.press_blocked() {
+                return false;
+            }
+            let loc = unsafe { CGEventGetLocation(event) };
+            telemetry.release_press(telemetry.elapsed_ms(), loc.x, loc.y)
+        }
+        _ => false,
+    }
+}
+
+/// Key presses in any app, from the key tap: always handed on unchanged. Left button events
+/// are handed on unless `left_button_kept` keeps them.
 unsafe extern "C" fn key_tap_callback(
     _proxy: *mut c_void,
     event_type: u32,
@@ -1627,6 +1667,16 @@ unsafe extern "C" fn key_tap_callback(
             unsafe { CGEventTapEnable(tap, true) };
         }
         return event;
+    }
+    if matches!(
+        event_type,
+        EVENT_LEFT_MOUSE_DOWN | EVENT_LEFT_MOUSE_DRAGGED | EVENT_LEFT_MOUSE_UP
+    ) {
+        return if left_button_kept(telemetry, event_type, event) {
+            ptr::null_mut()
+        } else {
+            event
+        };
     }
     if event_type != EVENT_KEY_DOWN {
         return event;
@@ -1796,6 +1846,7 @@ fn run_global_hid_poller(telemetry: Arc<SharedCaptureTelemetry>) {
         } else if draw_in_chord(draw, held) {
             await_shift_release = true;
         }
+        telemetry.set_draw_latched(await_shift_release);
         let mod_mask =
             (u8::from(cmd) << 3) | (u8::from(ctrl) << 2) | (u8::from(alt) << 1) | u8::from(shift);
         if mod_mask != prev_mod_mask {

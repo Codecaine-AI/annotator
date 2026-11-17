@@ -24,6 +24,14 @@
 //   held-pins    hold ⇧ once and click three places: pins 1, 2 and 3, and the 2 lines between
 //   button-first press the left button, then hold ⇧ and drag: 1 stroke
 //   late-shift   press the left button, tap ⇧ without moving, let go: nothing (by design)
+//   blocked      ⇧-click, ⇧-drag, then a plain click: pin 1 and 1 stroke, and the window gets
+//                only the plain click (Annotator keeps a draw-press from the app)
+//   chord-drag   hold ⌘⇧, let ⌘ go, ⇧-drag: nothing drawn, and the window gets the press (⇧
+//                left over from a chord neither draws nor is kept)
+//
+// Every scenario also counts the left presses the harness window receives: with ⇧ held
+// (draw presses) and without. With `"blockDrawClicks": false` in Dev's config the draw-press
+// counts differ by design.
 //
 // --screenshot <png> saves the main display (screencapture) 0.4 s after the last ⇧-click, to
 // show the live overlay's pins.
@@ -49,6 +57,11 @@ let wanted: [String: (ink: Int, pins: [Int])] = [
   "move-then-pin": (1, [1]), "pins": (0, [1, 2, 3]), "held-pins": (2, [1, 2, 3]),
   "button-first": (1, []),
   "late-shift": (0, []),
+  "blocked": (1, [1]), "chord-drag": (0, []),
+]
+/// The left presses the harness window must receive: (with ⇧ held, without).
+let wantedPresses: [String: (draw: Int, plain: Int)] = [
+  "button-first": (0, 1), "late-shift": (0, 1), "blocked": (0, 1), "chord-drag": (1, 0),
 ]
 let usage = "usage: shift-ink-harness [--scenario \(wanted.keys.sorted().joined(separator: "|"))] [--screenshot <png>]"
 
@@ -63,6 +76,7 @@ while let arg = args.next() {
   }
 }
 guard let want = wanted[scenario] else { stop(2, usage) }
+let wantPresses = wantedPresses[scenario] ?? (0, 0)
 
 let home = FileManager.default.homeDirectoryForCurrentUser
 let devLog = home.appendingPathComponent("Library/Logs/Scrawl Dev/scrawl.log")
@@ -334,8 +348,46 @@ func play(_ name: String) {
     shift(true)
     shift(false)
     mouse(.leftMouseUp, point(150, 120))
+  case "blocked":
+    play("click")
+    Thread.sleep(forTimeInterval: 0.3)
+    play("drag")
+    Thread.sleep(forTimeInterval: 0.3)
+    mouse(.mouseMoved, point(300, 260))
+    Thread.sleep(forTimeInterval: 0.1)
+    click(point(300, 260))
+  case "chord-drag":
+    mouse(.mouseMoved, point(0, 120))
+    held = [.maskCommand, draw.flag]
+    shiftPresses += 1
+    holdShift()
+    Thread.sleep(forTimeInterval: 0.12)
+    held = draw.flag
+    holdShift()
+    Thread.sleep(forTimeInterval: 0.12)
+    mouse(.leftMouseDown, point(0, 120))
+    glide(.leftMouseDragged, from: point(0, 120), to: point(300, 180))
+    mouse(.leftMouseUp, point(300, 180))
+    shift(false)
   default: break
   }
+}
+
+/// Takes the events waiting for the harness and counts its left presses: with the draw
+/// modifier held, and without. The harness sleeps while it posts, so they wait in its queue.
+func presses() -> (draw: Int, plain: Int) {
+  var counts = (draw: 0, plain: 0)
+  while let event = app.nextEvent(
+    matching: .any, until: Date().addingTimeInterval(0.05), inMode: .default, dequeue: true)
+  {
+    guard event.type == .leftMouseDown, event.window == window else { continue }
+    if event.cgEvent?.flags.contains(draw.flag) == true {
+      counts.draw += 1
+    } else {
+      counts.plain += 1
+    }
+  }
+  return counts
 }
 
 struct Outcome {
@@ -343,6 +395,7 @@ struct Outcome {
   let ink: Int
   let pins: [Int]
   let marks: Int
+  let presses: (draw: Int, plain: Int)
   /// The poller saw ⇧ go down more often than this run pressed it. The posted ⇧ lasts only
   /// until the next real input event (the real ⇧ key is up), so on a Mac in use it can drop out
   /// for a few milliseconds, which ends the stroke or the hold early. A real ⇧ key never does
@@ -357,6 +410,7 @@ func record() -> Outcome {
   }
   guard !recording(devLog) else { stop(2, "Annotator Dev is already recording") }
   showWindow()
+  _ = presses()
   let pointerBefore = CGEvent(source: nil)?.location
   let before = bundles()
   let start = logSize(devLog)
@@ -373,6 +427,7 @@ func record() -> Outcome {
   let played = logSize(devLog)
   play(scenario)
   Thread.sleep(forTimeInterval: 0.5)
+  let received = presses()
   let shiftSeen = logLines(devLog, from: played).filter { $0.contains(drawAloneLine) }.count
   let stopAt = logSize(devLog)
   recordShortcut()
@@ -392,7 +447,8 @@ func record() -> Outcome {
   let pins = strokes.compactMap { ($0["pin"] as? NSNumber)?.intValue }
   return Outcome(
     bundle: bundle, ink: strokes.count - pins.count, pins: pins,
-    marks: (root["marks"] as? [Any])?.count ?? 0, disturbed: shiftSeen > shiftPresses)
+    marks: (root["marks"] as? [Any])?.count ?? 0, presses: received,
+    disturbed: shiftSeen > shiftPresses)
 }
 
 let attempts = 6
@@ -404,11 +460,13 @@ for attempt in 1...attempts {
     continue
   }
   let ok = outcome.ink == want.ink && outcome.pins == want.pins
+    && outcome.presses == wantPresses
   print("bundle: \(outcome.bundle.path)")
   print("scenario: \(scenario) (attempt \(attempt))")
   print("ink strokes: \(outcome.ink) (want \(want.ink))")
   print("pins: \(outcome.pins) (want \(want.pins))")
   print("marks: \(outcome.marks)")
+  print("window presses: \(outcome.presses.draw) draw, \(outcome.presses.plain) plain (want \(wantPresses.draw), \(wantPresses.plain))")
   if outcome.disturbed && !ok {
     print("DISTURBED: real input interrupted the posted ⇧ in every attempt")
     exit(3)

@@ -125,6 +125,20 @@
       "docs": ["README.md#capture-controls"]
     },
     {
+      "id": "draw-clicks-stop",
+      "group": "record",
+      "name": "Draw clicks stay out of the app",
+      "says": "While recording, a ⇧-click or ⇧-drag inside the capture area drops its pin or ink and never reaches the app under the pointer.",
+      "status": "main",
+      "platforms": ["mac"],
+      "added": "2026-11-17",
+      "note": "Needs Accessibility (the key tap). Plain clicks, and ⇧-clicks outside the area or while paused, still reach the app. Windows and Linux pass every click through.",
+      "config": [
+        { "key": "blockDrawClicks", "value": "false", "does": "Let ⇧-clicks and ⇧-drags reach the app as well" }
+      ],
+      "docs": ["docs/capture.md"]
+    },
+    {
       "id": "undo-cancel",
       "group": "record",
       "name": "Undo and cancel",

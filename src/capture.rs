@@ -539,6 +539,33 @@ pub fn draw_in_chord(draw: u32, held: u32) -> bool {
     held & draw != 0 && held & !draw != 0
 }
 
+/// What decides whether a left press is kept from the app under the pointer.
+#[derive(Clone, Copy)]
+pub struct DrawPress {
+    /// `blockDrawClicks` was on when the recording started.
+    pub setting: bool,
+    /// A recording takes input (not paused, not finished).
+    pub active: bool,
+    /// The draw modifier alone is held (`draws`).
+    pub draws: bool,
+    /// The draw modifier is left over from a chord, so it doesn't draw yet (the poller's latch).
+    pub latched: bool,
+    /// The press is inside the capture target.
+    pub inside: bool,
+}
+
+/// Whether a left press stops at Annotator: it is one that drops a pin or draws ink, so the app
+/// under the pointer never gets it. `on_annotator` (a window list, so asked last) keeps presses
+/// on Annotator's own windows, such as the capsule, going to them.
+pub fn blocks_draw_press(press: DrawPress, on_annotator: impl FnOnce() -> bool) -> bool {
+    press.setting
+        && press.active
+        && press.draws
+        && !press.latched
+        && press.inside
+        && !on_annotator()
+}
+
 /// The active layout's key for `kind`'s default letter (Windows' hooks and poller match on it).
 #[cfg_attr(target_os = "macos", allow(dead_code))]
 pub fn layout_default_keycode(kind: ShortcutKind) -> u16 {
@@ -917,6 +944,15 @@ pub struct SharedCaptureTelemetry {
     agent_context: AtomicBool,
     /// A ⇧-press inside the target: when, where (global points) and on which frame.
     shift_press: Mutex<Option<(u64, f64, f64, TargetFrame)>>,
+    /// `blockDrawClicks` as the recording started (`handoff::block_draw_clicks`).
+    block_draw_clicks: AtomicBool,
+    /// The poller's chord latch: the draw modifier came down with another one and doesn't draw
+    /// until it is let go, so a press then is not a draw-press either.
+    draw_latched: AtomicBool,
+    /// The left button is down on a press the key tap kept from the app: its drags and its
+    /// release are kept too, even if the recording pauses or finishes before the release.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    blocked_press: AtomicBool,
 }
 
 impl SharedCaptureTelemetry {
@@ -970,6 +1006,9 @@ impl SharedCaptureTelemetry {
             drag_start: Mutex::new(None),
             agent_context: AtomicBool::new(false),
             shift_press: Mutex::new(None),
+            block_draw_clicks: AtomicBool::new(true),
+            draw_latched: AtomicBool::new(false),
+            blocked_press: AtomicBool::new(false),
         })
     }
 
@@ -1198,6 +1237,8 @@ impl SharedCaptureTelemetry {
         self.window_log_request.store(false, Ordering::Release);
         let agent_context = crate::handoff::app_state();
         self.agent_context.store(agent_context, Ordering::Release);
+        self.block_draw_clicks
+            .store(crate::handoff::block_draw_clicks(), Ordering::Release);
         if agent_context {
             crate::ax::Prober::shared().begin();
         }
@@ -1409,6 +1450,68 @@ impl SharedCaptureTelemetry {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .push(event);
+    }
+
+    /// The poller's chord latch (`draw_in_chord`), for the key tap's `blocks_draw_press`.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn set_draw_latched(&self, latched: bool) {
+        self.draw_latched.store(latched, Ordering::Release);
+    }
+
+    /// A left press at the key tap: when it is a draw-press (`blocks_draw_press`) it starts as
+    /// `shift_down` would, and the tap keeps it, its drags and its release from the app.
+    /// `held` is the event's modifiers (Carbon bits). A press while an earlier kept one never
+    /// saw its release (the tap was off for a moment) starts afresh.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn block_press(
+        &self,
+        t_ms: u64,
+        screen_x: f64,
+        screen_y: f64,
+        held: u32,
+        on_annotator: impl FnOnce() -> bool,
+    ) -> bool {
+        self.blocked_press.store(false, Ordering::Release);
+        let press = DrawPress {
+            setting: self.block_draw_clicks.load(Ordering::Acquire),
+            active: self.active.load(Ordering::Acquire),
+            draws: draws(self.draw_mask(), held),
+            latched: self.draw_latched.load(Ordering::Acquire),
+            inside: self.contains_screen_point(screen_x, screen_y),
+        };
+        if !blocks_draw_press(press, on_annotator) {
+            return false;
+        }
+        self.shift_down(t_ms, screen_x, screen_y);
+        self.blocked_press.store(true, Ordering::Release);
+        true
+    }
+
+    /// A new press that is not the user's (Annotator posted it): a kept press whose release
+    /// never came is over, so this press's release passes.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn forget_press(&self) {
+        self.blocked_press.store(false, Ordering::Release);
+    }
+
+    /// Whether the left button is down on a kept press, so a drag is kept too.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn press_blocked(&self) -> bool {
+        self.blocked_press.load(Ordering::Acquire)
+    }
+
+    /// The left button came up: when its press was kept, the release is kept too, and it ends
+    /// the press as `shift_up` would while the recording still takes input (a pause or finish
+    /// during the press drops it). Returns whether the release is kept.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn release_press(&self, t_ms: u64, screen_x: f64, screen_y: f64) -> bool {
+        if !self.blocked_press.swap(false, Ordering::AcqRel) {
+            return false;
+        }
+        if self.active.load(Ordering::Acquire) {
+            self.shift_up(t_ms, screen_x, screen_y);
+        }
+        true
     }
 
     /// The left button went down with only ⇧ held: a pin if it comes up as a click (`shift_up`).
@@ -2554,6 +2657,80 @@ mod tests {
             strokes[0].normalized_points()[1],
             strokes[1].normalized_points()[0]
         );
+    }
+
+    /// A left press stops at Annotator only when it would drop a pin or draw ink: the setting
+    /// is on, the recording takes input, the draw modifier alone is held and not left over from
+    /// a chord, the press is inside the target and not on Annotator's own window.
+    #[test]
+    fn only_a_draw_press_inside_the_target_is_kept_from_the_app() {
+        let yes = DrawPress {
+            setting: true,
+            active: true,
+            draws: true,
+            latched: false,
+            inside: true,
+        };
+        assert!(blocks_draw_press(yes, || false));
+        assert!(!blocks_draw_press(yes, || true), "on the capsule");
+        for no in [
+            DrawPress { setting: false, ..yes },
+            DrawPress { active: false, ..yes },
+            DrawPress { draws: false, ..yes },
+            DrawPress { latched: true, ..yes },
+            DrawPress { inside: false, ..yes },
+        ] {
+            let mut asked = false;
+            assert!(!blocks_draw_press(no, || {
+                asked = true;
+                false
+            }));
+            assert!(!asked, "the window list is asked only for a draw-press");
+        }
+    }
+
+    /// A kept press drops its pin at the release, once. A press kept when the recording pauses
+    /// keeps its drags and release from the app until the button comes up, and drops nothing.
+    /// Presses outside the target, during a chord or with the setting off pass.
+    #[test]
+    fn a_kept_press_drops_its_pin_and_keeps_its_release_past_a_pause() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        let t = telemetry.elapsed_ms() + 50;
+        assert!(telemetry.block_press(t, 200.0, 300.0, draw, || false));
+        assert!(telemetry.press_blocked());
+        assert!(telemetry.release_press(t + 80, 201.0, 300.0));
+        assert!(!telemetry.press_blocked());
+        assert!(!telemetry.release_press(t + 90, 201.0, 300.0), "a release passes after");
+
+        // Not the draw modifier alone, outside the target, or on Annotator: passes.
+        assert!(!telemetry.block_press(t + 200, 200.0, 300.0, 0, || false));
+        assert!(!telemetry.block_press(t + 200, 2000.0, 300.0, draw, || false));
+        assert!(!telemetry.block_press(t + 200, 200.0, 300.0, draw, || true));
+        telemetry.set_draw_latched(true);
+        assert!(!telemetry.block_press(t + 200, 200.0, 300.0, draw, || false));
+        telemetry.set_draw_latched(false);
+        telemetry.block_draw_clicks.store(false, Ordering::Release);
+        assert!(!telemetry.block_press(t + 200, 200.0, 300.0, draw, || false));
+        telemetry.block_draw_clicks.store(true, Ordering::Release);
+
+        // Paused mid-press: the release is still kept, and no pin drops.
+        assert!(telemetry.block_press(t + 300, 400.0, 400.0, draw, || false));
+        telemetry.pause_input();
+        assert!(telemetry.press_blocked());
+        assert!(telemetry.release_press(t + 350, 400.0, 400.0));
+        // While paused nothing is kept.
+        assert!(!telemetry.block_press(t + 400, 400.0, 400.0, draw, || false));
+        telemetry.resume_input();
+
+        // A kept press whose release never came is over at the next press.
+        assert!(telemetry.block_press(t + 500, 500.0, 500.0, draw, || false));
+        assert!(!telemetry.block_press(t + 600, 500.0, 500.0, 0, || false));
+        assert!(!telemetry.press_blocked());
+
+        let (_, strokes) = telemetry.finish_session();
+        let pins: Vec<_> = strokes.iter().filter_map(|s| s.pin).collect();
+        assert_eq!(pins, vec![1]);
     }
 
     /// Holding ⇧ and clicking three places drops three pins, and the lines the poller draws on
