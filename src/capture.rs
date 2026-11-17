@@ -1452,10 +1452,32 @@ impl SharedCaptureTelemetry {
             .push(event);
     }
 
-    /// The poller's chord latch (`draw_in_chord`), for the key tap's `blocks_draw_press`.
-    #[cfg_attr(target_os = "windows", allow(dead_code))]
-    pub(crate) fn set_draw_latched(&self, latched: bool) {
-        self.draw_latched.store(latched, Ordering::Release);
+    /// Takes the modifiers now held (Carbon bits) and returns whether the draw modifier is
+    /// latched: it came down with another one (`draw_in_chord`, as in ⌥⇧S) and draws nothing
+    /// until it is let go. The key tap calls it on every modifier change and the poller on
+    /// every poll, so one latch decides ink, pins and kept presses alike.
+    pub(crate) fn note_draw_modifiers(&self, held: u32) -> bool {
+        let draw = self.draw_mask();
+        if held & draw == 0 {
+            self.draw_latched.store(false, Ordering::Release);
+            false
+        } else if draw_in_chord(draw, held) {
+            self.draw_latched.store(true, Ordering::Release);
+            true
+        } else {
+            self.draw_latched.load(Ordering::Acquire)
+        }
+    }
+
+    /// Whether the draw modifier alone is held and draws: not left over from a chord.
+    pub(crate) fn draws_now(&self, held: u32) -> bool {
+        draws(self.draw_mask(), held) && !self.draw_latched.load(Ordering::Acquire)
+    }
+
+    /// The key tap takes every draw-press (it is live and `blockDrawClicks` is on), so the mouse
+    /// monitor and the polled buttons leave them alone and a press is counted once.
+    pub(crate) fn tap_owns_draw_presses(&self) -> bool {
+        self.tap_live.load(Ordering::Acquire) && self.block_draw_clicks.load(Ordering::Acquire)
     }
 
     /// A left press at the key tap: when it is a draw-press (`blocks_draw_press`) it starts as
@@ -1465,30 +1487,37 @@ impl SharedCaptureTelemetry {
     #[cfg_attr(target_os = "windows", allow(dead_code))]
     pub(crate) fn block_press(
         &self,
-        t_ms: u64,
         screen_x: f64,
         screen_y: f64,
         held: u32,
         on_annotator: impl FnOnce() -> bool,
     ) -> bool {
         self.blocked_press.store(false, Ordering::Release);
+        let setting = self.block_draw_clicks.load(Ordering::Acquire);
+        let active = self.active.load(Ordering::Acquire);
+        let draws = draws(self.draw_mask(), held);
+        // Every left press on the Mac passes here: no lock until it could be a draw-press.
+        if !(setting && active && draws) {
+            return false;
+        }
         let press = DrawPress {
-            setting: self.block_draw_clicks.load(Ordering::Acquire),
-            active: self.active.load(Ordering::Acquire),
-            draws: draws(self.draw_mask(), held),
+            setting,
+            active,
+            draws,
             latched: self.draw_latched.load(Ordering::Acquire),
             inside: self.contains_screen_point(screen_x, screen_y),
         };
         if !blocks_draw_press(press, on_annotator) {
             return false;
         }
-        self.shift_down(t_ms, screen_x, screen_y);
+        self.shift_down(self.elapsed_ms(), screen_x, screen_y);
         self.blocked_press.store(true, Ordering::Release);
         true
     }
 
-    /// A new press that is not the user's (Annotator posted it): a kept press whose release
-    /// never came is over, so this press's release passes.
+    /// A kept press whose release the tap may not see is over: a press Annotator posted itself,
+    /// or the tap was disabled, stopped or made again. Its drags and release pass, since a
+    /// release the app never pressed for does no harm and a press it never sees released does.
     #[cfg_attr(target_os = "windows", allow(dead_code))]
     pub(crate) fn forget_press(&self) {
         self.blocked_press.store(false, Ordering::Release);
@@ -1504,12 +1533,18 @@ impl SharedCaptureTelemetry {
     /// the press as `shift_up` would while the recording still takes input (a pause or finish
     /// during the press drops it). Returns whether the release is kept.
     #[cfg_attr(target_os = "windows", allow(dead_code))]
-    pub(crate) fn release_press(&self, t_ms: u64, screen_x: f64, screen_y: f64) -> bool {
+    pub(crate) fn release_press(&self, screen_x: f64, screen_y: f64) -> bool {
         if !self.blocked_press.swap(false, Ordering::AcqRel) {
             return false;
         }
         if self.active.load(Ordering::Acquire) {
-            self.shift_up(t_ms, screen_x, screen_y);
+            self.shift_up(self.elapsed_ms(), screen_x, screen_y);
+        } else {
+            // Paused or finished during the press (a pause may have raced `block_press`).
+            *self
+                .shift_press
+                .lock()
+                .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
         }
         true
     }
@@ -1755,16 +1790,18 @@ fn poll_clicks(
     if telemetry.mouse_live.load(Ordering::Acquire) {
         return;
     }
+    let tap_owns = telemetry.tap_owns_draw_presses();
     for (button, (&down, &before)) in now.iter().zip(&was).enumerate() {
         let left = button == 0;
         if down && !before && !on_scrawl(x, y) {
             if !pure_shift {
                 telemetry.pointer_down(telemetry.elapsed_ms(), x, y);
-            } else if left {
+            } else if left && !tap_owns {
                 telemetry.shift_down(telemetry.elapsed_ms(), x, y);
             }
         } else if !down && before {
-            let shift_press = left && telemetry.shift_up(telemetry.elapsed_ms(), x, y);
+            let shift_press =
+                left && !tap_owns && telemetry.shift_up(telemetry.elapsed_ms(), x, y);
             if !shift_press && !pure_shift {
                 telemetry.pointer_up(telemetry.elapsed_ms(), x, y, !left);
             }
@@ -2696,38 +2733,68 @@ mod tests {
     fn a_kept_press_drops_its_pin_and_keeps_its_release_past_a_pause() {
         let telemetry = session(1000.0, 1000.0);
         let draw = telemetry.draw_mask();
-        let t = telemetry.elapsed_ms() + 50;
-        assert!(telemetry.block_press(t, 200.0, 300.0, draw, || false));
+        assert!(telemetry.block_press(200.0, 300.0, draw, || false));
         assert!(telemetry.press_blocked());
-        assert!(telemetry.release_press(t + 80, 201.0, 300.0));
+        assert!(telemetry.release_press(201.0, 300.0));
         assert!(!telemetry.press_blocked());
-        assert!(!telemetry.release_press(t + 90, 201.0, 300.0), "a release passes after");
+        assert!(!telemetry.release_press(201.0, 300.0), "a release passes after");
 
         // Not the draw modifier alone, outside the target, or on Annotator: passes.
-        assert!(!telemetry.block_press(t + 200, 200.0, 300.0, 0, || false));
-        assert!(!telemetry.block_press(t + 200, 2000.0, 300.0, draw, || false));
-        assert!(!telemetry.block_press(t + 200, 200.0, 300.0, draw, || true));
-        telemetry.set_draw_latched(true);
-        assert!(!telemetry.block_press(t + 200, 200.0, 300.0, draw, || false));
-        telemetry.set_draw_latched(false);
+        assert!(!telemetry.block_press(200.0, 300.0, 0, || false));
+        assert!(!telemetry.block_press(2000.0, 300.0, draw, || false));
+        assert!(!telemetry.block_press(200.0, 300.0, draw, || true));
+        // Left over from a chord (⌘ came down with it, then went up): passes.
+        let chord = draw | CARBON_CMD_KEY;
+        assert!(telemetry.note_draw_modifiers(chord));
+        assert!(telemetry.note_draw_modifiers(draw));
+        assert!(!telemetry.draws_now(draw));
+        assert!(!telemetry.block_press(200.0, 300.0, draw, || false));
+        // Let go and pressed again alone: draws and is kept.
+        assert!(!telemetry.note_draw_modifiers(0));
+        assert!(!telemetry.note_draw_modifiers(draw));
+        assert!(telemetry.draws_now(draw));
         telemetry.block_draw_clicks.store(false, Ordering::Release);
-        assert!(!telemetry.block_press(t + 200, 200.0, 300.0, draw, || false));
+        assert!(!telemetry.block_press(200.0, 300.0, draw, || false));
         telemetry.block_draw_clicks.store(true, Ordering::Release);
 
         // Paused mid-press: the release is still kept, and no pin drops.
-        assert!(telemetry.block_press(t + 300, 400.0, 400.0, draw, || false));
+        assert!(telemetry.block_press(400.0, 400.0, draw, || false));
         telemetry.pause_input();
         assert!(telemetry.press_blocked());
-        assert!(telemetry.release_press(t + 350, 400.0, 400.0));
+        assert!(telemetry.release_press(400.0, 400.0));
         // While paused nothing is kept.
-        assert!(!telemetry.block_press(t + 400, 400.0, 400.0, draw, || false));
+        assert!(!telemetry.block_press(400.0, 400.0, draw, || false));
         telemetry.resume_input();
 
-        // A kept press whose release never came is over at the next press.
-        assert!(telemetry.block_press(t + 500, 500.0, 500.0, draw, || false));
-        assert!(!telemetry.block_press(t + 600, 500.0, 500.0, 0, || false));
+        // A kept press whose release never came is over at the next press, and when the tap
+        // was disabled in between.
+        assert!(telemetry.block_press(500.0, 500.0, draw, || false));
+        assert!(!telemetry.block_press(500.0, 500.0, 0, || false));
         assert!(!telemetry.press_blocked());
+        assert!(telemetry.block_press(500.0, 500.0, draw, || false));
+        telemetry.forget_press();
+        assert!(!telemetry.press_blocked());
+        assert!(!telemetry.release_press(500.0, 500.0));
 
+        let (_, strokes) = telemetry.finish_session();
+        let pins: Vec<_> = strokes.iter().filter_map(|s| s.pin).collect();
+        assert_eq!(pins, vec![1]);
+    }
+
+    /// With the key tap taking draw-presses, the polled buttons leave them alone, so one click
+    /// is one pin even when both see it.
+    #[test]
+    fn polled_buttons_leave_draw_presses_to_the_tap() {
+        let telemetry = session(1000.0, 1000.0);
+        telemetry.tap_live.store(true, Ordering::Release);
+        let draw = telemetry.draw_mask();
+        let mut prev = [false; 2];
+        assert!(telemetry.block_press(300.0, 300.0, draw, || false));
+        poll_clicks(&telemetry, &mut prev, [true, false], (300.0, 300.0), true, |_, _| false);
+        assert!(telemetry.release_press(300.0, 300.0));
+        poll_clicks(&telemetry, &mut prev, [false, false], (300.0, 300.0), true, |_, _| false);
+        poll_clicks(&telemetry, &mut prev, [true, false], (300.0, 300.0), true, |_, _| false);
+        poll_clicks(&telemetry, &mut prev, [false, false], (300.0, 300.0), true, |_, _| false);
         let (_, strokes) = telemetry.finish_session();
         let pins: Vec<_> = strokes.iter().filter_map(|s| s.pin).collect();
         assert_eq!(pins, vec![1]);

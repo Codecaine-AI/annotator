@@ -26,11 +26,12 @@
 //   late-shift   press the left button, tap ⇧ without moving, let go: nothing (by design)
 //   blocked      ⇧-click, ⇧-drag, then a plain click: pin 1 and 1 stroke, and the window gets
 //                only the plain click (Annotator keeps a draw-press from the app)
-//   chord-drag   hold ⌘⇧, let ⌘ go, ⇧-drag: nothing drawn, and the window gets the press (⇧
-//                left over from a chord neither draws nor is kept)
+//   chord-drag   hold ⌘⇧ (⌥ with ⇧ when ⌘ draws), let ⌘ go, ⇧-drag: nothing drawn, and the
+//                window gets the press (⇧ left over from a chord neither draws nor is kept)
 //
 // Every scenario also counts the left presses the harness window receives: with ⇧ held
-// (draw presses) and without. With `"blockDrawClicks": false` in Dev's config the draw-press
+// (draw presses) and without, and any drag or release that arrives without its press (a kept
+// press that leaked), which must be none. With `"blockDrawClicks": false` in Dev's config the draw-press
 // counts differ by design.
 //
 // --screenshot <png> saves the main display (screencapture) 0.4 s after the last ⇧-click, to
@@ -358,7 +359,9 @@ func play(_ name: String) {
     click(point(300, 260))
   case "chord-drag":
     mouse(.mouseMoved, point(0, 120))
-    held = [.maskCommand, draw.flag]
+    // A second modifier that is not the draw modifier, so this is a chord whatever draws.
+    let partner: CGEventFlags = draw.flag == .maskCommand ? .maskAlternate : .maskCommand
+    held = [partner, draw.flag]
     shiftPresses += 1
     holdShift()
     Thread.sleep(forTimeInterval: 0.12)
@@ -375,16 +378,27 @@ func play(_ name: String) {
 
 /// Takes the events waiting for the harness and counts its left presses: with the draw
 /// modifier held, and without. The harness sleeps while it posts, so they wait in its queue.
-func presses() -> (draw: Int, plain: Int) {
-  var counts = (draw: 0, plain: 0)
+func presses() -> (draw: Int, plain: Int, orphans: Int) {
+  var counts = (draw: 0, plain: 0, orphans: 0)
+  var down = false
   while let event = app.nextEvent(
     matching: .any, until: Date().addingTimeInterval(0.05), inMode: .default, dequeue: true)
   {
-    guard event.type == .leftMouseDown, event.window == window else { continue }
-    if event.cgEvent?.flags.contains(draw.flag) == true {
-      counts.draw += 1
-    } else {
-      counts.plain += 1
+    guard event.window == window else { continue }
+    switch event.type {
+    case .leftMouseDown:
+      down = true
+      if event.cgEvent?.flags.contains(draw.flag) == true {
+        counts.draw += 1
+      } else {
+        counts.plain += 1
+      }
+    case .leftMouseDragged:
+      if !down { counts.orphans += 1 }
+    case .leftMouseUp:
+      if !down { counts.orphans += 1 }
+      down = false
+    default: break
     }
   }
   return counts
@@ -395,7 +409,7 @@ struct Outcome {
   let ink: Int
   let pins: [Int]
   let marks: Int
-  let presses: (draw: Int, plain: Int)
+  let presses: (draw: Int, plain: Int, orphans: Int)
   /// The poller saw ⇧ go down more often than this run pressed it. The posted ⇧ lasts only
   /// until the next real input event (the real ⇧ key is up), so on a Mac in use it can drop out
   /// for a few milliseconds, which ends the stroke or the hold early. A real ⇧ key never does
@@ -460,13 +474,14 @@ for attempt in 1...attempts {
     continue
   }
   let ok = outcome.ink == want.ink && outcome.pins == want.pins
-    && outcome.presses == wantPresses
+    && outcome.presses.draw == wantPresses.draw && outcome.presses.plain == wantPresses.plain
+    && outcome.presses.orphans == 0
   print("bundle: \(outcome.bundle.path)")
   print("scenario: \(scenario) (attempt \(attempt))")
   print("ink strokes: \(outcome.ink) (want \(want.ink))")
   print("pins: \(outcome.pins) (want \(want.pins))")
   print("marks: \(outcome.marks)")
-  print("window presses: \(outcome.presses.draw) draw, \(outcome.presses.plain) plain (want \(wantPresses.draw), \(wantPresses.plain))")
+  print("window presses: \(outcome.presses.draw) draw, \(outcome.presses.plain) plain (want \(wantPresses.draw), \(wantPresses.plain)); drags or releases without their press: \(outcome.presses.orphans) (want 0)")
   if outcome.disturbed && !ok {
     print("DISTURBED: real input interrupted the posted ⇧ in every attempt")
     exit(3)

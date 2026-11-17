@@ -19,7 +19,7 @@ use screencapturekit::screenshot_manager::{CGImageExt, SCScreenshotManager};
 use super::{
     CANDIDATE_EDGE, CANDIDATE_EDGE_NO_VIDEO, CARBON_CMD_KEY, CARBON_CONTROL_KEY, CARBON_OPTION_KEY,
     CARBON_SHIFT_KEY, FRAME_SAMPLE_INTERVAL, LiveOverlayEvent, Sampler, SharedCaptureTelemetry,
-    ShortcutConfig, ShortcutKind, capture_size, carbon_modifiers, clean_label, draw_in_chord,
+    ShortcutConfig, ShortcutKind, capture_size, carbon_modifiers, clean_label,
     draws, hotkey_combos, pick_display, poll_clicks, scrawl_log, track_shift_ink,
 };
 use crate::model::{CaptureMode, InteractionEvent, RgbaFrame, TargetInfo};
@@ -78,6 +78,7 @@ const EVENT_RIGHT_MOUSE_DOWN: u32 = 3;
 const EVENT_RIGHT_MOUSE_UP: u32 = 4;
 const EVENT_LEFT_MOUSE_DRAGGED: u32 = 6;
 const EVENT_KEY_DOWN: u32 = 10;
+const EVENT_FLAGS_CHANGED: u32 = 12;
 const EVENT_SCROLL_WHEEL: u32 = 22;
 const EVENT_TAP_DISABLED_BY_TIMEOUT: u32 = u32::MAX - 1;
 const EVENT_TAP_DISABLED_BY_USER_INPUT: u32 = u32::MAX;
@@ -1393,6 +1394,8 @@ fn check_key_tap(telemetry: &Arc<SharedCaptureTelemetry>) -> bool {
         && !tap.is_null()
         && unsafe {
             CGEventTapIsEnabled(tap) || {
+                // Off for a while: a kept press's release may have gone by.
+                telemetry.forget_press();
                 CGEventTapEnable(tap, true);
                 CGEventTapIsEnabled(tap)
             }
@@ -1490,8 +1493,10 @@ fn mouse_event(
     }
     let event_type = unsafe { CGEventGetType(event) };
     let flags = unsafe { CGEventGetFlags(event) };
-    // `pure_shift`: the draw modifier alone (⇧ unless Settings changed it).
-    let pure_shift = draws(telemetry.draw_mask(), carbon_flags(flags));
+    // `pure_shift`: the draw modifier alone (⇧ unless Settings changed it), not left over from a
+    // chord. With the key tap taking draw-presses, it records them, not this monitor.
+    let pure_shift = telemetry.draws_now(carbon_flags(flags));
+    let tap_owns = telemetry.tap_owns_draw_presses();
     let t_ms = telemetry.elapsed_ms();
     let loc = unsafe { CGEventGetLocation(event) };
     match event_type {
@@ -1500,13 +1505,13 @@ fn mouse_event(
         EVENT_LEFT_MOUSE_DOWN | EVENT_RIGHT_MOUSE_DOWN if !on_scrawl(loc.x, loc.y) => {
             if !pure_shift {
                 telemetry.pointer_down(t_ms, loc.x, loc.y);
-            } else if event_type == EVENT_LEFT_MOUSE_DOWN {
+            } else if event_type == EVENT_LEFT_MOUSE_DOWN && !tap_owns {
                 telemetry.shift_down(t_ms, loc.x, loc.y);
             }
         }
         EVENT_LEFT_MOUSE_UP | EVENT_RIGHT_MOUSE_UP => {
             let right = event_type == EVENT_RIGHT_MOUSE_UP;
-            let shift_press = !right && telemetry.shift_up(t_ms, loc.x, loc.y);
+            let shift_press = !right && !tap_owns && telemetry.shift_up(t_ms, loc.x, loc.y);
             if !shift_press && !pure_shift {
                 telemetry.pointer_up(t_ms, loc.x, loc.y, right);
             }
@@ -1540,6 +1545,7 @@ fn mouse_event(
 /// alive: `check_key_tap` may still hold the old pointer.
 fn stop_key_tap(telemetry: &SharedCaptureTelemetry) {
     scrawl_log("Accessibility is off; stopping the key tap");
+    telemetry.forget_press();
     let tap = telemetry.tap_port.swap(0, Ordering::AcqRel) as *mut c_void;
     if !tap.is_null() {
         unsafe { CGEventTapEnable(tap, false) };
@@ -1563,6 +1569,7 @@ fn spawn_key_tap(telemetry: Arc<SharedCaptureTelemetry>) {
         .name("scrawl-key-tap".into())
         .spawn(move || {
             let mask = (1_u64 << EVENT_KEY_DOWN)
+                | (1 << EVENT_FLAGS_CHANGED)
                 | (1 << EVENT_LEFT_MOUSE_DOWN)
                 | (1 << EVENT_LEFT_MOUSE_DRAGGED)
                 | (1 << EVENT_LEFT_MOUSE_UP);
@@ -1571,6 +1578,7 @@ fn spawn_key_tap(telemetry: Arc<SharedCaptureTelemetry>) {
                 .cast::<c_void>();
             // tap = 1 (kCGSessionEventTap), place = 1 (kCGTailAppendEventTap),
             // options = 0 (kCGEventTapOptionDefault).
+            telemetry.forget_press();
             let tap = unsafe { CGEventTapCreate(1, 1, 0, mask, key_tap_callback, user_info) };
             scrawl_log(format!(
                 "key tap: CGEventTapCreate -> {tap:p} (Accessibility {})",
@@ -1632,7 +1640,7 @@ fn left_button_kept(telemetry: &SharedCaptureTelemetry, event_type: u32, event: 
             }
             let held = carbon_flags(unsafe { CGEventGetFlags(event) });
             let loc = unsafe { CGEventGetLocation(event) };
-            telemetry.block_press(telemetry.elapsed_ms(), loc.x, loc.y, held, || {
+            telemetry.block_press(loc.x, loc.y, held, || {
                 telemetry.on_scrawl_window(loc.x, loc.y)
             })
         }
@@ -1642,7 +1650,7 @@ fn left_button_kept(telemetry: &SharedCaptureTelemetry, event_type: u32, event: 
                 return false;
             }
             let loc = unsafe { CGEventGetLocation(event) };
-            telemetry.release_press(telemetry.elapsed_ms(), loc.x, loc.y)
+            telemetry.release_press(loc.x, loc.y)
         }
         _ => false,
     }
@@ -1662,10 +1670,16 @@ unsafe extern "C" fn key_tap_callback(
     let telemetry = unsafe { &*user_info.cast::<SharedCaptureTelemetry>() };
     if event_type == EVENT_TAP_DISABLED_BY_TIMEOUT || event_type == EVENT_TAP_DISABLED_BY_USER_INPUT
     {
+        // The tap was off: a kept press's release may have gone by.
+        telemetry.forget_press();
         let tap = telemetry.tap_port.load(Ordering::Acquire) as *mut c_void;
         if !tap.is_null() {
             unsafe { CGEventTapEnable(tap, true) };
         }
+        return event;
+    }
+    if event_type == EVENT_FLAGS_CHANGED {
+        telemetry.note_draw_modifiers(carbon_flags(unsafe { CGEventGetFlags(event) }));
         return event;
     }
     if matches!(
@@ -1821,8 +1835,6 @@ pub fn post_synthetic_click(screen_x: f64, screen_y: f64) {
 /// Key codes are never polled: reading them is Input Monitoring's.
 fn run_global_hid_poller(telemetry: Arc<SharedCaptureTelemetry>) {
     let mut prev_shift_ink = false;
-    // The draw modifier came down with another one (a chord such as ⌥⇧S): no ink until it's up.
-    let mut await_shift_release = false;
     let mut prev_mod_mask = 0_u8;
     let mut prev_buttons = [false; 2];
     let mut last_tap_check: Option<Instant> = None;
@@ -1841,12 +1853,7 @@ fn run_global_hid_poller(telemetry: Arc<SharedCaptureTelemetry>) {
         let shift = (flags & FLAG_SHIFT) != 0;
         let held = carbon_modifiers(cmd, ctrl, alt, shift);
         let draw = telemetry.draw_mask();
-        if held & draw == 0 {
-            await_shift_release = false;
-        } else if draw_in_chord(draw, held) {
-            await_shift_release = true;
-        }
-        telemetry.set_draw_latched(await_shift_release);
+        let await_shift_release = telemetry.note_draw_modifiers(held);
         let mod_mask =
             (u8::from(cmd) << 3) | (u8::from(ctrl) << 2) | (u8::from(alt) << 1) | u8::from(shift);
         if mod_mask != prev_mod_mask {
@@ -1881,7 +1888,7 @@ fn run_global_hid_poller(telemetry: Arc<SharedCaptureTelemetry>) {
             &mut prev_buttons,
             buttons,
             (loc.x, loc.y),
-            draws(draw, held),
+            draws(draw, held) && !await_shift_release,
             |x, y| telemetry.on_scrawl_window(x, y),
         );
 
