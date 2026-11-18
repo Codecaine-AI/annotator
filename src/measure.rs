@@ -114,17 +114,16 @@ fn seed_at(frame: &RgbaFrame, x: u32, y: u32, radius: u32) -> ((u32, u32), [u8; 
 
 /// Flood fill (4-connected) from the area around `(x, y)` over pixels within `tolerance` of its
 /// color, stopping after `cap` pixels.
-pub fn fill_at(
-    frame: &RgbaFrame,
-    x: u32,
-    y: u32,
-    radius: u32,
-    tolerance: u8,
-    cap: usize,
-) -> Fill {
-    let (w, h) = (frame.width, frame.height);
-    let (x, y) = (x.min(w - 1), y.min(h - 1));
+pub fn fill_at(frame: &RgbaFrame, x: u32, y: u32, radius: u32, tolerance: u8, cap: usize) -> Fill {
+    let (x, y) = (x.min(frame.width - 1), y.min(frame.height - 1));
     let (seed, color) = seed_at(frame, x, y, radius);
+    flood(frame, seed, color, tolerance, cap)
+}
+
+/// Flood fill (4-connected) from `seed` over pixels within `tolerance` of `color`, stopping
+/// after `cap` pixels.
+fn flood(frame: &RgbaFrame, seed: (u32, u32), color: [u8; 3], tolerance: u8, cap: usize) -> Fill {
+    let (w, h) = (frame.width, frame.height);
     let mut visited = vec![false; w as usize * h as usize];
     let mut stack = vec![seed];
     visited[seed.1 as usize * w as usize + seed.0 as usize] = true;
@@ -174,6 +173,80 @@ pub fn fill_at(
         capped,
         touches_border: bx0 == 0 || by0 == 0 || bx1 == w - 1 || by1 == h - 1,
     }
+}
+
+/// Whether a fill is only a mark on a surface, such as one glyph of a button's label or a thin
+/// line: 2 px thin or less, or under `min_side` px on both sides and covering under 3/4 of its
+/// box (a solid part, even with rounded corners, covers more).
+fn is_mark(fill: &Fill, min_side: u32) -> bool {
+    let b = fill.bbox;
+    !fill.capped
+        && (b.width.min(b.height) <= 2
+            || (b.width < min_side
+                && b.height < min_side
+                && (fill.pixels as u64) * 4 < b.area() * 3))
+}
+
+/// The surface around a mark: the main color, other than the mark's, on the ring 2 px outside
+/// its box, and the ring pixel with that color nearest `(x, y)`.
+fn around(frame: &RgbaFrame, fill: &Fill, x: u32, y: u32) -> Option<((u32, u32), [u8; 3])> {
+    let b = fill.bbox;
+    let (x0, y0) = (b.x.saturating_sub(2), b.y.saturating_sub(2));
+    let (x1, y1) = (
+        (b.x1() + 1).min(frame.width - 1),
+        (b.y1() + 1).min(frame.height - 1),
+    );
+    let ring = (x0..=x1)
+        .flat_map(|px| [(px, y0), (px, y1)])
+        .chain((y0..=y1).flat_map(|py| [(x0, py), (x1, py)]));
+    let mut colors: Vec<([u8; 3], usize, (u32, u32), u64)> = Vec::new();
+    for (px, py) in ring {
+        let c = rgb(frame, px, py);
+        if near(c, fill.color, FILL_TOLERANCE) {
+            continue;
+        }
+        let d = u64::from(px.abs_diff(x)).pow(2) + u64::from(py.abs_diff(y)).pow(2);
+        match colors.iter_mut().find(|(k, ..)| near(*k, c, 3)) {
+            Some((_, n, at, best)) => {
+                *n += 1;
+                if d < *best {
+                    *at = (px, py);
+                    *best = d;
+                }
+            }
+            None => colors.push((c, 1, (px, py), d)),
+        }
+    }
+    colors
+        .into_iter()
+        .max_by_key(|(_, n, ..)| *n)
+        .map(|(c, _, at, _)| (at, c))
+}
+
+/// The component that holds a point, as `fill_at` finds it, except that a point on a mark (a
+/// glyph of a label, a thin line) measures the surface around the mark. Returns whether it
+/// stepped out of a mark.
+pub fn component_at(
+    frame: &RgbaFrame,
+    x: u32,
+    y: u32,
+    radius: u32,
+    min_side: u32,
+    cap: usize,
+) -> (Fill, bool) {
+    let mut fill = fill_at(frame, x, y, radius, FILL_TOLERANCE, cap);
+    let mut stepped = false;
+    for _ in 0..3 {
+        if !is_mark(&fill, min_side) {
+            break;
+        }
+        let Some((seed, color)) = around(frame, &fill, x, y) else {
+            break;
+        };
+        fill = flood(frame, seed, color, FILL_TOLERANCE, cap);
+        stepped = true;
+    }
+    (fill, stepped)
 }
 
 /// How far one ray from a box edge runs before the color changes.
@@ -255,9 +328,15 @@ pub fn edges_around(frame: &RgbaFrame, bbox: PxBox, at: (u32, u32), tolerance: u
     );
     Edges {
         left: reach((0..bbox.x).rev().map(|x| rgb(frame, x, ay)), tolerance),
-        right: reach((bbox.x1()..frame.width).map(|x| rgb(frame, x, ay)), tolerance),
+        right: reach(
+            (bbox.x1()..frame.width).map(|x| rgb(frame, x, ay)),
+            tolerance,
+        ),
         up: reach((0..bbox.y).rev().map(|y| rgb(frame, ax, y)), tolerance),
-        down: reach((bbox.y1()..frame.height).map(|y| rgb(frame, ax, y)), tolerance),
+        down: reach(
+            (bbox.y1()..frame.height).map(|y| rgb(frame, ax, y)),
+            tolerance,
+        ),
     }
 }
 
@@ -489,7 +568,12 @@ fn decode_movie(movie: &Path, times: &[u64], offset_ms: u64) -> Result<Vec<RgbaF
 }
 
 /// The `k`th keyframe's pixels (0-based): the movie, else `frames-full/`, else `frames/`.
-pub fn load_picture(dir: &Path, bundle: &ScrawlBundle, k: usize, decode: Decode) -> Result<Picture> {
+pub fn load_picture(
+    dir: &Path,
+    bundle: &ScrawlBundle,
+    k: usize,
+    decode: Decode,
+) -> Result<Picture> {
     let keyframe = &bundle.keyframes[k];
     let crop = crate::zoom::crop_of(bundle, k).unwrap_or(FULL);
     let mut warnings = Vec::new();
@@ -510,9 +594,9 @@ pub fn load_picture(dir: &Path, bundle: &ScrawlBundle, k: usize, decode: Decode)
                 });
             }
             Ok(_) => warnings.push("the movie gave no frame; measured a saved image".into()),
-            Err(error) => {
-                warnings.push(format!("the movie could not be read ({error}); measured a saved image"))
-            }
+            Err(error) => warnings.push(format!(
+                "the movie could not be read ({error}); measured a saved image"
+            )),
         }
     } else if pending {
         warnings.push("the movie is still copying; measured a saved image".into());
@@ -550,7 +634,8 @@ pub fn load_picture(dir: &Path, bundle: &ScrawlBundle, k: usize, decode: Decode)
 }
 
 fn read_png(path: &Path) -> Result<RgbaFrame> {
-    let file = std::fs::File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
+    let file =
+        std::fs::File::open(path).with_context(|| format!("Could not open {}", path.display()))?;
     crate::render::decode_png(std::io::BufReader::new(file))
         .with_context(|| format!("Could not decode {}", path.display()))
 }
@@ -586,10 +671,16 @@ pub fn space(picture: &Picture, width_pt: Option<f64>) -> Space {
 /// A fraction of the keyframe image as a pixel of the picture: through the keyframe's crop
 /// when the picture is the full frame, directly when it is the cropped image.
 pub fn to_px(picture: &Picture, crop: Rect, fx: f64, fy: f64) -> (f64, f64) {
-    let (w, h) = (f64::from(picture.frame.width), f64::from(picture.frame.height));
+    let (w, h) = (
+        f64::from(picture.frame.width),
+        f64::from(picture.frame.height),
+    );
     if picture.rect == FULL && crop != FULL {
         let c = crop.map(f64::from);
-        ((c[0] + fx * (c[2] - c[0])) * w, (c[1] + fy * (c[3] - c[1])) * h)
+        (
+            (c[0] + fx * (c[2] - c[0])) * w,
+            (c[1] + fy * (c[3] - c[1])) * h,
+        )
     } else {
         (fx * w, fy * h)
     }
@@ -748,7 +839,20 @@ pub fn measure_picture(
             let (x, y) = (clamp_px(x, w), clamp_px(y, h));
             let radius = (2.0 * ppp).round().clamp(3.0, 8.0) as u32;
             let cap = ((f64::from(w) * f64::from(h) * FILL_CAP) as usize).max(1);
-            let fill = fill_at(img, x, y, radius, FILL_TOLERANCE, cap);
+            let min_side = (2.0 * MIN_SIDE_PT * ppp).round() as u32;
+            let (fill, stepped) = component_at(img, x, y, radius, min_side, cap);
+            if stepped {
+                warnings.push(
+                    "the point was on text or a thin line: this is the surface around it".into(),
+                );
+            }
+            if is_mark(&fill, min_side) {
+                warnings.push(
+                    "the box is a glyph or a thin line, not a component: put the point on the \
+                     component's fill"
+                        .into(),
+                );
+            }
             if fill.capped {
                 warnings.push(
                     "the fill stopped at half the image: the point is likely on the page \
@@ -880,8 +984,10 @@ pub fn render_text(m: &Measurement) -> String {
     let mut out = format!(
         "frame {} · {} · from {}\n",
         m.frame,
-        m.px_per_pt
-            .map_or("pt unavailable".to_owned(), |p| format!("{} px per pt", num(p))),
+        m.px_per_pt.map_or("pt unavailable".to_owned(), |p| format!(
+            "{} px per pt",
+            num(p)
+        )),
         m.source.says()
     );
     if let (Some(b), Some(e)) = (&m.component, &m.to_edges) {
@@ -908,9 +1014,8 @@ pub fn render_text(m: &Measurement) -> String {
     }
     if let Some(gaps) = &m.gaps {
         for g in gaps {
-            let value = g
-                .pt
-                .map_or(format!("{} px", g.px), |p| format!("{} pt", num(p)));
+            let value =
+                g.pt.map_or(format!("{} px", g.px), |p| format!("{} pt", num(p)));
             let axis = match g.axis {
                 Axis::Horizontal => "horizontal",
                 Axis::Vertical => "vertical",
@@ -1014,6 +1119,42 @@ mod tests {
         assert!(close(e.up.px, 280) && e.up.image_edge);
     }
 
+    /// A point on a button's label, even right on a glyph or a stray pixel, measures the button.
+    #[test]
+    fn a_point_on_a_label_measures_the_button_around_it() {
+        const BLUE: [u8; 3] = [0x25, 0x63, 0xEB];
+        const WHITE: [u8; 3] = [0xFF, 0xFF, 0xFF];
+        let mut f = canvas(800, 400, WHITE);
+        rect(&mut f, 300, 180, 188, 44, BLUE);
+        // "Glyphs": 9×14 px rings with 2 px strokes, 3 px apart along the middle of the button.
+        for i in 0..10 {
+            let x = 330 + i * 12;
+            rect(&mut f, x, 195, 9, 14, WHITE);
+            rect(&mut f, x + 2, 197, 5, 10, BLUE);
+        }
+        // One stray pixel of another color, as a video frame has in antialiased text.
+        rect(&mut f, 400, 216, 1, 1, [0x90, 0xB0, 0xF0]);
+        let cap = 800 * 400 / 2;
+        // 24 px: 12 pt at 2 px per pt.
+        // On a glyph's stroke (radius 1 seeds on the glyph), and on the stray pixel (radius 0
+        // seeds on it, as noisy video can when every color near the point differs).
+        for (x, y, radius) in [(330, 202, 1), (400, 216, 0)] {
+            let (fill, stepped) = component_at(&f, x, y, radius, 24, cap);
+            assert!(stepped, "{x},{y}");
+            assert_eq!(fill.color, BLUE);
+            assert_box(fill.bbox, 300, 180, 188, 44);
+        }
+        // A point on the fill measures the button without stepping.
+        let (fill, stepped) = component_at(&f, 310, 185, 3, 24, cap);
+        assert!(!stepped);
+        assert_box(fill.bbox, 300, 180, 188, 44);
+        // A small solid part (an 8 px icon) is a component, not a mark.
+        rect(&mut f, 600, 100, 8, 8, BLUE);
+        let (fill, stepped) = component_at(&f, 603, 103, 1, 24, cap);
+        assert!(!stepped);
+        assert_box(fill.bbox, 600, 100, 8, 8);
+    }
+
     #[test]
     fn a_point_on_the_background_stops_at_the_cap() {
         let f = cards(1200, 800);
@@ -1100,7 +1241,15 @@ mod tests {
         );
         assert_eq!(m.px_per_pt, Some(2.0));
         let b = m.component.unwrap();
-        assert_eq!(b.pt.unwrap(), Dims { x: 96.0, y: 140.0, width: 160.0, height: 92.0 });
+        assert_eq!(
+            b.pt.unwrap(),
+            Dims {
+                x: 96.0,
+                y: 140.0,
+                width: 160.0,
+                height: 92.0
+            }
+        );
         let text = render_text(&measure_picture(
             1,
             picture(cards(1200, 800), Source::Movie, FULL),
@@ -1108,7 +1257,10 @@ mod tests {
             width_pt(&bundle),
             &Query::Region([0.1, 0.25, 0.85, 0.75]),
         ));
-        assert!(text.contains("box 1  160×92 pt (320×184 px) at 96,140 pt"), "{text}");
+        assert!(
+            text.contains("box 1  160×92 pt (320×184 px) at 96,140 pt"),
+            "{text}"
+        );
         assert!(text.contains("gap 1→2  20 pt (horizontal)"), "{text}");
     }
 
@@ -1214,7 +1366,12 @@ mod tests {
             let b = m.component.unwrap();
             assert_eq!(
                 b.pt.unwrap(),
-                Dims { x: 400.0, y: 150.0, width: 100.0, height: 50.0 },
+                Dims {
+                    x: 400.0,
+                    y: 150.0,
+                    width: 100.0,
+                    height: 50.0
+                },
                 "{with_full}"
             );
             assert!(m.warnings.iter().any(|w| w.contains("ink")));
@@ -1249,18 +1406,56 @@ mod tests {
         assert_eq!(m.image, [1200, 800]);
         assert!(m.warnings.is_empty(), "{:?}", m.warnings);
         let b = m.component.unwrap();
-        assert_eq!(b.px, PxDims { x: 800, y: 300, width: 200, height: 100 });
-        assert_eq!(b.pt.unwrap(), Dims { x: 400.0, y: 150.0, width: 100.0, height: 50.0 });
+        assert_eq!(
+            b.px,
+            PxDims {
+                x: 800,
+                y: 300,
+                width: 200,
+                height: 100
+            }
+        );
+        assert_eq!(
+            b.pt.unwrap(),
+            Dims {
+                x: 400.0,
+                y: 150.0,
+                width: 100.0,
+                height: 50.0
+            }
+        );
         let e = m.to_edges.unwrap();
         assert!(close(e.px[1], 40), "{e:?}");
         // The region is the keyframe image's lower-middle band: both cards, 40 px (20 pt) apart.
-        let m = measure(&dir, &bundle, 1, &Query::Region([0.2, 0.3, 1.0, 0.6]), movie_frame)
-            .unwrap()
-            .unwrap();
+        let m = measure(
+            &dir,
+            &bundle,
+            1,
+            &Query::Region([0.2, 0.3, 1.0, 0.6]),
+            movie_frame,
+        )
+        .unwrap()
+        .unwrap();
         let boxes = m.boxes.unwrap();
         assert_eq!(boxes.len(), 2, "{boxes:?}");
-        assert_eq!(boxes[0].px, PxDims { x: 800, y: 300, width: 200, height: 100 });
-        assert_eq!(boxes[1].px, PxDims { x: 1040, y: 300, width: 120, height: 100 });
+        assert_eq!(
+            boxes[0].px,
+            PxDims {
+                x: 800,
+                y: 300,
+                width: 200,
+                height: 100
+            }
+        );
+        assert_eq!(
+            boxes[1].px,
+            PxDims {
+                x: 1040,
+                y: 300,
+                width: 120,
+                height: 100
+            }
+        );
         let gaps = m.gaps.unwrap();
         assert_eq!((gaps.len(), gaps[0].px, gaps[0].pt), (1, 40, Some(20.0)));
         // A movie that fails falls back to the saved full frame and says so.
@@ -1278,13 +1473,21 @@ mod tests {
         let bundle = cropped_bundle(&dir, false);
         let (text, code) = report(&dir, &bundle, 3, &Query::At(0.5, 0.5), false).unwrap();
         assert_eq!(code, 2);
-        assert_eq!(text, "--frame 3 is out of range: this capture has keyframes 1 to 2\n");
+        assert_eq!(
+            text,
+            "--frame 3 is out of range: this capture has keyframes 1 to 2\n"
+        );
         let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
     fn boxes_a_px_apart_in_height_read_as_one_line() {
-        let b = |x, y, height| PxBox { x, y, width: 10, height };
+        let b = |x, y, height| PxBox {
+            x,
+            y,
+            width: 10,
+            height,
+        };
         // A word one px lower, left of a taller one, and a second line below.
         let order = reading_order(vec![b(300, 10, 20), b(100, 11, 18), b(50, 60, 20)]);
         assert_eq!(order, vec![b(100, 11, 18), b(300, 10, 20), b(50, 60, 20)]);
@@ -1292,7 +1495,9 @@ mod tests {
 
     #[test]
     fn flags_take_fractions() {
-        assert!(matches!(parse_point("0.5,0.25").unwrap(), Query::At(x, y) if x == 0.5 && y == 0.25));
+        assert!(
+            matches!(parse_point("0.5,0.25").unwrap(), Query::At(x, y) if x == 0.5 && y == 0.25)
+        );
         assert!(parse_point("50,20").is_err());
         assert!(parse_region("0.5,0.5,0.4,0.9").is_err());
         assert!(parse_region("0.1,0.1,0.9,0.9").is_ok());
