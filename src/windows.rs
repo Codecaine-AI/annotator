@@ -315,6 +315,36 @@ pub fn owned_window_at(
         .is_some_and(|w| ours(w.pid))
 }
 
+/// Whether a press at a global point goes to a window `recorded` accepts (the one a Window or
+/// iPhone capture records), going by `raw` (front to back) and looking through `passthrough`
+/// windows. It does when that window is the topmost one there. With another window in front,
+/// the list can't say whether that one takes the press or lets it through (other apps keep
+/// invisible overlays up), so `pressed` asks the window server which window a press there goes
+/// to. No answer, or a window that is not the recorded one: the press is not the recording's.
+pub fn press_goes_to(
+    raw: &[RawWindow],
+    x: f64,
+    y: f64,
+    passthrough: &[u32],
+    recorded: impl Fn(&RawWindow) -> bool,
+    pressed: impl FnOnce() -> Option<u32>,
+) -> bool {
+    let front = raw.iter().find(|w| {
+        let [wx, wy, ww, wh] = w.bounds;
+        w.alpha > 0.01
+            && x >= wx
+            && x <= wx + ww
+            && y >= wy
+            && y <= wy + wh
+            && !passthrough.contains(&w.id)
+    });
+    match front {
+        None => false,
+        Some(front) if recorded(front) => true,
+        Some(_) => pressed().is_some_and(|id| raw.iter().any(|w| w.id == id && recorded(w))),
+    }
+}
+
 /// Reads the on-screen window list (front to back) from the window server.
 #[cfg(target_os = "macos")]
 pub fn raw_windows() -> Vec<RawWindow> {
@@ -765,6 +795,65 @@ mod tests {
             owned_window_at(&raw, 400.0, 500.0, &[], ours),
             "an overlay that takes clicks"
         );
+    }
+
+    /// A press goes to the recorded window when it is topmost at the point. With another window
+    /// in front, only the window server knows whether that one takes the press.
+    #[test]
+    fn a_press_goes_to_the_recorded_window_only_when_nothing_in_front_takes_it() {
+        let window = |id, bounds| RawWindow {
+            id,
+            pid: id as i32,
+            owner: String::new(),
+            title: String::new(),
+            bounds,
+            layer: 0,
+            alpha: 1.0,
+        };
+        let raw = [
+            window(1, [0.0, 0.0, 1728.0, 1117.0]), // the ink overlay, click-through
+            window(2, [900.0, 100.0, 400.0, 300.0]), // floats over the recorded window
+            window(3, [100.0, 30.0, 1200.0, 900.0]), // the recorded window
+            window(4, [0.0, 0.0, 1728.0, 1117.0]), // behind it
+        ];
+        let recorded = |w: &RawWindow| w.id == 3;
+        let unasked = || -> Option<u32> { panic!("the list is enough") };
+        assert!(press_goes_to(&raw, 400.0, 500.0, &[1], recorded, unasked));
+        assert!(
+            !press_goes_to(&raw, 1500.0, 1000.0, &[1], recorded, || Some(4)),
+            "beside the recorded window"
+        );
+        // Under the floating window: it takes the press, or lets it through, or nobody knows.
+        assert!(!press_goes_to(
+            &raw,
+            1000.0,
+            200.0,
+            &[1],
+            recorded,
+            || Some(2)
+        ));
+        assert!(press_goes_to(&raw, 1000.0, 200.0, &[1], recorded, || Some(
+            3
+        )));
+        assert!(!press_goes_to(&raw, 1000.0, 200.0, &[1], recorded, || None));
+        assert!(
+            !press_goes_to(&raw, 1000.0, 200.0, &[1], recorded, || Some(77)),
+            "a window the list doesn't have"
+        );
+        // An overlay that takes presses is in front of everything.
+        assert!(!press_goes_to(&raw, 400.0, 500.0, &[], recorded, || Some(
+            1
+        )));
+        // The recorded window is not on screen.
+        assert!(!press_goes_to(
+            &raw,
+            400.0,
+            500.0,
+            &[1],
+            |w| w.id == 9,
+            || Some(3)
+        ));
+        assert!(!press_goes_to(&[], 400.0, 500.0, &[1], recorded, unasked));
     }
 
     #[test]

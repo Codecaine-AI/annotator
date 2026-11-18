@@ -19,8 +19,8 @@ use screencapturekit::screenshot_manager::{CGImageExt, SCScreenshotManager};
 use super::{
     CANDIDATE_EDGE, CANDIDATE_EDGE_NO_VIDEO, CARBON_CMD_KEY, CARBON_CONTROL_KEY, CARBON_OPTION_KEY,
     CARBON_SHIFT_KEY, FRAME_SAMPLE_INTERVAL, LiveOverlayEvent, Sampler, SharedCaptureTelemetry,
-    ShortcutConfig, ShortcutKind, capture_size, carbon_modifiers, clean_label,
-    draws, hotkey_combos, pick_display, poll_clicks, scrawl_log, track_shift_ink,
+    ShortcutConfig, ShortcutKind, capture_size, carbon_modifiers, clean_label, draws,
+    hotkey_combos, pick_display, poll_clicks, scrawl_log, track_shift_ink,
 };
 use crate::model::{CaptureMode, InteractionEvent, RgbaFrame, TargetInfo};
 
@@ -45,6 +45,26 @@ pub fn main_display_id() -> u32 {
 /// CGWindowList's windows, front to back, in an autorelease pool.
 pub(super) fn raw_windows_now() -> Vec<crate::windows::RawWindow> {
     objc2::rc::autoreleasepool(|_| crate::windows::raw_windows())
+}
+
+/// The window a press at a global point would go to, as the window server decides it: the
+/// frontmost one there that takes the mouse, so not a transparent part of a window and not a
+/// window that ignores it (`+[NSWindow windowNumberAtPoint:belowWindowWithWindowNumber:]`,
+/// which follows the rules of a mouse-down). `None` when no window does. Any thread may ask.
+pub(super) fn window_taking_press(x: f64, y: f64) -> Option<u32> {
+    use objc2::msg_send;
+    use objc2::runtime::AnyClass;
+    let class = AnyClass::get(c"NSWindow")?;
+    // AppKit's origin is the main display's bottom-left corner, y up.
+    let main_height = core_graphics::display::CGDisplay::main()
+        .bounds()
+        .size
+        .height;
+    let point = objc2_foundation::NSPoint::new(x, main_height - y);
+    let number: isize = objc2::rc::autoreleasepool(|_| unsafe {
+        msg_send![class, windowNumberAtPoint: point, belowWindowWithWindowNumber: 0_isize]
+    });
+    u32::try_from(number).ok().filter(|&id| id != 0)
 }
 
 /// Whether `pid` runs this Scrawl's `scrawl-helper` (the iPhone mirror, Settings, onboarding, the
@@ -1390,16 +1410,14 @@ fn check_key_tap(telemetry: &Arc<SharedCaptureTelemetry>) -> bool {
         telemetry.tap_tried_ms.store(now_ms, Ordering::Release);
         spawn_key_tap(Arc::clone(telemetry));
     }
-    let live = trusted
-        && !tap.is_null()
-        && unsafe {
-            CGEventTapIsEnabled(tap) || {
-                // Off for a while: a kept press's release may have gone by.
-                telemetry.forget_press();
-                CGEventTapEnable(tap, true);
-                CGEventTapIsEnabled(tap)
-            }
-        };
+    let live = trusted && !tap.is_null() && {
+        if !unsafe { CGEventTapIsEnabled(tap) } {
+            // Off for a while: a kept press's release may have gone by.
+            telemetry.forget_press();
+        }
+        // Also when it is on: who owns draw-presses then follows the tap as it is found here.
+        enable_key_tap(telemetry)
+    };
     if telemetry.tap_live.swap(live, Ordering::AcqRel) != live {
         scrawl_log(if live {
             "key tap live"
@@ -1494,9 +1512,9 @@ fn mouse_event(
     let event_type = unsafe { CGEventGetType(event) };
     let flags = unsafe { CGEventGetFlags(event) };
     // `pure_shift`: the draw modifier alone (⇧ unless Settings changed it), not left over from a
-    // chord. With the key tap taking draw-presses, it records them, not this monitor.
+    // chord. With the key tap taking draw-presses, it records them, not this monitor: a
+    // draw-press that gets here is one the tap let through, and `shift_down` starts nothing.
     let pure_shift = telemetry.draws_now(carbon_flags(flags));
-    let tap_owns = telemetry.tap_owns_draw_presses();
     let t_ms = telemetry.elapsed_ms();
     let loc = unsafe { CGEventGetLocation(event) };
     match event_type {
@@ -1505,13 +1523,13 @@ fn mouse_event(
         EVENT_LEFT_MOUSE_DOWN | EVENT_RIGHT_MOUSE_DOWN if !on_scrawl(loc.x, loc.y) => {
             if !pure_shift {
                 telemetry.pointer_down(t_ms, loc.x, loc.y);
-            } else if event_type == EVENT_LEFT_MOUSE_DOWN && !tap_owns {
+            } else if event_type == EVENT_LEFT_MOUSE_DOWN {
                 telemetry.shift_down(t_ms, loc.x, loc.y);
             }
         }
         EVENT_LEFT_MOUSE_UP | EVENT_RIGHT_MOUSE_UP => {
             let right = event_type == EVENT_RIGHT_MOUSE_UP;
-            let shift_press = !right && !tap_owns && telemetry.shift_up(t_ms, loc.x, loc.y);
+            let shift_press = !right && telemetry.shift_up(t_ms, loc.x, loc.y);
             if !shift_press && !pure_shift {
                 telemetry.pointer_up(t_ms, loc.x, loc.y, right);
             }
@@ -1541,15 +1559,32 @@ fn mouse_event(
     }
 }
 
+/// Enables the key tap, if there is one, and says whether it is on. The tap's ownership of
+/// draw-presses is published before it can deliver one (`tap_presses_on`), and the port is read
+/// under the same lock `stop_key_tap` clears it under, so a stopped tap is never turned back on.
+fn enable_key_tap(telemetry: &SharedCaptureTelemetry) -> bool {
+    telemetry.tap_presses_on(|| {
+        let tap = telemetry.tap_port.load(Ordering::Acquire) as *mut c_void;
+        !tap.is_null()
+            && unsafe {
+                CGEventTapEnable(tap, true);
+                CGEventTapIsEnabled(tap)
+            }
+    })
+}
+
 /// Stops the key tap (Accessibility was turned off). The port and its callback's `Arc` are left
 /// alive: `check_key_tap` may still hold the old pointer.
 fn stop_key_tap(telemetry: &SharedCaptureTelemetry) {
     scrawl_log("Accessibility is off; stopping the key tap");
+    // Off first, and only then are draw-presses the mouse monitor's again.
+    telemetry.tap_presses_off(|| {
+        let tap = telemetry.tap_port.swap(0, Ordering::AcqRel) as *mut c_void;
+        if !tap.is_null() {
+            unsafe { CGEventTapEnable(tap, false) };
+        }
+    });
     telemetry.forget_press();
-    let tap = telemetry.tap_port.swap(0, Ordering::AcqRel) as *mut c_void;
-    if !tap.is_null() {
-        unsafe { CGEventTapEnable(tap, false) };
-    }
     let old = telemetry.tap_run_loop.swap(0, Ordering::AcqRel) as *mut c_void;
     if !old.is_null() {
         unsafe {
@@ -1576,10 +1611,24 @@ fn spawn_key_tap(telemetry: Arc<SharedCaptureTelemetry>) {
             let user_info = Arc::into_raw(Arc::clone(&telemetry))
                 .cast_mut()
                 .cast::<c_void>();
+            let run_loop = unsafe { CFRunLoopGetCurrent() };
+            let retained = unsafe { CFRetain(run_loop.cast_const()) } as u64;
             // tap = 1 (kCGSessionEventTap), place = 1 (kCGTailAppendEventTap),
-            // options = 0 (kCGEventTapOptionDefault).
+            // options = 0 (kCGEventTapOptionDefault). A tap is made enabled, and its events wait
+            // on its port from then on, so it owns draw-presses before it is made. Its port is
+            // published in the same step: from here on `enable_key_tap` and `stop_key_tap` see
+            // this tap, and "no port" means no tap that could deliver.
             telemetry.forget_press();
-            let tap = unsafe { CGEventTapCreate(1, 1, 0, mask, key_tap_callback, user_info) };
+            let mut tap = ptr::null_mut();
+            telemetry.tap_presses_on(|| {
+                tap = unsafe { CGEventTapCreate(1, 1, 0, mask, key_tap_callback, user_info) };
+                if tap.is_null() {
+                    return false;
+                }
+                telemetry.tap_run_loop.store(retained, Ordering::Release);
+                telemetry.tap_port.store(tap as u64, Ordering::Release);
+                true
+            });
             scrawl_log(format!(
                 "key tap: CGEventTapCreate -> {tap:p} (Accessibility {})",
                 if accessibility_granted() { "on" } else { "off" }
@@ -1592,18 +1641,36 @@ fn spawn_key_tap(telemetry: Arc<SharedCaptureTelemetry>) {
             if source.is_null() {
                 if tap.is_null() {
                     let _ = unsafe { Arc::from_raw(user_info.cast::<SharedCaptureTelemetry>()) };
+                } else {
+                    // A tap nothing serves: off, so it holds no event and owns no press.
+                    telemetry.tap_presses_off(|| {
+                        let _ = telemetry.tap_port.compare_exchange(
+                            tap as u64,
+                            0,
+                            Ordering::AcqRel,
+                            Ordering::Acquire,
+                        );
+                        unsafe { CGEventTapEnable(tap, false) };
+                    });
+                }
+                // The run loop was published only with a tap, and `stop_key_tap` may have
+                // taken it since.
+                if tap.is_null()
+                    || telemetry
+                        .tap_run_loop
+                        .compare_exchange(retained, 0, Ordering::AcqRel, Ordering::Acquire)
+                        .is_ok()
+                {
+                    unsafe { CFRelease(retained as CfTypeRef) };
                 }
                 telemetry.tap_starting.store(false, Ordering::Release);
                 return;
             }
-            let run_loop = unsafe { CFRunLoopGetCurrent() };
-            let retained = unsafe { CFRetain(run_loop.cast_const()) } as u64;
-            telemetry.tap_run_loop.store(retained, Ordering::Release);
-            telemetry.tap_port.store(tap as u64, Ordering::Release);
             telemetry.tap_starting.store(false, Ordering::Release);
             unsafe {
                 CFRunLoopAddSource(run_loop, source, kCFRunLoopCommonModes);
-                CGEventTapEnable(tap, true);
+                // Not if `stop_key_tap` has taken the port since.
+                enable_key_tap(&telemetry);
                 CFRunLoopRun();
                 CGEventTapEnable(tap, false);
                 CFRunLoopRemoveSource(run_loop, source, kCFRunLoopCommonModes);
@@ -1641,7 +1708,7 @@ fn left_button_kept(telemetry: &SharedCaptureTelemetry, event_type: u32, event: 
             let held = carbon_flags(unsafe { CGEventGetFlags(event) });
             let loc = unsafe { CGEventGetLocation(event) };
             telemetry.block_press(loc.x, loc.y, held, || {
-                telemetry.on_scrawl_window(loc.x, loc.y)
+                telemetry.press_misses_target(loc.x, loc.y)
             })
         }
         EVENT_LEFT_MOUSE_DRAGGED => telemetry.press_blocked(),
@@ -1672,14 +1739,11 @@ unsafe extern "C" fn key_tap_callback(
     {
         // The tap was off: a kept press's release may have gone by.
         telemetry.forget_press();
-        let tap = telemetry.tap_port.load(Ordering::Acquire) as *mut c_void;
-        if !tap.is_null() {
-            unsafe { CGEventTapEnable(tap, true) };
-        }
+        enable_key_tap(telemetry);
         return event;
     }
     if event_type == EVENT_FLAGS_CHANGED {
-        telemetry.note_draw_modifiers(carbon_flags(unsafe { CGEventGetFlags(event) }));
+        telemetry.note_tap_modifiers(carbon_flags(unsafe { CGEventGetFlags(event) }));
         return event;
     }
     if matches!(
@@ -1845,6 +1909,9 @@ fn run_global_hid_poller(telemetry: Arc<SharedCaptureTelemetry>) {
             last_tap_check = Some(Instant::now());
         }
 
+        // Taken before the flags are read: if the key tap sees a modifier change from here on,
+        // this sample may be older than it and does not count (`note_polled_modifiers`).
+        let latch_mark = telemetry.draw_latch_mark();
         // Combine COMBINED_SESSION_STATE (0, includes Karabiner virtual HID) and HID_SYSTEM_STATE (1).
         let flags = unsafe { CGEventSourceFlagsState(0) | CGEventSourceFlagsState(1) };
         let cmd = (flags & FLAG_COMMAND) != 0;
@@ -1853,7 +1920,7 @@ fn run_global_hid_poller(telemetry: Arc<SharedCaptureTelemetry>) {
         let shift = (flags & FLAG_SHIFT) != 0;
         let held = carbon_modifiers(cmd, ctrl, alt, shift);
         let draw = telemetry.draw_mask();
-        let await_shift_release = telemetry.note_draw_modifiers(held);
+        let await_shift_release = telemetry.note_polled_modifiers(latch_mark, held);
         let mod_mask =
             (u8::from(cmd) << 3) | (u8::from(ctrl) << 2) | (u8::from(alt) << 1) | u8::from(shift);
         if mod_mask != prev_mod_mask {
@@ -2103,6 +2170,37 @@ mod tests {
             matches!(events[..], [InteractionEvent::Click { x, .. }] if (x - 0.9).abs() < 1e-3),
             "{events:?}"
         );
+    }
+
+    /// With the key tap taking draw-presses, a ⇧-click that reaches the mouse monitor is one the
+    /// tap let through (a macOS prompt, a window over the recorded one): the app got it, so it
+    /// drops no pin and is no click. Without the tap the monitor drops the pin.
+    #[test]
+    fn a_draw_press_the_tap_let_through_drops_no_pin_at_the_mouse_monitor() {
+        let telemetry = session(1000.0, 1000.0);
+        let shift = [FLAG_SHIFT; 2];
+        assert!(telemetry.tap_presses_on(|| true));
+        click(&telemetry, (200.0, 200.0), (200.0, 200.0), shift);
+        telemetry.tap_presses_off(|| {});
+        click(&telemetry, (600.0, 600.0), (600.0, 600.0), shift);
+        let (events, strokes) = telemetry.finish_session();
+        assert!(events.is_empty(), "{events:?}");
+        let pins: Vec<_> = strokes.iter().map(|s| s.normalized_points()[0]).collect();
+        assert_eq!(pins, vec![[0.6, 0.6]]);
+    }
+
+    /// The key tap asks the window server which window a press goes to, off the main thread:
+    /// the AppKit call passes objc2's encoding checks (which debug builds, the installed app
+    /// included, run on every message) there.
+    #[test]
+    fn the_window_a_press_goes_to_can_be_asked_off_the_main_thread() {
+        thread::spawn(|| {
+            let _ = window_taking_press(100.0, 100.0);
+            // Far off every display: no window.
+            assert_eq!(window_taking_press(-90_000.0, -90_000.0), None);
+        })
+        .join()
+        .expect("asked without a panic");
     }
 
     /// The helper's windows (the SwiftUI capsule's Finish, Settings, onboarding) reach the mouse

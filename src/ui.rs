@@ -2679,7 +2679,8 @@ impl ScrawlCoordinator {
         let _ = std::fs::create_dir_all(&bundle_dir);
         let video_path = bundle_dir.join("recording.mp4");
 
-        self.telemetry.set_capture_mode(target.mode);
+        self.telemetry
+            .set_capture_target(target.mode, target.window_id);
         self.telemetry.reset_for_session(target.frame);
         let stage = Instant::now();
         // Reuse the continuous 120Hz Metal overlay opened in `begin_target_selection` so the
@@ -2867,7 +2868,7 @@ impl ScrawlCoordinator {
                     scale: 2.0,
                 },
             );
-        self.telemetry.set_capture_mode(CaptureMode::Device);
+        self.telemetry.set_capture_target(CaptureMode::Device, None);
         self.telemetry.reset_for_session(initial_frame);
         // Hold interaction telemetry inactive until the helper's `recording` event arrives.
         self.telemetry
