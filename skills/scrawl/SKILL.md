@@ -70,7 +70,7 @@ It prints the path of a PNG sheet of frames around that moment, the time of each
 When the person talks about size, width, height, spacing, a gap, padding, alignment, or something that looks too big, too small or off, measure it before you answer or change code. Never estimate a size from the image.
 
 1. Find the keyframe that shows the component, from their words and their marks.
-2. Pick a point on the component's surface, or a region around the parts to compare. Give each as fractions of that keyframe's image (`frames/frame-NN.png`), from 0 to 1. A point a few pixels off still finds the same box.
+2. Pick a point on the component's surface, or a region around the parts to compare. Give each as fractions of that keyframe's image (`frames/frame-NN.png`), from 0 to 1. On a flat fill, a point a few pixels off finds the same box.
 3. Run `scrawl measure`:
 
 ```sh
@@ -79,7 +79,7 @@ scrawl measure <bundle> --frame 3 --region 0.1,0.2,0.9,0.6      # every box in t
 scrawl measure <bundle> --frame 3 --at 0.42,0.31 --json
 ```
 
-A region over text gives one box per word, so draw the region tight around the parts you compare. Put a point on the component's fill, not on its text: a point on a label still measures the surface around it, with a warning. Sizes come in pt, which match CSS px and SwiftUI points, and in px of the keyframe image (the recording's pixels, not the screen's). An iPhone capture without a screen size gives px only. Compare each pt value with the project's design tokens, such as its spacing scale and max widths, and name the token that fits or the one it misses. When the source code sets the value, read it there too: the measure shows what rendered on screen.
+A region over text gives one box per word, so draw the region tight around the parts you compare. Put a point on the component's fill, not on its text: a point on a label usually still measures the surface around it, with a note. A gradient fill or a faint 1 px border can give a part of the component or the whole window: check the box against the image, and try a second point or a tight region. Sizes come in pt, which match SwiftUI points and CSS px at 100% browser zoom, and in px of the keyframe image (the recording's pixels, not the screen's). An iPhone capture without a screen size gives px only. Compare each pt value with the project's design tokens, such as its spacing scale and max widths, and name the token that fits or the one it misses. When the source code sets the value, read it there too: the measure shows what rendered on screen.
 
 ### Other commands
 

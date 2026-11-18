@@ -278,9 +278,9 @@ fn reach(pixels: impl Iterator<Item = [u8; 3]>, tolerance: u8) -> Reach {
             image_edge: true,
         };
     }
+    // `max_by_key` keeps the last of equal maxima, which is the farthest.
     let surround = *probe
         .iter()
-        .rev()
         .max_by_key(|c| probe.iter().filter(|o| near(**c, **o, 3)).count())
         .unwrap();
     let mut all = probe.into_iter().chain(ray);
@@ -375,7 +375,7 @@ pub fn boxes_in(
     join: u32,
     min_side: u32,
     max: usize,
-) -> Vec<PxBox> {
+) -> (Vec<PxBox>, Vec<PxBox>) {
     let reach = join as usize + 1;
     let bg = background(frame, region);
     let (rw, rh) = (region.width as usize, region.height as usize);
@@ -435,9 +435,10 @@ pub fn boxes_in(
         })
         .map(|(_, b)| *b)
         .collect();
+    let all = reading_order(kept.clone());
     kept.sort_by_key(|b| std::cmp::Reverse(b.area()));
     kept.truncate(max);
-    reading_order(kept)
+    (reading_order(kept), all)
 }
 
 /// Lines top to bottom, each left to right: a box joins the line whose first box's rows hold its
@@ -478,6 +479,19 @@ pub struct Gap {
     pub b: usize,
     pub px: u32,
     pub axis: Axis,
+}
+
+/// The gaps between the boxes of `all` that are both in `kept`, numbered as in `kept`, so a gap
+/// never spans a box that was left out.
+fn kept_gaps(all: &[PxBox], kept: &[PxBox]) -> Vec<Gap> {
+    let index = |b: &PxBox| kept.iter().position(|k| k == b);
+    nearest_gaps(all)
+        .into_iter()
+        .filter_map(|g| {
+            let (a, b) = (index(&all[g.a])?, index(&all[g.b])?);
+            Some(Gap { a, b, ..g })
+        })
+        .collect()
 }
 
 /// Each box's nearest neighbor among those that overlap it on the other axis, once per pair.
@@ -892,11 +906,20 @@ pub fn measure_picture(
             };
             let min_side = (MIN_SIDE_PT * ppp).round().max(1.0) as u32;
             let join = (JOIN_PT * ppp).round().max(1.0) as u32;
-            let boxes = boxes_in(img, region, MASK_TOLERANCE, join, min_side, MAX_BOXES);
+            let (boxes, all) = boxes_in(img, region, MASK_TOLERANCE, join, min_side, MAX_BOXES);
             if boxes.is_empty() {
                 warnings.push("no boxes found: the region looks like one plain color".into());
             }
-            let gaps = nearest_gaps(&boxes);
+            let gaps = if all.len() == boxes.len() {
+                nearest_gaps(&boxes)
+            } else {
+                warnings.push(format!(
+                    "{} smaller boxes left out (the {MAX_BOXES} largest are shown): draw a \
+                     tighter region",
+                    all.len() - boxes.len()
+                ));
+                kept_gaps(&all, &boxes)
+            };
             out.gaps = Some(
                 gaps.iter()
                     .map(|g| GapReport {
@@ -1155,6 +1178,44 @@ mod tests {
         assert_box(fill.bbox, 600, 100, 8, 8);
     }
 
+    /// A card with a 2 px border reads its distance to the next card, not 1 px to its own border.
+    #[test]
+    fn a_bordered_card_reads_the_gap_past_its_border() {
+        const BORDER: [u8; 3] = [0xD0, 0xD0, 0xD0];
+        let mut f = canvas(800, 400, BG);
+        for x in [100, 330] {
+            rect(&mut f, x, 100, 200, 100, BORDER);
+            rect(&mut f, x + 2, 102, 196, 96, CARD);
+        }
+        let fill = fill_at(&f, 200, 150, 4, FILL_TOLERANCE, 800 * 400 / 2);
+        assert_box(fill.bbox, 102, 102, 196, 96);
+        let e = edges_around(&f, fill.bbox, fill.seed, FILL_TOLERANCE);
+        // 2 px of border, then the 30 px gap to the next card's border.
+        assert!(close(e.right.px, 32), "{:?}", e.right);
+        assert!(!e.right.image_edge);
+    }
+
+    /// When a region has more parts than are shown, no gap spans a part that was left out.
+    #[test]
+    fn gaps_never_span_a_box_that_was_left_out() {
+        let mut f = canvas(900, 200, BG);
+        // Two big boxes with a small one between them.
+        rect(&mut f, 100, 50, 200, 100, TEXT);
+        rect(&mut f, 340, 90, 20, 20, TEXT);
+        rect(&mut f, 400, 50, 200, 100, TEXT);
+        let region = PxBox {
+            x: 50,
+            y: 20,
+            width: 800,
+            height: 160,
+        };
+        let (kept, all) = boxes_in(&f, region, MASK_TOLERANCE, 3, 6, 2);
+        assert_eq!((kept.len(), all.len()), (2, 3));
+        assert!(nearest_gaps(&kept).iter().any(|g| g.px == 100));
+        // The 100 px gap spans the small box, so it is not reported.
+        assert!(kept_gaps(&all, &kept).iter().all(|g| g.px != 100));
+    }
+
     #[test]
     fn a_point_on_the_background_stops_at_the_cap() {
         let f = cards(1200, 800);
@@ -1171,7 +1232,7 @@ mod tests {
             width: 900,
             height: 400,
         };
-        let boxes = boxes_in(&f, region, MASK_TOLERANCE, 3, 12, MAX_BOXES);
+        let (boxes, _) = boxes_in(&f, region, MASK_TOLERANCE, 3, 12, MAX_BOXES);
         assert_eq!(boxes.len(), 2, "{boxes:?}");
         assert_box(boxes[0], 192, 280, 320, 184);
         assert_box(boxes[1], 552, 280, 320, 184);
@@ -1193,7 +1254,7 @@ mod tests {
             width: 200,
             height: 40,
         };
-        let boxes = boxes_in(&f, region, MASK_TOLERANCE, 3, 6, MAX_BOXES);
+        let (boxes, _) = boxes_in(&f, region, MASK_TOLERANCE, 3, 6, MAX_BOXES);
         assert_eq!(boxes.len(), 2, "{boxes:?}");
         assert_box(boxes[0], 10, 10, 28, 12);
         assert_box(boxes[1], 50, 10, 18, 12);
