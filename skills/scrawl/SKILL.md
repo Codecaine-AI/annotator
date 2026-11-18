@@ -81,7 +81,7 @@ scrawl measure <bundle> --frame 3 --at 0.42,0.31 --json
 
 A point gives one box and no gaps. For a gap, a padding or the distance between two parts, draw a region around both and read `gap`. A region over text gives one box per word (a one-letter word can join the next), so draw the region tight around the parts you compare.
 
-Put a point on the component's fill, not on its text. Every `note:` line says what the box is, so read them before you use the size:
+Put a point on the component's fill, not on its text. A point is measured with four pixels close to it, so one noisy pixel of the recording does not decide the box. Every `note:` line says what the box is, so read them before you use the size:
 
 - `the point was on text, a glyph or a thin line: this is the surface around it`: the point was on a label, in the hole of a letter such as "o", or on a divider. The box is the surface next to it. A point on a faint 1 px border can get the `more than one color` or `not a solid shape` note instead.
 - `this is a small part under the point`: a part under 12 pt on a side, such as a 3 to 8 pt status dot, a count badge, an icon or a pill, measures itself. For the surface it sits on, move the point off it.
@@ -92,6 +92,10 @@ Put a point on the component's fill, not on its text. Every `note:` line says wh
 - `no box: the point is on the page background`: use a region for the parts on it.
 - `box N touches the region edge and may be cut off there`: the size is only what the region holds. Draw a wider region.
 - `the box covers over half the image`: the component's edge was too faint to find, such as a white card on a near-white page. The box is not the component: draw a tight region around it.
+- `points close to this one give other boxes`: the point is at an edge, or on text or a small part. The box is the point's own. Check it against the image, or put the point well inside the fill.
+- `points close to this one give this box, and the point itself gave W×H`: the point was on text, a small part or noise in the recording. The box is the one its neighbors give. Check it against the image, or use a region.
+- `the box is a glyph or a thin line, not a component`: the point was on text or a line and no surface was found round it. Do not use the size: put the point on the component's fill.
+- `no box: the point is on text or a thin line and no surface was found around it`: there is no size. Put the point on a fill.
 
 How to read the output:
 
@@ -101,7 +105,7 @@ How to read the output:
 - A region shows at most 30 boxes and says how many it left out. A shown box next to a left-out one gets no gap, so draw a tighter region.
 - `no boxes found` names the cause: one plain color, or only parts under 6 pt on a side (a thin line, small text). Neither mode measures a line under 6 pt thick: read its width in the source code.
 - A faint 1 px border can give the area past it, up to the whole window. The note says the box ends at lines or has more than one color round it: check the box against the image, and try a second point or a tight region.
-- Sizes come in pt, which match SwiftUI points and CSS px at 100% browser zoom, and in px of the recording (not the screen's pixels). Positions are in the full recording frame, which the keyframe image is a crop of, so read sizes and gaps rather than positions. An iPhone capture without a screen size gives px only. Compare each pt value with the project's design tokens, such as its spacing scale and max widths, and name the token that fits or the one it misses. When the source code sets the value, read it there too: the measure shows what rendered on screen.
+- Sizes come in pt, which match SwiftUI points and CSS px at 100% browser zoom, and in px of the recording (not the screen's pixels). Positions are in the full recording frame, which the keyframe image is a crop of, so read sizes and gaps rather than positions. An iPhone capture without a screen size (every cabled iPhone capture) gives px only. Its first note says which px per pt the size limits used, an estimate from the frame's size (2 or 3 on an iPhone): divide the px by it for a rough pt value, and say that it is an estimate. Compare each pt value with the project's design tokens, such as its spacing scale and max widths, and name the token that fits or the one it misses. When the source code sets the value, read it there too: the measure shows what rendered on screen.
 
 ### Other commands
 
