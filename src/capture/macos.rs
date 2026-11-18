@@ -239,7 +239,7 @@ unsafe extern "C" {
     fn CGEventGetFlags(event: EventRef) -> u64;
     fn CGEventGetType(event: EventRef) -> u32;
     fn CGEventGetLocation(event: EventRef) -> CGPoint;
-    fn CGEventGetTimestamp(event: EventRef) -> u64;
+    fn CGEventSourceCounterForEventType(state_id: u32, event_type: u32) -> u32;
     fn CGEventGetIntegerValueField(event: EventRef, field: u32) -> i64;
     fn CGMainDisplayID() -> u32;
     fn CGDisplayPixelsWide(display: u32) -> usize;
@@ -1502,14 +1502,10 @@ fn mouse_event(
     event: EventRef,
     on_scrawl: impl Fn(f64, f64) -> bool,
 ) {
-    let event_type = unsafe { CGEventGetType(event) };
-    if matches!(event_type, EVENT_LEFT_MOUSE_DOWN | EVENT_LEFT_MOUSE_UP) {
-        // Also while paused: a kept press outlives a pause.
-        telemetry.left_edge_reached_app(unsafe { CGEventGetTimestamp(event) });
-    }
     if !telemetry.active.load(Ordering::Acquire) {
         return;
     }
+    let event_type = unsafe { CGEventGetType(event) };
     let flags = unsafe { CGEventGetFlags(event) };
     // `pure_shift`: the draw modifier alone (⇧ unless Settings changed it), not left over from a
     // chord. With the key tap taking draw-presses, it records them, not this monitor: a
@@ -1710,6 +1706,15 @@ fn spawn_key_tap(telemetry: Arc<SharedCaptureTelemetry>) {
     }
 }
 
+/// How many left presses the system has seen: from the hardware, plus those posted into the
+/// session. Each count only grows, so their sum moves on with every new press.
+fn left_downs() -> u64 {
+    unsafe {
+        u64::from(CGEventSourceCounterForEventType(1, EVENT_LEFT_MOUSE_DOWN))
+            + u64::from(CGEventSourceCounterForEventType(0, EVENT_LEFT_MOUSE_DOWN))
+    }
+}
+
 /// `kCGEventSourceUnixProcessID`: the process that posted an event.
 const EVENT_SOURCE_UNIX_PROCESS_ID: u32 = 41;
 
@@ -1728,13 +1733,17 @@ fn left_button_kept(telemetry: &SharedCaptureTelemetry, event_type: u32, event: 
             }
             let held = carbon_flags(unsafe { CGEventGetFlags(event) });
             let loc = unsafe { CGEventGetLocation(event) };
-            telemetry.note_left_down_at(unsafe { CGEventGetTimestamp(event) });
+            telemetry.note_left_downs(left_downs());
             telemetry.block_press(loc.x, loc.y, held, || {
                 telemetry.press_misses_target(loc.x, loc.y)
             })
         }
-        EVENT_LEFT_MOUSE_DRAGGED => telemetry.press_blocked(),
+        EVENT_LEFT_MOUSE_DRAGGED => {
+            telemetry.check_kept_press(left_downs());
+            telemetry.press_blocked()
+        }
         EVENT_LEFT_MOUSE_UP => {
+            telemetry.check_kept_press(left_downs());
             if !telemetry.press_blocked() {
                 return false;
             }

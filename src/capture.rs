@@ -1034,10 +1034,10 @@ pub struct SharedCaptureTelemetry {
     /// tap starts with it clear (`tap_presses_on` making a tap, `tap_presses_off`).
     #[cfg_attr(target_os = "windows", allow(dead_code))]
     tap_found_off: AtomicBool,
-    /// The event time of the last left press the key tap judged (`note_left_down_at`), so the
-    /// kept one's when it is kept.
+    /// How many left presses the system had seen when the key tap judged its last one
+    /// (`note_left_downs`), so the kept press's count while it is kept.
     #[cfg_attr(target_os = "windows", allow(dead_code))]
-    kept_down_at: AtomicU64,
+    kept_downs: AtomicU64,
 }
 
 /// Why the key tap is being brought back (`SharedCaptureTelemetry::recover_tap`).
@@ -1113,7 +1113,7 @@ impl SharedCaptureTelemetry {
             tap_events: AtomicU64::new(0),
             kept_at_event: AtomicU64::new(0),
             tap_found_off: AtomicBool::new(false),
-            kept_down_at: AtomicU64::new(0),
+            kept_downs: AtomicU64::new(0),
         })
     }
 
@@ -1668,9 +1668,10 @@ impl SharedCaptureTelemetry {
     /// only one that is the last event the tap took (`kept_press_is_last_event`): the tap may
     /// have timed out on it, and the app got it. A kept press with a later event after it (the
     /// draw modifier let go while the button stays down, and that event timed out) was kept in
-    /// time, so its drags and release stay kept. If its release, or a new press, went by while
-    /// the tap was off, the mouse monitor saw it reach the app and forgets the kept press
-    /// (`left_edge_reached_app`); the next press through the tap does too (`block_press`).
+    /// time, so its drags and release stay kept. If its release and a new press went by while
+    /// the tap was off, the system's count of presses has moved on, and the tap forgets the
+    /// kept press before it judges the new one's drags (`check_kept_press`). The next press
+    /// through the tap forgets it too (`block_press`).
     ///
     /// The tap's notices (`TapOff::Timeout`, `TapOff::UserInput`) come in the order of its
     /// events and say why. The poller's look (`TapOff::Found`) has neither: it can come long
@@ -1727,22 +1728,24 @@ impl SharedCaptureTelemetry {
         self.tap_found_off.store(false, Ordering::Release);
     }
 
-    /// The key tap is about to judge a left press made at `at` (its event time). Call it
-    /// before `block_press`.
+    /// The key tap is about to judge a left press, and the system has seen `downs` left presses
+    /// so far (its own count, this one in it). Call it before `block_press`, on the tap's thread.
     #[cfg_attr(target_os = "windows", allow(dead_code))]
-    pub(crate) fn note_left_down_at(&self, at: u64) {
-        self.kept_down_at.store(at, Ordering::Release);
+    pub(crate) fn note_left_downs(&self, downs: u64) {
+        self.kept_downs.store(downs, Ordering::Release);
     }
 
-    /// The mouse monitor saw a left press or release at `at` (event time) reach an app. The
-    /// monitor sees no event the tap kept, so one after the kept press went down means that
-    /// press is over: its release went by, or a new press went down, while the tap was off.
-    /// The kept press is forgotten, so the new press's drags and release reach the app with
-    /// it. Without this, a press that ended during an outage would keep the next one's.
+    /// Whether the kept press is still the press under way: the key tap is about to judge one
+    /// of its drags or its release, and the system has seen `downs` left presses so far. A
+    /// left press after the kept one went down means it is over: its release and a new press
+    /// went by while the tap was off. Then it is forgotten, so the new press's drags and
+    /// release reach the app, which saw it go down. The system counts each press as it comes
+    /// in, before any tap sees it, so this needs no other thread to catch up. Call it on the
+    /// tap's thread, before `press_blocked` or `release_press`.
     #[cfg_attr(target_os = "windows", allow(dead_code))]
-    pub(crate) fn left_edge_reached_app(&self, at: u64) {
+    pub(crate) fn check_kept_press(&self, downs: u64) {
         if self.blocked_press.load(Ordering::Acquire)
-            && at > self.kept_down_at.load(Ordering::Acquire)
+            && downs != self.kept_downs.load(Ordering::Acquire)
         {
             self.forget_press();
         }
@@ -3612,11 +3615,11 @@ mod tests {
         assert_eq!(pins(&telemetry), vec![1, 2]);
     }
 
-    /// Review r6-s4-1: the tap kept a draw-press and timed out on a later event. While it was
-    /// off, that press came up and a new one went down, both reaching the app. The tap came
-    /// back still keeping the old press, so it kept the new press's drags and release, and the
-    /// app was left with a press that never came up. The mouse monitor saw the new press reach
-    /// the app, so the kept press is over. A release or press from before it changes nothing.
+    /// Review r6-s4-1 and r7-s4-1: the tap kept a draw-press and timed out on a later event.
+    /// While it was off, that press came up and a new one went down, both reaching the app. The
+    /// tap came back still keeping the old press, so it kept the new press's drags and release,
+    /// and the app was left with a press that never came up. The system counted the new press
+    /// before any of its drags reached the tap, so the kept press is over by then.
     #[test]
     fn a_press_that_reached_the_app_during_an_outage_ends_the_kept_one() {
         let telemetry = session(1000.0, 1000.0);
@@ -3624,15 +3627,18 @@ mod tests {
         assert!(telemetry.tap_presses_on(|| true));
 
         telemetry.note_tap_event();
-        telemetry.note_left_down_at(100);
+        telemetry.note_left_downs(7);
         assert!(telemetry.block_press(200.0, 200.0, draw, || false));
-        telemetry.left_edge_reached_app(90); // an older click, seen late
-        assert!(telemetry.press_blocked());
+        telemetry.check_kept_press(7); // its own drag
+        assert!(telemetry.press_blocked(), "its drags are kept");
         telemetry.note_tap_event(); // the tap times out on a later event
         // The tap is off: the kept press comes up and a new one goes down, past the tap.
-        telemetry.left_edge_reached_app(150);
-        telemetry.left_edge_reached_app(160);
         assert!(telemetry.recover_tap(TapOff::Timeout, || false, || true));
+        assert!(
+            telemetry.press_blocked(),
+            "kept until the tap sees the count move on"
+        );
+        telemetry.check_kept_press(8); // the new press's drag
         assert!(
             !telemetry.press_blocked(),
             "the new press's drags reach the app"
