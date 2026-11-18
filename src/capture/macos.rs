@@ -1411,7 +1411,8 @@ fn check_key_tap(telemetry: &Arc<SharedCaptureTelemetry>) -> bool {
         spawn_key_tap(Arc::clone(telemetry));
     }
     // Also when it is on: who owns draw-presses then follows the tap as it is found here.
-    let live = trusted && !tap.is_null() && recover_key_tap(telemetry, false);
+    let live =
+        trusted && !tap.is_null() && recover_key_tap(telemetry, crate::capture::TapOff::Found);
     if telemetry.tap_live.swap(live, Ordering::AcqRel) != live {
         scrawl_log(if live {
             "key tap live"
@@ -1572,14 +1573,13 @@ fn turn_key_tap_on(telemetry: &SharedCaptureTelemetry) -> bool {
 }
 
 /// Brings the key tap back after macOS may have turned it off (a slow callback, user input),
-/// and says whether it is on. A tap that was off may have missed the release of the press it
-/// kept, so that press is forgotten, in one step with the look at the tap and its enabling
-/// (`recover_tap`), unless an event came after it, so it was kept in time. `notified` is the
-/// tap's own notice that it was disabled. The poller's look (`check_key_tap`) can come long after the tap was brought
-/// back, so it forgets only for a tap it finds off.
-fn recover_key_tap(telemetry: &SharedCaptureTelemetry, notified: bool) -> bool {
+/// and says whether it is on, in one step with the look at the tap (`recover_tap`). `off` is
+/// the tap's own notice and its reason, or the poller's look (`check_key_tap`), which leaves a
+/// tap it first finds off for the notice. Only a press the tap may have timed out on is
+/// forgotten.
+fn recover_key_tap(telemetry: &SharedCaptureTelemetry, off: crate::capture::TapOff) -> bool {
     telemetry.recover_tap(
-        notified,
+        off,
         || {
             let tap = telemetry.tap_port.load(Ordering::Acquire) as *mut c_void;
             !tap.is_null() && unsafe { CGEventTapIsEnabled(tap) }
@@ -1750,10 +1750,12 @@ unsafe extern "C" fn key_tap_callback(
         return event;
     }
     let telemetry = unsafe { &*user_info.cast::<SharedCaptureTelemetry>() };
-    if event_type == EVENT_TAP_DISABLED_BY_TIMEOUT || event_type == EVENT_TAP_DISABLED_BY_USER_INPUT
-    {
-        // The tap was off: a kept press's release may have gone by.
-        recover_key_tap(telemetry, true);
+    if event_type == EVENT_TAP_DISABLED_BY_TIMEOUT {
+        recover_key_tap(telemetry, crate::capture::TapOff::Timeout);
+        return event;
+    }
+    if event_type == EVENT_TAP_DISABLED_BY_USER_INPUT {
+        recover_key_tap(telemetry, crate::capture::TapOff::UserInput);
         return event;
     }
     telemetry.note_tap_event();

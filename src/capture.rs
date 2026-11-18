@@ -1030,6 +1030,22 @@ pub struct SharedCaptureTelemetry {
     /// the last event the tap took, so it may be the one macOS timed the tap out on.
     #[cfg_attr(target_os = "windows", allow(dead_code))]
     kept_at_event: AtomicU64,
+    /// The poller found the key tap off and has not seen it on since (`recover_tap`).
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    tap_found_off: AtomicBool,
+}
+
+/// Why the key tap is being brought back (`SharedCaptureTelemetry::recover_tap`).
+#[cfg_attr(target_os = "windows", allow(dead_code))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TapOff {
+    /// The tap's notice that macOS timed it out on a slow callback.
+    Timeout,
+    /// The tap's notice that macOS turned it off for the user (Secure Input, say). No callback
+    /// was cut short, so every press the tap kept was kept in time.
+    UserInput,
+    /// The poller's look every 500 ms. It knows no reason.
+    Found,
 }
 
 impl SharedCaptureTelemetry {
@@ -1091,6 +1107,7 @@ impl SharedCaptureTelemetry {
             blocked_press: AtomicBool::new(false),
             tap_events: AtomicU64::new(0),
             kept_at_event: AtomicU64::new(0),
+            tap_found_off: AtomicBool::new(false),
         })
     }
 
@@ -1641,21 +1658,23 @@ impl SharedCaptureTelemetry {
     /// press whose release may have gone by (`forget_press`), and `turn_on`, which enables the
     /// tap as `tap_presses_on` would. Returns whether the tap is on.
     ///
-    /// `notified` is the tap's own notice that macOS disabled it. It comes in the order of the
-    /// tap's events, also when the tap is on again by then. The poller's look every 500 ms has
-    /// no such order and can come long after the tap was brought back, so it counts only for a
-    /// tap that is still off here, under the lock: a press the tap kept since it came back is
-    /// not that outage's to forget.
+    /// Only a timeout can cut a callback short, so only then is a kept press forgotten, and
+    /// only one that is the last event the tap took (`kept_press_is_last_event`): the tap may
+    /// have timed out on it, and the app got it. A kept press with a later event after it (the
+    /// draw modifier let go while the button stays down, and that event timed out) was kept in
+    /// time, so its drags and release stay kept. If its release went by while the tap was off,
+    /// the next press forgets it (`block_press`).
     ///
-    /// Of an outage, only a kept press that is the last event the tap took is forgotten
-    /// (`kept_press_is_last_event`): the tap may have timed out on it, and the app got it. A
-    /// kept press with a later event after it (the draw modifier let go while the button stays
-    /// down, and that event timed out) was kept in time, so its drags and release stay kept. If
-    /// its release went by while the tap was off, the next press forgets it (`block_press`).
+    /// The tap's notices (`TapOff::Timeout`, `TapOff::UserInput`) come in the order of its
+    /// events and say why. The poller's look (`TapOff::Found`) has neither: it can come long
+    /// after the tap was brought back, and it cannot tell a timeout from the user's. A tap it
+    /// finds on is left as it is. One it finds off is left for the notice that is on its way;
+    /// only a tap still off at its next look, with no notice between, is taken as timed out and
+    /// brought back.
     #[cfg_attr(target_os = "windows", allow(dead_code))]
     pub(crate) fn recover_tap(
         &self,
-        notified: bool,
+        off: TapOff,
         is_on: impl FnOnce() -> bool,
         turn_on: impl FnOnce() -> bool,
     ) -> bool {
@@ -1663,7 +1682,19 @@ impl SharedCaptureTelemetry {
             .tap_gate
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if (notified || !is_on()) && self.kept_press_is_last_event() {
+        let timed_out = match off {
+            TapOff::Timeout => true,
+            TapOff::UserInput => false,
+            TapOff::Found if is_on() => false,
+            TapOff::Found => {
+                if !self.tap_found_off.swap(true, Ordering::AcqRel) {
+                    return false;
+                }
+                true
+            }
+        };
+        self.tap_found_off.store(false, Ordering::Release);
+        if timed_out && self.kept_press_is_last_event() {
             self.forget_press();
         }
         self.publish_tap_presses(turn_on)
@@ -3472,7 +3503,7 @@ mod tests {
         // A kept press, and macOS disables the tap. Its notice brings it back.
         assert!(telemetry.block_press(200.0, 200.0, draw, || false));
         assert!(telemetry.recover_tap(
-            true,
+            TapOff::Timeout,
             || false,
             || {
                 assert!(!telemetry.press_blocked(), "forgotten before the tap is on");
@@ -3482,22 +3513,26 @@ mod tests {
         assert!(!telemetry.release_press(200.0, 200.0), "its release passes");
         // The tap keeps a new press. The poller's look comes now and finds the tap on.
         assert!(telemetry.block_press(600.0, 600.0, draw, || false));
-        assert!(telemetry.recover_tap(false, || true, || true));
+        assert!(telemetry.recover_tap(TapOff::Found, || true, || true));
         assert!(telemetry.press_blocked(), "its drags are still kept");
         assert!(telemetry.release_press(600.0, 600.0));
 
-        // The poller finds the tap off: the kept press is over.
+        // The poller finds the tap off and leaves it for the notice. Still off at its next
+        // look, with no notice: the kept press is over.
         assert!(telemetry.block_press(400.0, 400.0, draw, || false));
-        assert!(telemetry.recover_tap(false, || false, || true));
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || true));
+        assert!(telemetry.press_blocked(), "kept until the next look");
+        assert!(telemetry.recover_tap(TapOff::Found, || false, || true));
         assert!(!telemetry.release_press(400.0, 400.0));
         // The tap timed out on a press and the app got it. The poller brought the tap back,
         // and only then did the slow callback keep the press. The notice comes next.
         assert!(telemetry.block_press(400.0, 400.0, draw, || false));
-        assert!(telemetry.recover_tap(true, || true, || true));
+        assert!(telemetry.recover_tap(TapOff::Timeout, || true, || true));
         assert!(!telemetry.release_press(400.0, 400.0), "it passes too");
 
         // A tap that does not come back owns no press.
-        assert!(!telemetry.recover_tap(false, || false, || false));
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || false));
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || false));
         assert!(!telemetry.tap_owns_draw_presses());
         assert_eq!(pins(&telemetry), vec![1]);
     }
@@ -3517,25 +3552,54 @@ mod tests {
         assert!(telemetry.block_press(200.0, 200.0, draw, || false));
         telemetry.note_tap_event(); // the draw modifier let go: the tap times out on it
         telemetry.note_tap_modifiers(0);
-        assert!(telemetry.recover_tap(true, || false, || true));
+        assert!(telemetry.recover_tap(TapOff::Timeout, || false, || true));
         assert!(telemetry.press_blocked(), "its drags are kept");
         assert!(telemetry.release_press(200.0, 200.0), "its release is kept");
         // The poller finds the tap off after the same kind of outage.
         telemetry.note_tap_event();
         assert!(telemetry.block_press(300.0, 300.0, draw, || false));
         telemetry.note_tap_event();
-        assert!(telemetry.recover_tap(false, || false, || true));
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || true));
+        assert!(telemetry.recover_tap(TapOff::Found, || false, || true));
         assert!(telemetry.release_press(300.0, 300.0));
 
         // The tap timed out on the press itself: the app got it, so its release passes.
         telemetry.note_tap_event();
         assert!(telemetry.block_press(400.0, 400.0, draw, || false));
-        assert!(telemetry.recover_tap(true, || false, || true));
+        assert!(telemetry.recover_tap(TapOff::Timeout, || false, || true));
         assert!(!telemetry.press_blocked());
         telemetry.note_tap_event();
         assert!(telemetry.block_press(500.0, 500.0, draw, || false));
-        assert!(telemetry.recover_tap(false, || false, || true));
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || true));
+        assert!(telemetry.recover_tap(TapOff::Found, || false, || true));
         assert!(!telemetry.press_blocked());
+        assert_eq!(pins(&telemetry), vec![1, 2]);
+    }
+
+    /// Review r5-s4-1: the tap kept a draw-press, and with the button still down macOS turned
+    /// the tap off for the user, not for a slow callback. Recovery forgot the press, so its
+    /// drags and release reached the app without their press. No callback was cut short, so
+    /// the press stays kept, also when the poller finds the tap off before the notice comes.
+    #[test]
+    fn a_tap_turned_off_for_the_user_keeps_its_press() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        assert!(telemetry.tap_presses_on(|| true));
+
+        telemetry.note_tap_event();
+        assert!(telemetry.block_press(200.0, 200.0, draw, || false));
+        assert!(telemetry.recover_tap(TapOff::UserInput, || false, || true));
+        assert!(telemetry.press_blocked(), "its drags are kept");
+        assert!(telemetry.release_press(200.0, 200.0), "its release is kept");
+
+        // The poller looks first, then the notice comes and brings the tap back.
+        telemetry.note_tap_event();
+        assert!(telemetry.block_press(300.0, 300.0, draw, || false));
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || true));
+        assert!(telemetry.recover_tap(TapOff::UserInput, || false, || true));
+        assert!(telemetry.recover_tap(TapOff::Found, || true, || true));
+        assert!(telemetry.press_blocked());
+        assert!(telemetry.release_press(300.0, 300.0));
         assert_eq!(pins(&telemetry), vec![1, 2]);
     }
 
