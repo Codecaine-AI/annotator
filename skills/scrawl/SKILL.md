@@ -74,20 +74,33 @@ When the person talks about size, width, height, spacing, a gap, padding, alignm
 3. Run `scrawl measure`:
 
 ```sh
-scrawl measure <bundle> --frame 3 --at 0.42,0.31                # the box that holds the point
+scrawl measure <bundle> --frame 3 --at 0.42,0.31                # the box that holds the point (no gaps)
 scrawl measure <bundle> --frame 3 --region 0.1,0.2,0.9,0.6      # every box in the region and the gaps between them
 scrawl measure <bundle> --frame 3 --at 0.42,0.31 --json
 ```
 
-A region over text gives one box per word (a one-letter word can join the next), so draw the region tight around the parts you compare. Put a point on the component's fill, not on its text: a point on a label, or in the hole of a letter such as "o", still measures the surface around it, with a note. A small solid part, such as a 3 pt status dot, measures itself. A gradient fill or a faint 1 px border can give a part of the component or the whole window: check the box against the image, and try a second point or a tight region.
+A point gives one box and no gaps. For a gap, a padding or the distance between two parts, draw a region around both and read `gap`. A region over text gives one box per word (a one-letter word can join the next), so draw the region tight around the parts you compare.
+
+Put a point on the component's fill, not on its text. Every `note:` line says what the box is, so read them before you use the size:
+
+- `the point was on text, a glyph or a thin line: this is the surface around it`: the point was on a label, in the hole of a letter such as "o", on a divider or on a 1 px border. The box is the surface next to it.
+- `this is a small part under the point`: a part under 12 pt on a side, such as a 3 to 8 pt status dot, a count badge, an icon or a pill, measures itself. For the surface it sits on, move the point off it.
+- `the point is on text, an icon or a line inside this box`: the box is the component. The point was not on its fill.
+- `the box ends at lines`: a list row between dividers, a table cell or an outlined card. The box is the fill between the lines. A faint line lets it run on, so check it against the image.
+- `more than one color borders this box`: a panel between other panels, or a gradient fill, which gives only a part of the component. Check it with a tight region.
+- `the box includes a border, a shadow or a part against its fill`: the box has them, and the note gives the size of the fill alone.
+- `no box: the point is on the page background`: use a region for the parts on it.
+- `box N touches the region edge and may be cut off there`: the size is only what the region holds. Draw a wider region.
 
 How to read the output:
 
-- `to edges` is the distance from each side of the box to the next component, in the order left, right, up, down. It skips the box's own border, so a card with a 1 pt border reads the border plus the gap to the next card.
-- A line between two areas of one color is a divider. A list row reads the 1 pt line above and below it, not the next row's height. For the distance between two rows or cards, use a region.
-- A box with a border is 2 borders larger from `--region` than from `--at`: the region gives the box with its border, the point gives the fill inside it. Without a border the two agree to the pixel, with and without the movie.
+- A point and a region give the same box, within 1 px, with and without the movie. With a border, both give the box with its border when the page has another color.
+- A region joins parts up to 1.5 pt apart into one box, so two boxes that close show as one. A point on each gives each box.
+- Rows split by dividers: a point in a row gives that row. A region over the rows gives the whole list as one box, because the dividers join them.
 - A region shows at most 30 boxes and says how many it left out. A shown box next to a left-out one gets no gap, so draw a tighter region.
-- `no boxes found` names the cause: one plain color, or only parts under 6 pt on a side (a thin line, small text). Measure a thin line with a point next to it and read `to edges`. Sizes come in pt, which match SwiftUI points and CSS px at 100% browser zoom, and in px of the recording (not the screen's pixels). Positions are in the full recording frame, which the keyframe image is a crop of, so read sizes and gaps rather than positions. An iPhone capture without a screen size gives px only. Compare each pt value with the project's design tokens, such as its spacing scale and max widths, and name the token that fits or the one it misses. When the source code sets the value, read it there too: the measure shows what rendered on screen.
+- `no boxes found` names the cause: one plain color, or only parts under 6 pt on a side (a thin line, small text). Neither mode measures a line under 6 pt thick: read its width in the source code.
+- A faint 1 px border can give the area past it, up to the whole window. The note says the box ends at lines or has more than one color round it: check the box against the image, and try a second point or a tight region.
+- Sizes come in pt, which match SwiftUI points and CSS px at 100% browser zoom, and in px of the recording (not the screen's pixels). Positions are in the full recording frame, which the keyframe image is a crop of, so read sizes and gaps rather than positions. An iPhone capture without a screen size gives px only. Compare each pt value with the project's design tokens, such as its spacing scale and max widths, and name the token that fits or the one it misses. When the source code sets the value, read it there too: the measure shows what rendered on screen.
 
 ### Other commands
 

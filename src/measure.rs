@@ -5,6 +5,11 @@
 //! (`frames/frame-NN.png`, auto-cropped). They are mapped through the keyframe's crop onto the
 //! full, ink-free frame decoded from the movie, else the bundle's uncropped `frames-full/`
 //! image, else the cropped image itself. The measuring below works on any RGBA frame.
+//!
+//! A region gives every box in it and the gaps between them. A point gives the box that holds
+//! it, found the way a region finds a box (the pixels off one background color, joined), so
+//! the two agree. A point gives no gaps: a movie's noise next to an edge made every ray from
+//! a box unsure, and a region measures the same gap from both boxes.
 
 use std::path::Path;
 
@@ -27,11 +32,11 @@ const MAX_BOXES: usize = 30;
 /// Region mode joins parts on one row that are at most this far apart (pt), so the letters of a
 /// word are one box and never a gap.
 const JOIN_PT: f64 = 1.5;
-/// Point mode adds at most this many blurred edge pixels to each side of a box.
+/// A fill's box takes in at most this many blurred edge pixels on each side.
 const BLUR_PX: u32 = 2;
-/// A border or an antialiased rim next to a box is at most this wide (px), or 1 pt when that is
-/// more: wider is a gap.
-const RIM_PX: u32 = 3;
+/// A pixel this far per channel from a color is clearly not that color, whatever a movie did
+/// to it.
+const CLEAR: u8 = 24;
 
 /// A pixel rect: `x..x + width`, `y..y + height`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -91,81 +96,15 @@ fn leans(pixel: [u8; 3], own: [u8; 3], beyond: [u8; 3]) -> bool {
         && y <= a.max(b) + slack
 }
 
-/// The component that holds a point.
+/// What a flood fill from one pixel covers.
 #[derive(Clone, Debug, PartialEq)]
-pub struct Fill {
-    pub bbox: PxBox,
-    /// Where the fill started: the pixel nearest the point with the area's main color.
-    pub seed: (u32, u32),
-    pub color: [u8; 3],
-    pub pixels: usize,
+struct Fill {
+    bbox: PxBox,
+    color: [u8; 3],
     /// The fill hit its cap, so `bbox` is only part of it.
-    pub capped: bool,
-    pub touches_border: bool,
+    capped: bool,
     /// The fill's pixels on the left, right, top and bottom side of `bbox`.
     sides: [Vec<(u32, u32)>; 4],
-}
-
-/// The main color within `radius` of the point, and the pixel nearest the point that has it, so
-/// a point on a line of text or a few px off still starts on the surface around it.
-fn seed_at(frame: &RgbaFrame, x: u32, y: u32, radius: u32) -> ((u32, u32), [u8; 3]) {
-    let (x0, x1) = (x.saturating_sub(radius), (x + radius).min(frame.width - 1));
-    let (y0, y1) = (y.saturating_sub(radius), (y + radius).min(frame.height - 1));
-    let mut colors: Vec<([u8; 3], usize)> = Vec::with_capacity(64);
-    for py in y0..=y1 {
-        for px in x0..=x1 {
-            let c = rgb(frame, px, py);
-            match colors.iter_mut().find(|(k, _)| near(*k, c, 3)) {
-                Some((_, n)) => *n += 1,
-                None => colors.push((c, 1)),
-            }
-        }
-    }
-    let group = colors
-        .iter()
-        .max_by_key(|(_, n)| *n)
-        .map(|(c, _)| *c)
-        .unwrap_or_else(|| rgb(frame, x, y));
-    // The group's most common shade, so a fill's tolerance sits round the color itself and not
-    // round the first shade of it that the window happened to hold.
-    let mut shades: Vec<([u8; 3], usize)> = Vec::new();
-    for py in y0..=y1 {
-        for px in x0..=x1 {
-            let c = rgb(frame, px, py);
-            if near(c, group, 3) {
-                match shades.iter_mut().find(|(k, _)| *k == c) {
-                    Some((_, n)) => *n += 1,
-                    None => shades.push((c, 1)),
-                }
-            }
-        }
-    }
-    // `max_by_key` keeps the last of equal counts: reversed, the first shade found.
-    let color = shades
-        .iter()
-        .rev()
-        .max_by_key(|(_, n)| *n)
-        .map_or(group, |(c, _)| *c);
-    let mut best = ((x, y), u64::MAX);
-    for py in y0..=y1 {
-        for px in x0..=x1 {
-            if near(rgb(frame, px, py), color, 3) {
-                let d = u64::from(px.abs_diff(x)).pow(2) + u64::from(py.abs_diff(y)).pow(2);
-                if d < best.1 {
-                    best = ((px, py), d);
-                }
-            }
-        }
-    }
-    (best.0, color)
-}
-
-/// Flood fill (4-connected) from the area around `(x, y)` over pixels within `tolerance` of its
-/// color, stopping after `cap` pixels.
-pub fn fill_at(frame: &RgbaFrame, x: u32, y: u32, radius: u32, tolerance: u8, cap: usize) -> Fill {
-    let (x, y) = (x.min(frame.width - 1), y.min(frame.height - 1));
-    let (seed, color) = seed_at(frame, x, y, radius);
-    flood(frame, seed, color, tolerance, cap)
 }
 
 /// Flood fill (4-connected) from `seed` over pixels within `tolerance` of `color`, stopping
@@ -237,11 +176,8 @@ fn flood(frame: &RgbaFrame, seed: (u32, u32), color: [u8; 3], tolerance: u8, cap
             width: bx1 - bx0 + 1,
             height: by1 - by0 + 1,
         },
-        seed,
         color,
-        pixels,
         capped,
-        touches_border: bx0 == 0 || by0 == 0 || bx1 == w - 1 || by1 == h - 1,
         sides,
     }
 }
@@ -283,11 +219,12 @@ fn fill_within(
     mask
 }
 
-/// A fill's box with its blurred edges. Antialiasing and H.264 leave a pixel or two of blend at
-/// an edge, which the fill stops short of. Each side takes in up to `BLUR_PX` px while most of
-/// the pixels next to the fill's own edge pixels lean to the fill's color rather than to the
-/// color 2 px further out, so the edge sits midway between the two colors. A pixel of the same
-/// shade as the one after it is no blend: it starts a line or a gap.
+/// A fill's box with its blurred edges, for a fill that no one color closes (`Found::Lines`,
+/// `Found::Mixed`). Antialiasing and H.264 leave a pixel or two of blend at an edge, which the
+/// fill stops short of. Each side takes in up to `BLUR_PX` px while most of the pixels next to
+/// the fill's own edge pixels lean to the fill's color rather than to the color 2 px further
+/// out, so the edge sits midway between the two colors. A pixel of the same shade as the one
+/// after it is no blend: it starts a line or a gap.
 fn blurred_box(frame: &RgbaFrame, fill: &Fill) -> PxBox {
     let b = fill.bbox;
     if fill.capped {
@@ -328,40 +265,17 @@ fn blurred_box(frame: &RgbaFrame, fill: &Fill) -> PxBox {
     }
 }
 
-/// Whether a small fill is one solid shape, as a dot, a square or a rounded box is and a glyph
-/// is not: it covers 0.65 of its box (a circle covers 0.79) and its rows and columns have
-/// almost no gaps.
-fn solid(frame: &RgbaFrame, fill: &Fill) -> bool {
-    let b = fill.bbox;
-    let (w, h) = (b.width as usize, b.height as usize);
-    let mask = fill_within(frame, b, fill.seed, fill.color, FILL_TOLERANCE);
-    // The pixels from the first to the last filled one of a line, summed over the lines.
-    let spans = |lines: usize, len: usize, at: &dyn Fn(usize, usize) -> usize| -> usize {
-        (0..lines)
-            .map(|line| {
-                let mut filled = (0..len).filter(|&i| mask[at(line, i)]);
-                match (filled.next(), filled.next_back()) {
-                    (Some(first), Some(last)) => last - first + 1,
-                    (Some(_), None) => 1,
-                    _ => 0,
-                }
-            })
-            .sum()
-    };
-    let pixels = mask.iter().filter(|&&on| on).count();
-    let (rows, columns) = (
-        spans(h, w, &|y, x| y * w + x),
-        spans(w, h, &|x, y| y * w + x),
-    );
-    pixels * 20 >= w * h * 13 && pixels * 10 >= rows * 9 && pixels * 10 >= columns * 9
-}
-
-/// Where a small fill's own color starts again when the fill is a hole in a mark, such as the
-/// counter of an "o" or the space shut inside two letters: within half of `min_side` px past its
-/// box on at least three sides, as one region that goes round it.
-fn hole_exit(frame: &RgbaFrame, fill: &Fill, min_side: u32) -> Option<((u32, u32), [u8; 3])> {
-    let b = fill.bbox;
-    let own = |x: u32, y: u32| near(rgb(frame, x, y), fill.color, FILL_TOLERANCE);
+/// Where the color of a small box `b` starts again when the box is a hole in a mark, such as
+/// the counter of an "o" or the space shut inside two letters: within half of `min_side` px
+/// past the box on at least three sides, as one region that goes round it. Size alone cannot
+/// tell a status dot from the counter of an "o".
+fn hole_exit(
+    frame: &RgbaFrame,
+    b: PxBox,
+    color: [u8; 3],
+    min_side: u32,
+) -> Option<((u32, u32), [u8; 3])> {
+    let own = |x: u32, y: u32| near(rgb(frame, x, y), color, FILL_TOLERANCE);
     let (cx, cy) = (b.x + b.width / 2, b.y + b.height / 2);
     let reach = (min_side / 2).max(1);
     let found: Vec<(u32, u32)> = [
@@ -399,7 +313,7 @@ fn hole_exit(frame: &RgbaFrame, fill: &Fill, min_side: u32) -> Option<((u32, u32
     };
     let ww = window.width as usize;
     let mask = found.iter().find_map(|&from| {
-        let mask = fill_within(frame, window, from, fill.color, FILL_TOLERANCE);
+        let mask = fill_within(frame, window, from, color, FILL_TOLERANCE);
         let joined =
             |&(x, y): &(u32, u32)| mask[(y - window.y) as usize * ww + (x - window.x) as usize];
         (found.iter().filter(|p| joined(p)).count() >= 3).then_some(mask)
@@ -431,381 +345,77 @@ fn hole_exit(frame: &RgbaFrame, fill: &Fill, min_side: u32) -> Option<((u32, u32
     Some((seed, color))
 }
 
-/// The color around a box: the main color, other than the fill's, on the ring 2 px outside
-/// `around`, the ring pixel with that color nearest `(x, y)`, and whether at least 3/4 of the
-/// ring has it.
-fn ring(
-    frame: &RgbaFrame,
-    fill: &Fill,
-    around: PxBox,
-    x: u32,
-    y: u32,
-) -> Option<((u32, u32), [u8; 3], bool)> {
-    let b = around;
-    let (x0, y0) = (b.x.saturating_sub(2), b.y.saturating_sub(2));
-    let (x1, y1) = (
-        (b.x1() + 1).min(frame.width - 1),
-        (b.y1() + 1).min(frame.height - 1),
-    );
-    let pixels: Vec<(u32, u32)> = (x0..=x1)
-        .flat_map(|px| [(px, y0), (px, y1)])
-        .chain((y0..=y1).flat_map(|py| [(x0, py), (x1, py)]))
-        .collect();
-    let mut colors: Vec<([u8; 3], usize, (u32, u32), u64)> = Vec::new();
-    for &(px, py) in &pixels {
-        let c = rgb(frame, px, py);
-        if near(c, fill.color, FILL_TOLERANCE) {
-            continue;
+/// How far two colors are apart: the largest difference of one channel.
+fn contrast(a: [u8; 3], b: [u8; 3]) -> u8 {
+    (0..3).map(|i| a[i].abs_diff(b[i])).max().unwrap_or(0)
+}
+
+fn mean(colors: impl Iterator<Item = [u8; 3]>) -> Option<[u8; 3]> {
+    let (mut sum, mut n) = ([0u64; 3], 0u64);
+    for c in colors {
+        for (s, v) in sum.iter_mut().zip(c) {
+            *s += u64::from(v);
         }
-        let d = u64::from(px.abs_diff(x)).pow(2) + u64::from(py.abs_diff(y)).pow(2);
-        match colors.iter_mut().find(|(k, ..)| near(*k, c, 3)) {
-            Some((_, n, at, best)) => {
-                *n += 1;
-                if d < *best {
-                    *at = (px, py);
-                    *best = d;
-                }
-            }
-            None => colors.push((c, 1, (px, py), d)),
-        }
+        n += 1;
     }
-    let (color, _, at, _) = colors.into_iter().max_by_key(|(_, n, ..)| *n)?;
-    let same = pixels
+    (n > 0).then(|| sum.map(|s| ((s + n / 2) / n) as u8))
+}
+
+/// A color's shade, 4 levels to a step.
+fn shade(c: [u8; 3]) -> u32 {
+    (u32::from(c[0] >> 2) << 12) | (u32::from(c[1] >> 2) << 6) | u32::from(c[2] >> 2)
+}
+
+/// The most common color of `colors` and its shade: the mean of the colors within 6 per channel
+/// of the first color of the most common shade, so a tolerance round it sits on the middle of a
+/// color that a movie made noisy.
+fn commonest(colors: &[[u8; 3]]) -> Option<([u8; 3], u32)> {
+    let mut shades: std::collections::HashMap<u32, (usize, usize)> =
+        std::collections::HashMap::new();
+    for (i, c) in colors.iter().enumerate() {
+        shades.entry(shade(*c)).or_insert((0, i)).0 += 1;
+    }
+    // Of equal counts, the shade seen first.
+    let (&key, &(_, first)) = shades
         .iter()
-        .filter(|&&(px, py)| near(rgb(frame, px, py), color, FILL_TOLERANCE))
-        .count();
-    Some((at, color, same * 4 >= pixels.len() * 3))
-}
-
-/// What a fill is.
-enum Kind {
-    /// A component.
-    Part,
-    /// A hole in a mark: past the mark, the surface goes on from this pixel in this color.
-    Hole((u32, u32), [u8; 3]),
-    /// A mark on a surface, such as one glyph of a button's label or a thin line.
-    Mark,
-}
-
-/// A fill is a mark when it is 2 px thin or less, or when it is under `min_side` px on both
-/// sides and its surroundings say so, since size alone cannot tell a status dot from the counter
-/// of an "o". A small component is solid, at least a quarter of `min_side` on a side, and has
-/// one color round it (3/4 of the ring 2 px outside its blurred edges) whose own region is a
-/// surface. A hole has its own color again just past a stroke on three sides (`hole_exit`). A
-/// piece of a letter has a ring of mixed shades, or of a stroke that is itself small and not
-/// solid.
-fn kind(frame: &RgbaFrame, fill: &Fill, min_side: u32) -> Kind {
-    let b = fill.bbox;
-    if fill.capped {
-        return Kind::Part;
-    }
-    let small = b.width < min_side && b.height < min_side;
-    if small && let Some((seed, color)) = hole_exit(frame, fill, min_side) {
-        return Kind::Hole(seed, color);
-    }
-    if b.width.min(b.height) <= 2 {
-        return Kind::Mark;
-    }
-    if !small {
-        return Kind::Part;
-    }
-    let grown = blurred_box(frame, fill);
-    if grown.width * 4 < min_side && grown.height * 4 < min_side {
-        return Kind::Mark;
-    }
-    let on_a_surface = || {
-        let Some((at, color, true)) = ring(frame, fill, grown, fill.seed.0, fill.seed.1) else {
-            return false;
-        };
-        // More than `min_side` squared px cannot be a small mark.
-        let cap = (min_side as usize).pow(2) + 1;
-        let around = flood(frame, at, color, FILL_TOLERANCE, cap);
-        let a = around.bbox;
-        around.capped
-            || (a.width.min(a.height) > 2
-                && (a.width >= min_side
-                    || a.height >= min_side
-                    || (around.pixels as u64) * 4 >= a.area() * 3))
-    };
-    if solid(frame, fill) && on_a_surface() {
-        Kind::Part
-    } else {
-        Kind::Mark
-    }
-}
-
-fn is_mark(frame: &RgbaFrame, fill: &Fill, min_side: u32) -> bool {
-    !matches!(kind(frame, fill, min_side), Kind::Part)
-}
-
-/// The fill of the main color within `radius` of the point that is not a mark, trying that
-/// color's pixels nearest first (at most 24 fills).
-fn surface_near(frame: &RgbaFrame, x: u32, y: u32, radius: u32, cap: usize) -> Option<Fill> {
-    let (_, color) = seed_at(frame, x, y, radius);
-    let (x0, x1) = (x.saturating_sub(radius), (x + radius).min(frame.width - 1));
-    let (y0, y1) = (y.saturating_sub(radius), (y + radius).min(frame.height - 1));
-    let mut candidates: Vec<(u64, u32, u32)> = Vec::new();
-    for py in y0..=y1 {
-        for px in x0..=x1 {
-            if near(rgb(frame, px, py), color, 3) {
-                let d = u64::from(px.abs_diff(x)).pow(2) + u64::from(py.abs_diff(y)).pow(2);
-                candidates.push((d, px, py));
-            }
+        .max_by_key(|(_, (n, first))| (*n, std::cmp::Reverse(*first)))?;
+    let mut color = colors[first];
+    for _ in 0..2 {
+        if let Some(c) = mean(colors.iter().copied().filter(|c| near(*c, color, 6))) {
+            color = c;
         }
     }
-    candidates.sort_unstable();
-    let mut tried: Vec<PxBox> = Vec::new();
-    for (_, px, py) in candidates {
-        let at = PxBox {
-            x: px,
-            y: py,
-            width: 1,
-            height: 1,
-        };
-        if tried.iter().any(|b| b.contains(&at)) {
-            continue;
-        }
-        if tried.len() == 24 {
-            break;
-        }
-        let fill = flood(frame, (px, py), color, FILL_TOLERANCE, cap);
-        if !is_mark(frame, &fill, radius) {
-            return Some(fill);
-        }
-        tried.push(fill.bbox);
-    }
-    None
+    Some((color, key))
 }
 
-/// The component that holds a point, as `fill_at` finds it, with two exceptions. A small solid
-/// component under the point, such as a status dot too small to be the main color near it, is
-/// the component. A point on a mark (a glyph of a label, the hole of an "o", a thin line)
-/// measures the surface around the mark: the hole's own color past the letter, else the color on
-/// a ring around the mark, then the main color of a `min_side` px window (`surface_near`).
-/// Returns whether it stepped out of a mark.
-pub fn component_at(
-    frame: &RgbaFrame,
-    x: u32,
-    y: u32,
-    radius: u32,
-    min_side: u32,
-    cap: usize,
-) -> (Fill, bool) {
-    let (x, y) = (x.min(frame.width - 1), y.min(frame.height - 1));
-    let mut fill = fill_at(frame, x, y, radius, FILL_TOLERANCE, cap);
-    let under = rgb(frame, x, y);
-    if !near(under, fill.color, FILL_TOLERANCE) {
-        let dot = flood(frame, (x, y), under, FILL_TOLERANCE, cap);
-        let b = dot.bbox;
-        // Roughly round or square: the stem of an "l" is solid too.
-        if b.width < min_side
-            && b.height < min_side
-            && b.width <= 2 * b.height
-            && b.height <= 2 * b.width
-            && !is_mark(frame, &dot, min_side)
-        {
-            return (dot, false);
-        }
+/// The main colors round `r`, most common first (at most three), each with how many of the
+/// border's pixels it holds, and the border's length. A side of `r` on the image edge is left
+/// out: its pixels are inside what `r` holds, not round it.
+fn border_colors(frame: &RgbaFrame, r: PxBox) -> (Vec<([u8; 3], usize)>, usize) {
+    let mut left: Vec<[u8; 3]> = Vec::with_capacity(2 * (r.width + r.height) as usize);
+    if r.y > 0 {
+        left.extend((r.x..r.x1()).map(|x| rgb(frame, x, r.y)));
     }
-    let mut stepped = false;
-    for _ in 0..3 {
-        let next = match kind(frame, &fill, min_side) {
-            Kind::Part => break,
-            Kind::Hole(seed, color) => Some((seed, color)),
-            Kind::Mark => ring(frame, &fill, fill.bbox, x, y).map(|(at, color, _)| (at, color)),
-        };
-        let Some((seed, color)) = next else {
+    if r.y1() < frame.height {
+        left.extend((r.x..r.x1()).map(|x| rgb(frame, x, r.y1() - 1)));
+    }
+    if r.x > 0 {
+        left.extend((r.y..r.y1()).map(|y| rgb(frame, r.x, y)));
+    }
+    if r.x1() < frame.width {
+        left.extend((r.y..r.y1()).map(|y| rgb(frame, r.x1() - 1, y)));
+    }
+    let total = left.len();
+    let mut colors = Vec::new();
+    while colors.len() < 3 {
+        let Some((color, key)) = commonest(&left) else {
             break;
         };
-        fill = flood(frame, seed, color, FILL_TOLERANCE, cap);
-        stepped = true;
+        let before = left.len();
+        left.retain(|c| !near(*c, color, MASK_TOLERANCE) && shade(*c) != key);
+        colors.push((color, before - left.len()));
     }
-    if is_mark(frame, &fill, min_side) {
-        // Antialiased text can ring a letter with more letter shades: take the main color of a
-        // wider window, the surface the text sits on, and fill from the nearest pixel of it that
-        // is not shut inside a letter (the hole of an "o").
-        if let Some(wide) = surface_near(frame, x, y, min_side, cap) {
-            fill = wide;
-            stepped = true;
-        }
-    }
-    (fill, stepped)
-}
-
-/// How far one ray from a box edge runs before the color changes.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct Reach {
-    pub px: u32,
-    /// The ray reached the image edge without a change.
-    pub image_edge: bool,
-}
-
-/// What the rays of a box start with, which tells a border from a divider from a narrow gap.
-struct Surround {
-    /// The box's own fill color.
-    own: [u8; 3],
-    /// A run up to this long (px) can be a border or a rim.
-    rim: u32,
-    /// The colors a ray starts with for longer than `rim`: the surfaces the box sits on.
-    surfaces: Vec<[u8; 3]>,
-    /// The color every ray starts with for at most `rim` px and that stays by the box: its
-    /// border.
-    border: Option<[u8; 3]>,
-}
-
-/// The run of one color that starts at `ray[i]`: its color and its length. The color is taken
-/// 2 px in when the run goes on that far, past the blurred tail of the edge behind it, so the
-/// run ends where the settled color does.
-fn run_at(ray: &[[u8; 3]], i: usize, tolerance: u8) -> ([u8; 3], u32) {
-    let start = ray[i];
-    let settled = |c: &&[u8; 3]| near(**c, start, tolerance);
-    let color = *ray
-        .get(i + BLUR_PX as usize)
-        .filter(settled)
-        .unwrap_or(&start);
-    let n = ray[i..]
-        .iter()
-        .take_while(|c| near(**c, color, tolerance))
-        .count();
-    (color, n.max(1) as u32)
-}
-
-/// Pixels from a box edge outward to the next component, walking the ray's runs of one color.
-/// Short runs are skipped while they add up to at most `rim` px (a border, an antialiased rim),
-/// and the first run that does not fit, or that is a surface the box sits on, is the gap: the
-/// reach is the skipped runs plus that run. A run of the box's own color ends the ray sooner:
-/// the reach is only the skipped runs (a divider between two rows, a narrow gap), unless they
-/// were the box's border (an outlined card on a page of its own color).
-fn reach(ray: &[[u8; 3]], by: &Surround, tolerance: u8) -> Reach {
-    let mut skipped = 0u32;
-    let mut past_border = false;
-    while (skipped as usize) < ray.len() {
-        let (color, n) = run_at(ray, skipped as usize, tolerance);
-        let image_edge = (skipped + n) as usize >= ray.len();
-        let own = near(color, by.own, tolerance);
-        if own && !past_border {
-            break;
-        }
-        let border = skipped == 0
-            && !own
-            && !image_edge
-            && n <= by.rim
-            && by.border.is_some_and(|b| near(color, b, tolerance));
-        let surface = by.surfaces.iter().any(|s| near(color, *s, tolerance));
-        if !border && (own || surface || image_edge || skipped + n > by.rim) {
-            // The far end of the gap, as `blurred_box` puts an edge: a blurred pixel that leans
-            // to the gap's color is still gap.
-            let mut px = skipped + n;
-            for _ in 0..BLUR_PX {
-                let i = px as usize;
-                match (ray.get(i), ray.get(i + 1), ray.get(i + 2)) {
-                    (Some(&pixel), Some(&next), Some(&beyond))
-                        if !near(pixel, next, 3) && leans(pixel, color, beyond) =>
-                    {
-                        px += 1
-                    }
-                    _ => break,
-                }
-            }
-            return Reach { px, image_edge };
-        }
-        skipped += n;
-        past_border |= border;
-    }
-    Reach {
-        px: skipped,
-        image_edge: skipped as usize >= ray.len(),
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub struct Edges {
-    pub left: Reach,
-    pub right: Reach,
-    pub up: Reach,
-    pub down: Reach,
-}
-
-/// From each side of `bbox`, along the row and column through `at`, the distance to the next
-/// component outward (`reach`). `own` is the box's fill color and `rim` the widest border in px.
-pub fn edges_around(
-    frame: &RgbaFrame,
-    bbox: PxBox,
-    at: (u32, u32),
-    own: [u8; 3],
-    rim: u32,
-    tolerance: u8,
-) -> Edges {
-    let (ax, ay) = (
-        at.0.clamp(bbox.x, bbox.x1() - 1),
-        at.1.clamp(bbox.y, bbox.y1() - 1),
-    );
-    // Left, right, up, down: each ray's pixels outward, and where it starts.
-    let rays: [Vec<[u8; 3]>; 4] = [
-        (0..bbox.x).rev().map(|x| rgb(frame, x, ay)).collect(),
-        (bbox.x1()..frame.width)
-            .map(|x| rgb(frame, x, ay))
-            .collect(),
-        (0..bbox.y).rev().map(|y| rgb(frame, ax, y)).collect(),
-        (bbox.y1()..frame.height)
-            .map(|y| rgb(frame, ax, y))
-            .collect(),
-    ];
-    let starts = [
-        (bbox.x.wrapping_sub(1), ay),
-        (bbox.x1(), ay),
-        (ax, bbox.y.wrapping_sub(1)),
-        (ax, bbox.y1()),
-    ];
-    let firsts: Vec<(usize, [u8; 3], u32)> = rays
-        .iter()
-        .enumerate()
-        .filter(|(_, ray)| !ray.is_empty())
-        .map(|(i, ray)| {
-            let (color, n) = run_at(ray, 0, tolerance);
-            (i, color, n)
-        })
-        .filter(|(_, c, _)| !near(*c, own, tolerance))
-        .collect();
-    let surfaces = firsts
-        .iter()
-        .filter(|(_, _, n)| *n > rim)
-        .map(|(_, c, _)| *c)
-        .collect();
-    // A border is short on every side, one color, and goes no further than the box: the lines
-    // of a table go on past a cell, so they are dividers.
-    let (x0, y0) = (bbox.x.saturating_sub(rim), bbox.y.saturating_sub(rim));
-    let (x1, y1) = (bbox.x1() + rim, bbox.y1() + rim);
-    let ring_px = 2 * rim as usize * (bbox.width + bbox.height + 2 * rim) as usize;
-    let stays = |&(i, color, _): &(usize, [u8; 3], u32)| {
-        let strip = flood(frame, starts[i], color, tolerance, ring_px + 1);
-        let s = strip.bbox;
-        !strip.capped && s.x >= x0 && s.y >= y0 && s.x1() <= x1 && s.y1() <= y1
-    };
-    let border = firsts
-        .first()
-        .map(|(_, c, _)| *c)
-        .filter(|_| firsts.len() == rays.iter().filter(|r| !r.is_empty()).count())
-        .filter(|c| {
-            firsts
-                .iter()
-                .all(|(_, o, n)| *n <= rim && near(*o, *c, tolerance))
-        })
-        .filter(|_| firsts.iter().all(stays));
-    let by = Surround {
-        own,
-        rim,
-        surfaces,
-        border,
-    };
-    let [left, right, up, down] = rays.map(|ray| reach(&ray, &by, tolerance));
-    Edges {
-        left,
-        right,
-        up,
-        down,
-    }
+    (colors, total)
 }
 
 /// The region's background: the most common color on its border.
@@ -814,8 +424,7 @@ fn background(frame: &RgbaFrame, r: PxBox) -> [u8; 3] {
         std::collections::HashMap::new();
     let mut add = |x: u32, y: u32| {
         let c = rgb(frame, x, y);
-        let key = (u32::from(c[0] >> 2) << 12) | (u32::from(c[1] >> 2) << 6) | u32::from(c[2] >> 2);
-        counts.entry(key).or_insert((0, c)).0 += 1;
+        counts.entry(shade(c)).or_insert((0, c)).0 += 1;
     };
     for x in r.x..r.x1() {
         add(x, r.y);
@@ -830,6 +439,757 @@ fn background(frame: &RgbaFrame, r: PxBox) -> [u8; 3] {
         .max_by_key(|(n, _)| *n)
         .map(|(_, c)| c)
         .unwrap_or([255, 255, 255])
+}
+
+/// `b` with `margin` px more on each side, inside the frame.
+fn window(frame: &RgbaFrame, b: PxBox, margin: u32) -> PxBox {
+    let (x, y) = (b.x.saturating_sub(margin), b.y.saturating_sub(margin));
+    PxBox {
+        x,
+        y,
+        width: (b.x1() + margin).min(frame.width) - x,
+        height: (b.y1() + margin).min(frame.height) - y,
+    }
+}
+
+/// A part of a window: the pixels off one background color that are joined to a seed, as region
+/// mode finds a part.
+struct Part {
+    /// The window, in frame px.
+    win: PxBox,
+    bg: [u8; 3],
+    /// How far off `bg` per channel the part's pixels are at least.
+    hi: u8,
+    /// The part's pixels, over the window.
+    on: Vec<bool>,
+    /// The box of `on`, in frame px.
+    bbox: PxBox,
+}
+
+impl Part {
+    fn index(&self, x: u32, y: u32) -> usize {
+        (y - self.win.y) as usize * self.win.width as usize + (x - self.win.x) as usize
+    }
+
+    /// The part's pixels, in frame px.
+    fn pixels(&self) -> impl Iterator<Item = (u32, u32)> + '_ {
+        let w = self.win.width as usize;
+        self.on
+            .iter()
+            .enumerate()
+            .filter(|(_, on)| **on)
+            .map(move |(i, _)| (self.win.x + (i % w) as u32, self.win.y + (i / w) as u32))
+    }
+}
+
+/// Which pixels of a window are clearly off a background color, judged once each as they are
+/// asked for (a part is often far smaller than its window).
+struct Judge<'a> {
+    frame: &'a RgbaFrame,
+    win: PxBox,
+    bg: [u8; 3],
+    hi: u8,
+    /// 0: not judged, 1: strong, 2: not.
+    judged: Vec<u8>,
+}
+
+impl Judge<'_> {
+    fn inside(&self, x: i64, y: i64) -> bool {
+        x >= 0 && y >= 0 && x < i64::from(self.win.width) && y < i64::from(self.win.height)
+    }
+
+    /// Whether a pixel of the window is more than `by` per channel off the background.
+    fn off(&self, x: i64, y: i64, by: u8) -> bool {
+        let c = rgb(self.frame, self.win.x + x as u32, self.win.y + y as u32);
+        !near(c, self.bg, by)
+    }
+
+    /// More than `hi` off the background. Past the window counts as strong.
+    fn strong(&mut self, x: i64, y: i64) -> bool {
+        if !self.inside(x, y) {
+            return true;
+        }
+        let i = (y * i64::from(self.win.width) + x) as usize;
+        if self.judged[i] == 0 {
+            self.judged[i] = if self.off(x, y, self.hi) { 1 } else { 2 };
+        }
+        self.judged[i] == 1
+    }
+
+    /// Strong, with eight strong neighbors.
+    fn core(&mut self, x: i64, y: i64) -> bool {
+        (-1..=1).all(|dy| (-1..=1).all(|dx| self.strong(x + dx, y + dy)))
+    }
+}
+
+/// The part of `win` that holds `seed` against the background `bg`, when it is closed: it ends
+/// inside the window, or at the image edge. `None` when the seed is background or the part
+/// goes on past the window.
+///
+/// Region mode joins every pixel more than 8 per channel off the background. A movie tints the
+/// background for a few px next to a saturated edge, and those specks would bridge a 2 px gap
+/// to the next part. So the part is joined only through pixels that are clearly off the
+/// background (half the contrast of `own`, the seed's color, from 8 to 24 per channel) and
+/// whose eight neighbors are too, and it takes in the pixels next to those. A part too thin to
+/// have such a pixel (a glyph, a line) is joined through its clear pixels, or failing that
+/// through every pixel off the background.
+fn part_at(
+    frame: &RgbaFrame,
+    win: PxBox,
+    bg: [u8; 3],
+    seed: (u32, u32),
+    own: [u8; 3],
+) -> Option<Part> {
+    if near(rgb(frame, seed.0, seed.1), bg, MASK_TOLERANCE) {
+        return None;
+    }
+    let hi = (contrast(own, bg) / 2).clamp(MASK_TOLERANCE, CLEAR);
+    let (w, h) = (i64::from(win.width), i64::from(win.height));
+    let n = (w * h) as usize;
+    let mut judge = Judge {
+        frame,
+        win,
+        bg,
+        hi,
+        judged: vec![0; n],
+    };
+    let (sx, sy) = (i64::from(seed.0 - win.x), i64::from(seed.1 - win.y));
+    // The core pixel to start from: the seed, or one within 2 px of it.
+    let mut start = None;
+    'search: for r in 0..=2 {
+        for y in (sy - r).max(0)..=(sy + r).min(h - 1) {
+            for x in (sx - r).max(0)..=(sx + r).min(w - 1) {
+                if judge.core(x, y) {
+                    start = Some((x, y));
+                    break 'search;
+                }
+            }
+        }
+    }
+    // A pixel on a side of the window that is not a side of the image: the part goes on.
+    let open = |x: i64, y: i64| {
+        (x == 0 && win.x > 0)
+            || (y == 0 && win.y > 0)
+            || (x == w - 1 && win.x1() < frame.width)
+            || (y == h - 1 && win.y1() < frame.height)
+    };
+    let index = |x: i64, y: i64| (y * w + x) as usize;
+    let mut on = vec![false; n];
+    let (mut x0, mut y0, mut x1, mut y1) = (i64::MAX, i64::MAX, -1, -1);
+    let mut stack: Vec<(i64, i64)> = Vec::new();
+    if let Some(start) = start {
+        let mut seen = vec![false; n];
+        seen[index(start.0, start.1)] = true;
+        stack.push(start);
+        while let Some((x, y)) = stack.pop() {
+            for dy in -1..=1 {
+                for dx in -1..=1 {
+                    let (nx, ny) = (x + dx, y + dy);
+                    if !judge.inside(nx, ny) {
+                        continue;
+                    }
+                    let i = index(nx, ny);
+                    if !on[i] {
+                        if open(nx, ny) {
+                            return None;
+                        }
+                        on[i] = true;
+                        (x0, y0, x1, y1) = (x0.min(nx), y0.min(ny), x1.max(nx), y1.max(ny));
+                    }
+                    if !seen[i] && judge.core(nx, ny) {
+                        seen[i] = true;
+                        stack.push((nx, ny));
+                    }
+                }
+            }
+        }
+    } else {
+        let by = if judge.strong(sx, sy) {
+            hi
+        } else {
+            MASK_TOLERANCE
+        };
+        on[index(sx, sy)] = true;
+        stack.push((sx, sy));
+        while let Some((x, y)) = stack.pop() {
+            if open(x, y) {
+                return None;
+            }
+            (x0, y0, x1, y1) = (x0.min(x), y0.min(y), x1.max(x), y1.max(y));
+            for dy in -1..=1 {
+                for dx in -1..=1 {
+                    let (nx, ny) = (x + dx, y + dy);
+                    if judge.inside(nx, ny) && !on[index(nx, ny)] && judge.off(nx, ny, by) {
+                        on[index(nx, ny)] = true;
+                        stack.push((nx, ny));
+                    }
+                }
+            }
+        }
+    }
+    Some(Part {
+        win,
+        bg,
+        hi,
+        on,
+        bbox: PxBox {
+            x: win.x + x0 as u32,
+            y: win.y + y0 as u32,
+            width: (x1 - x0 + 1) as u32,
+            height: (y1 - y0 + 1) as u32,
+        },
+    })
+}
+
+/// The closed part round `seed` against the first main border color of `win` that gives one.
+/// A color counts when it holds at least 1/8 of the border and is not the seed's own.
+fn closed_by(
+    frame: &RgbaFrame,
+    win: PxBox,
+    (colors, total): &(Vec<([u8; 3], usize)>, usize),
+    seed: (u32, u32),
+    own: [u8; 3],
+) -> Option<Part> {
+    colors
+        .iter()
+        .filter(|(c, n)| n * 8 >= *total && !near(own, *c, MASK_TOLERANCE))
+        .find_map(|(c, _)| part_at(frame, win, *c, seed, own))
+}
+
+/// The color of the surface at a pixel: the mean of the pixels within 2 px that are within 6
+/// per channel of it, so a movie's noise does not shift a fill's tolerance.
+fn settled(frame: &RgbaFrame, x: u32, y: u32) -> [u8; 3] {
+    let at = rgb(frame, x, y);
+    let around = window(
+        frame,
+        PxBox {
+            x,
+            y,
+            width: 1,
+            height: 1,
+        },
+        2,
+    );
+    let like = (around.y..around.y1())
+        .flat_map(|py| (around.x..around.x1()).map(move |px| (px, py)))
+        .map(|(px, py)| rgb(frame, px, py))
+        .filter(|c| near(*c, at, 6));
+    mean(like).unwrap_or(at)
+}
+
+/// Whether the pixels like `own` through `(x, y)` are at most `thin` px long along its row or
+/// its column: a line, or the stroke of a letter.
+fn thin_at(frame: &RgbaFrame, (x, y): (u32, u32), own: [u8; 3], thin: u32) -> bool {
+    let like = |px: i64, py: i64| {
+        px >= 0
+            && py >= 0
+            && px < i64::from(frame.width)
+            && py < i64::from(frame.height)
+            && near(rgb(frame, px as u32, py as u32), own, CLEAR)
+    };
+    let run = |dx: i64, dy: i64| -> usize {
+        1 + [-1i64, 1]
+            .iter()
+            .map(|s| {
+                (1..=i64::from(thin) + 1)
+                    .take_while(|k| like(i64::from(x) + s * k * dx, i64::from(y) + s * k * dy))
+                    .count()
+            })
+            .sum::<usize>()
+    };
+    run(1, 0).min(run(0, 1)) <= thin as usize
+}
+
+/// The surface beside a thin mark at `seed`, of the color `own`: the nearest pixel within 15 pt
+/// that is clearly not the mark's color and is not on something thin itself (a blurred edge
+/// pixel, the next letter, the hole of an "o"), and the color there.
+fn beside(
+    frame: &RgbaFrame,
+    seed: (u32, u32),
+    own: [u8; 3],
+    scale: &Scale,
+) -> Option<((u32, u32), [u8; 3])> {
+    let at = PxBox {
+        x: seed.0,
+        y: seed.1,
+        width: 1,
+        height: 1,
+    };
+    let win = window(frame, at, scale.small + scale.margin);
+    let mut others: Vec<(u64, u32, u32)> = (win.y..win.y1())
+        .flat_map(|y| (win.x..win.x1()).map(move |x| (x, y)))
+        .filter(|&(x, y)| !near(rgb(frame, x, y), own, CLEAR))
+        .map(|(x, y)| {
+            let d = u64::from(x.abs_diff(seed.0)).pow(2) + u64::from(y.abs_diff(seed.1)).pow(2);
+            (d, y, x)
+        })
+        .collect();
+    others.sort_unstable();
+    others.into_iter().find_map(|(_, y, x)| {
+        let color = settled(frame, x, y);
+        (!thin_at(frame, (x, y), color, scale.thin)).then_some(((x, y), color))
+    })
+}
+
+/// The pixels of a window that `free` holds and that are joined (4-connected) to its border.
+fn from_border(w: usize, h: usize, free: impl Fn(usize, usize) -> bool) -> Vec<bool> {
+    let mut out = vec![false; w * h];
+    let mut stack: Vec<(usize, usize)> = Vec::new();
+    let border = (0..w)
+        .flat_map(|x| [(x, 0), (x, h - 1)])
+        .chain((0..h).flat_map(|y| [(0, y), (w - 1, y)]));
+    for (x, y) in border {
+        if !out[y * w + x] && free(x, y) {
+            out[y * w + x] = true;
+            stack.push((x, y));
+        }
+    }
+    while let Some((x, y)) = stack.pop() {
+        let mut push = |nx: usize, ny: usize| {
+            if !out[ny * w + nx] && free(nx, ny) {
+                out[ny * w + nx] = true;
+                stack.push((nx, ny));
+            }
+        };
+        if x > 0 {
+            push(x - 1, y);
+        }
+        if x + 1 < w {
+            push(x + 1, y);
+        }
+        if y > 0 {
+            push(x, y - 1);
+        }
+        if y + 1 < h {
+            push(x, y + 1);
+        }
+    }
+    out
+}
+
+/// The pixel nearest `seed` on the surface round a mark: of the color `bg`, and joined through
+/// it to the border of `win`, so never shut inside the mark (the hole of an "o").
+fn surface_near(
+    frame: &RgbaFrame,
+    win: PxBox,
+    seed: (u32, u32),
+    bg: [u8; 3],
+) -> Option<(u32, u32)> {
+    let (w, h) = (win.width as usize, win.height as usize);
+    let surface = from_border(w, h, |x, y| {
+        near(
+            rgb(frame, win.x + x as u32, win.y + y as u32),
+            bg,
+            MASK_TOLERANCE,
+        )
+    });
+    (0..w * h)
+        .filter(|&i| surface[i])
+        .map(|i| (win.x + (i % w) as u32, win.y + (i / w) as u32))
+        .min_by_key(|&(x, y)| {
+            (
+                u64::from(x.abs_diff(seed.0)).pow(2) + u64::from(y.abs_diff(seed.1)).pow(2),
+                y,
+                x,
+            )
+        })
+}
+
+/// How many pixels of `b` a part covers, with the holes shut inside it (the digit of a count
+/// badge, the label of a button).
+fn covered(part: &Part, b: PxBox) -> usize {
+    let (w, h) = (part.win.width as usize, part.win.height as usize);
+    let outside = from_border(w, h, |x, y| !part.on[y * w + x]);
+    (b.y..b.y1())
+        .flat_map(|y| (b.x..b.x1()).map(move |x| (x, y)))
+        .filter(|&(x, y)| !outside[part.index(x, y)])
+        .count()
+}
+
+/// Whether a small part is a letter of a word: more clear pixels start within `join` px of it
+/// on its rows and go on past its box `b`.
+fn in_a_word(frame: &RgbaFrame, part: &Part, b: PxBox, join: u32) -> bool {
+    let (w, h) = (part.win.width as usize, part.win.height as usize);
+    let clear = |x: usize, y: usize| {
+        !near(
+            rgb(frame, part.win.x + x as u32, part.win.y + y as u32),
+            part.bg,
+            part.hi,
+        )
+    };
+    let mut seen = part.on.clone();
+    let mut stack: Vec<(usize, usize)> = (0..w * h)
+        .filter(|&i| seen[i])
+        .map(|i| (i % w, i / w))
+        .collect();
+    let (left, right) = ((b.x - part.win.x) as usize, (b.x1() - part.win.x) as usize);
+    let reach = join as usize + 1;
+    while let Some((x, y)) = stack.pop() {
+        // One px past the box is its blurred edge.
+        if x + 1 < left || x > right {
+            return true;
+        }
+        for ny in y.saturating_sub(1)..=(y + 1).min(h - 1) {
+            let r = if ny == y { reach } else { 1 };
+            for nx in x.saturating_sub(r)..=(x + r).min(w - 1) {
+                if !seen[ny * w + nx] && clear(nx, ny) {
+                    seen[ny * w + nx] = true;
+                    stack.push((nx, ny));
+                }
+            }
+        }
+    }
+    false
+}
+
+/// The box of a part's pixels that are nearer `own` than the part's background: its fill,
+/// without a border or a shadow round it.
+fn fill_box(frame: &RgbaFrame, part: &Part, own: [u8; 3]) -> Option<PxBox> {
+    let mut b: Option<(u32, u32, u32, u32)> = None;
+    for (x, y) in part.pixels() {
+        let c = rgb(frame, x, y);
+        if distance(c, own) < distance(c, part.bg) {
+            let (x0, y0, x1, y1) = b.unwrap_or((x, y, x, y));
+            b = Some((x0.min(x), y0.min(y), x1.max(x), y1.max(y)));
+        }
+    }
+    b.map(|(x0, y0, x1, y1)| PxBox {
+        x: x0,
+        y: y0,
+        width: x1 - x0 + 1,
+        height: y1 - y0 + 1,
+    })
+}
+
+/// The most common color of a part (of at most 65,536 of its pixels, evenly spread).
+fn main_color(frame: &RgbaFrame, part: &Part) -> Option<[u8; 3]> {
+    let count = part.on.iter().filter(|on| **on).count();
+    let colors: Vec<[u8; 3]> = part
+        .pixels()
+        .step_by((count >> 16).max(1))
+        .map(|(x, y)| rgb(frame, x, y))
+        .collect();
+    commonest(&colors).map(|(c, _)| c)
+}
+
+/// What point mode says about its box.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Note {
+    /// The point was on a mark, and the box is the surface round it.
+    OnMark,
+    /// The box is a small part under the point.
+    SmallPart,
+    /// The box is a glyph or a line: no surface was found round it.
+    Mark,
+    /// Lines bound the box, with its own color past them.
+    Lines,
+    /// More than one color bounds the box, so its edges follow its own color.
+    Mixed,
+    /// The point's pixel is not the box's main color.
+    OffFill,
+    /// The box holds more than its fill, which is this wide and tall (px).
+    Rim(u32, u32),
+    /// The box's part covers under 0.65 of it.
+    NotSolid,
+    /// No box: the fill hit its cap.
+    Page,
+    /// No box: a thin line with no surface found round it.
+    Thin,
+    /// The box touches the image edge.
+    ImageEdge,
+}
+
+impl Note {
+    fn says(self, ppp: Option<f64>) -> String {
+        match self {
+            Note::OnMark => "the point was on text, a glyph or a thin line: this is the surface \
+                             around it"
+                .into(),
+            Note::SmallPart => "this is a small part under the point (a dot, a badge, an icon, \
+                                or text whose letters run together): put the point next to it \
+                                for the surface it sits on"
+                .into(),
+            Note::Mark => "the box is a glyph or a thin line, not a component: put the point \
+                           on the component's fill"
+                .into(),
+            Note::Lines => "the box ends at lines, with its own color past them (a list row, a \
+                            table cell, an outlined card): a faint line lets it run on, so \
+                            check it against the image"
+                .into(),
+            Note::Mixed => "more than one color borders this box, so its edges follow its own \
+                            color: a gradient fill gives only a part of it, and a faint edge \
+                            can be 2 px off. Check it with --region"
+                .into(),
+            Note::OffFill => "the point is on text, an icon or a line inside this box, not on \
+                              its fill"
+                .into(),
+            Note::Rim(w, h) => {
+                let fill = match ppp {
+                    Some(p) => format!(
+                        "{}×{} pt ({w}×{h} px)",
+                        num(half(f64::from(w) / p)),
+                        num(half(f64::from(h) / p))
+                    ),
+                    None => format!("{w}×{h} px"),
+                };
+                format!(
+                    "the box includes a border, a shadow or a part against its fill: the fill \
+                     alone is {fill}"
+                )
+            }
+            Note::NotSolid => "the box is not a solid shape (a large letter, an icon, or a \
+                               color that wraps round other parts): check it against the image"
+                .into(),
+            Note::Page => "no box: the point is on the page background, whose color covers \
+                           over half the image. Use --region for the parts on it"
+                .into(),
+            Note::Thin => "no box: the point is on text or a thin line and no surface was \
+                           found around it. Put the point on a fill"
+                .into(),
+            Note::ImageEdge => "the box touches the image edge: it may run past it".into(),
+        }
+    }
+}
+
+/// Point mode's sizes in px, from px per pt.
+struct Scale {
+    /// A part under this on both sides is small: a dot, a glyph or a hole (12 pt).
+    small: u32,
+    /// How far a window reaches past what it holds (3 pt, at least 6 px).
+    margin: u32,
+    /// Letters this close on a row are one word (1.5 pt, as in region mode).
+    join: u32,
+    /// A run up to this long is a line or a stroke (1.5 pt, at least 3 px).
+    thin: u32,
+    /// A dot's short side is at least this (2.5 pt, at least 3 px).
+    least: u32,
+}
+
+impl Scale {
+    fn of(ppp: f64) -> Self {
+        let px = |pt: f64| (pt * ppp).round() as u32;
+        Scale {
+            small: px(2.0 * MIN_SIDE_PT),
+            margin: px(3.0).max(6),
+            join: px(JOIN_PT).max(1),
+            thin: px(1.5).max(3),
+            least: px(2.5).max(3),
+        }
+    }
+
+    fn is_small(&self, b: PxBox) -> bool {
+        b.width < self.small && b.height < self.small
+    }
+
+    /// Under `small` on one side: a word is, and so is a pill or a bar.
+    fn is_short(&self, b: PxBox) -> bool {
+        b.width.min(b.height) < self.small
+    }
+
+    /// Under `small` on one side and twice that on the other: the hole of a large letter is
+    /// no larger, and a checkbox is.
+    fn can_be_a_hole(&self, b: PxBox) -> bool {
+        self.is_short(b) && b.width.max(b.height) < 2 * self.small
+    }
+}
+
+/// What a point is on.
+enum Found {
+    /// A part that one color round it closes, and its box.
+    Part(Part, PxBox),
+    /// A fill that lines bound: past them its own color goes on.
+    Lines { bbox: PxBox },
+    /// A fill with more than one color round it.
+    Mixed {
+        bbox: PxBox,
+        win: PxBox,
+        bg: [u8; 3],
+    },
+    /// A thin line or stroke.
+    Line,
+    /// The fill hit its cap.
+    Page,
+}
+
+/// What `seed`, of the color `own`, is on.
+///
+/// First a window 15 pt round the seed: a color on its border that closes a part round the
+/// seed gives a small part (a dot, a badge, a glyph on a button), whatever a movie did to its
+/// shades. Else a thin run of the seed's color is a line. Else a flood fill gives a first guess
+/// of the size, and the same test on a window round it gives the part: the box region mode
+/// gives. When the fill's own color is the main color round it, lines bound it and the fill is
+/// the box. When no one color closes it, the fill is the box too.
+fn find(frame: &RgbaFrame, seed: (u32, u32), own: [u8; 3], scale: &Scale, cap: usize) -> Found {
+    let at = PxBox {
+        x: seed.0,
+        y: seed.1,
+        width: 1,
+        height: 1,
+    };
+    let near_win = window(frame, at, scale.small + scale.margin);
+    let colors = border_colors(frame, near_win);
+    // A closed part too large to be small still tells the next window what to hold.
+    let mut hold = None;
+    if let Some(part) = closed_by(frame, near_win, &colors, seed, own) {
+        let b = trimmed(frame, part.bbox, part.bg, MASK_TOLERANCE, true);
+        if scale.is_small(b) {
+            return Found::Part(part, b);
+        }
+        hold = Some(part.bbox);
+    }
+    // A thin run of a color that is not the main one round it: a line, the stroke of a letter.
+    let around = colors.0.first().map_or(own, |(c, _)| *c);
+    if hold.is_none() && !near(own, around, MASK_TOLERANCE) && thin_at(frame, seed, own, scale.thin)
+    {
+        return Found::Line;
+    }
+    let fill = flood(frame, seed, own, FILL_TOLERANCE, cap);
+    if fill.capped {
+        return Found::Page;
+    }
+    let mut held = fill.bbox;
+    if let Some(b) = hold {
+        let (x, y) = (held.x.min(b.x), held.y.min(b.y));
+        held = PxBox {
+            x,
+            y,
+            width: held.x1().max(b.x1()) - x,
+            height: held.y1().max(b.y1()) - y,
+        };
+    }
+    let win = window(frame, held, scale.margin);
+    let colors = border_colors(frame, win);
+    let around = colors.0.first().map_or(own, |(c, _)| *c);
+    if near(fill.color, around, MASK_TOLERANCE) {
+        return Found::Lines {
+            bbox: blurred_box(frame, &fill),
+        };
+    }
+    match closed_by(frame, win, &colors, seed, fill.color) {
+        Some(part) => {
+            let b = trimmed(frame, part.bbox, part.bg, MASK_TOLERANCE, true);
+            Found::Part(part, b)
+        }
+        None => Found::Mixed {
+            bbox: blurred_box(frame, &fill),
+            win,
+            bg: around,
+        },
+    }
+}
+
+/// The box that holds a point, and what to know about it.
+#[derive(Clone, Debug, PartialEq)]
+pub struct Pointed {
+    pub bbox: Option<PxBox>,
+    pub notes: Vec<Note>,
+}
+
+/// The box that holds `(x, y)`, at `ppp` px per pt.
+///
+/// A small part under the point (a dot, a badge) is the box. A point on a mark steps out to
+/// the surface round it, at most three times: a thin line or stroke, a small part that is no
+/// solid shape or that is a letter of a word, and the hole of a letter (`hole_exit`).
+pub fn box_at(frame: &RgbaFrame, x: u32, y: u32, ppp: f64) -> Pointed {
+    let (x, y) = (x.min(frame.width - 1), y.min(frame.height - 1));
+    let scale = Scale::of(ppp);
+    let cap = ((f64::from(frame.width) * f64::from(frame.height) * FILL_CAP) as usize).max(1);
+    let under = rgb(frame, x, y);
+    let (mut seed, mut own) = ((x, y), settled(frame, x, y));
+    let mut notes = Vec::new();
+    let (mut steps, mut small_part, mut mark) = (0, false, false);
+    let found = loop {
+        let found = find(frame, seed, own, &scale, cap);
+        let onto = |win: PxBox, bg: [u8; 3]| surface_near(frame, win, seed, bg).map(|s| (s, bg));
+        let step = match &found {
+            Found::Line => beside(frame, seed, own, &scale),
+            Found::Part(part, b) if scale.is_short(*b) => {
+                // A solid shape of its own: a dot, a badge, a pill. A letter is not solid, or
+                // is one of a word, and the stem of an "l" is not roughly round or square.
+                let solid = b.width.min(b.height) >= scale.least
+                    && (!scale.is_small(*b)
+                        || (b.width <= 2 * b.height && b.height <= 2 * b.width))
+                    && covered(part, *b) as u64 * 20 >= b.area() * 13
+                    && !in_a_word(frame, part, *b, scale.join);
+                let hole = scale
+                    .can_be_a_hole(*b)
+                    .then(|| hole_exit(frame, *b, own, scale.small))
+                    .flatten();
+                small_part = hole.is_none() && solid;
+                mark = hole.is_none() && !solid;
+                match hole {
+                    Some(exit) => Some(exit),
+                    None if solid => None,
+                    None => onto(part.win, part.bg),
+                }
+            }
+            Found::Part(_, b) | Found::Lines { bbox: b } if scale.can_be_a_hole(*b) => {
+                hole_exit(frame, *b, own, scale.small)
+            }
+            Found::Mixed { bbox, win, bg } if scale.is_small(*bbox) => onto(*win, *bg),
+            _ => None,
+        };
+        match step {
+            Some((next, color)) if steps < 3 => {
+                (seed, own, steps) = (next, color, steps + 1);
+                (small_part, mark) = (false, false);
+            }
+            _ => break found,
+        }
+    };
+    if steps > 0 {
+        notes.push(Note::OnMark);
+    }
+    let bbox = match &found {
+        Found::Page => {
+            notes.push(Note::Page);
+            None
+        }
+        Found::Line => {
+            notes.push(Note::Thin);
+            None
+        }
+        Found::Lines { bbox } => {
+            notes.push(Note::Lines);
+            Some(*bbox)
+        }
+        Found::Mixed { bbox, .. } => {
+            notes.push(Note::Mixed);
+            Some(*bbox)
+        }
+        Found::Part(_, b) if small_part => {
+            notes.push(Note::SmallPart);
+            Some(*b)
+        }
+        Found::Part(_, b) if mark => {
+            notes.push(Note::Mark);
+            Some(*b)
+        }
+        Found::Part(part, b) => {
+            let main = main_color(frame, part).unwrap_or(own);
+            if steps == 0 && !near(under, main, CLEAR) {
+                notes.push(Note::OffFill);
+            } else if near(own, main, CLEAR)
+                && let Some(fill) = fill_box(frame, part, own)
+                && (fill.x > b.x + 1
+                    || fill.y > b.y + 1
+                    || fill.x1() + 1 < b.x1()
+                    || fill.y1() + 1 < b.y1())
+            {
+                notes.push(Note::Rim(fill.width, fill.height));
+            }
+            if (covered(part, *b) as u64) * 20 < b.area() * 13 {
+                notes.push(Note::NotSolid);
+            }
+            Some(*b)
+        }
+    };
+    if let Some(b) = bbox
+        && (b.x == 0 || b.y == 0 || b.x1() == frame.width || b.y1() == frame.height)
+    {
+        notes.push(Note::ImageEdge);
+    }
+    Pointed { bbox, notes }
 }
 
 /// The parts of a region.
@@ -875,9 +1235,13 @@ fn top_level(mut parts: Vec<PxBox>, region: PxBox) -> Vec<PxBox> {
 /// A part's box without the background's side of its blurred edges, which the mask takes in
 /// with the part: H.264 tints the background for up to 3 px next to a saturated edge. Each side
 /// gives up to 3 lines while most of a line's pixels off the background lean to the background
-/// rather than to the part's color 4 px further in (a line with none goes too). The mirror of
-/// `blurred_box`, so both modes put an edge midway between the two colors.
-fn trimmed(frame: &RgbaFrame, mut b: PxBox, bg: [u8; 3], tolerance: u8) -> PxBox {
+/// rather than to the part's color 4 px further in (a line with none goes too). With `round`,
+/// a line with 2 pixels that do not lean to the background stays: the end line of a circle is
+/// a few of its pixels between blurred ones. Point mode sets it for every part, whose box
+/// holds no tinted specks (`part_at`). Region mode sets it for a box small enough to be a dot
+/// or a badge: on a longer edge its mask takes in tinted lines that hold a few such pixels.
+/// Both modes use this, so both put an edge midway between the two colors.
+fn trimmed(frame: &RgbaFrame, mut b: PxBox, bg: [u8; 3], tolerance: u8, round: bool) -> PxBox {
     const INNER: u32 = 2 * BLUR_PX;
     // Whether a line goes: each entry is a pixel and the one `INNER` px further in.
     let goes = |line: &mut dyn Iterator<Item = [(u32, u32); 2]>| -> Option<bool> {
@@ -890,7 +1254,7 @@ fn trimmed(frame: &RgbaFrame, mut b: PxBox, bg: [u8; 3], tolerance: u8) -> PxBox
             }
         }
         // `Some(true)` for a line of blur, `None` for an empty one.
-        (on > 0).then_some(weak * 2 > on)
+        (on > 0).then_some(weak * 2 > on && !(round && on - weak >= 2))
     };
     for side in 0..4 {
         let mut blurred = 0;
@@ -921,6 +1285,60 @@ fn trimmed(frame: &RgbaFrame, mut b: PxBox, bg: [u8; 3], tolerance: u8) -> PxBox
     b
 }
 
+/// Takes the specks a movie leaves on a plain background out of a region's mask: a group of
+/// joined pixels (8-connected) under `min_side` px on both sides in which no pixel is more than
+/// twice `tolerance` off the background. H.264 tints a few pixels up to a block away from a
+/// saturated edge, and the join along a row would make them part of the box.
+fn drop_specks(
+    frame: &RgbaFrame,
+    region: PxBox,
+    bg: [u8; 3],
+    tolerance: u8,
+    min_side: u32,
+    mask: &mut [bool],
+) {
+    let (rw, rh) = (region.width as usize, region.height as usize);
+    let clear = |i: usize| {
+        let (x, y) = (region.x + (i % rw) as u32, region.y + (i / rw) as u32);
+        !near(rgb(frame, x, y), bg, tolerance.saturating_mul(2))
+    };
+    let mut seen = vec![false; rw * rh];
+    let mut group: Vec<usize> = Vec::new();
+    for start in 0..rw * rh {
+        if !mask[start] || seen[start] {
+            continue;
+        }
+        seen[start] = true;
+        group.clear();
+        group.push(start);
+        let (mut x0, mut y0, mut x1, mut y1) = (usize::MAX, usize::MAX, 0, 0);
+        let mut faint = true;
+        let mut next = 0;
+        while next < group.len() {
+            let i = group[next];
+            next += 1;
+            let (x, y) = (i % rw, i / rw);
+            (x0, y0, x1, y1) = (x0.min(x), y0.min(y), x1.max(x), y1.max(y));
+            faint &= !clear(i);
+            for ny in y.saturating_sub(1)..=(y + 1).min(rh - 1) {
+                for nx in x.saturating_sub(1)..=(x + 1).min(rw - 1) {
+                    let n = ny * rw + nx;
+                    if mask[n] && !seen[n] {
+                        seen[n] = true;
+                        group.push(n);
+                    }
+                }
+            }
+        }
+        let small = ((x1 - x0 + 1) as u32) < min_side && ((y1 - y0 + 1) as u32) < min_side;
+        if faint && small {
+            for &i in &group {
+                mask[i] = false;
+            }
+        }
+    }
+}
+
 /// The top-level parts inside `region` (in frame px): pixels off the region's background,
 /// 8-connected and also joined across up to `join` background px along a row, without parts
 /// inside another, parts under `min_side` px on either side, and beyond the `max` largest.
@@ -945,6 +1363,7 @@ pub fn boxes_in(
             );
         }
     }
+    drop_specks(frame, region, bg, tolerance, min_side, &mut mask);
     let mut parts: Vec<PxBox> = Vec::new();
     let mut small = 0usize;
     let mut stack: Vec<(usize, usize)> = Vec::new();
@@ -977,7 +1396,9 @@ pub fn boxes_in(
             width: (x1 - x0 + 1) as u32,
             height: (y1 - y0 + 1) as u32,
         };
-        let b = trimmed(frame, b, bg, tolerance);
+        // Under twice the smallest side on both sides: as small as point mode's small part.
+        let round = b.width < 2 * min_side && b.height < 2 * min_side;
+        let b = trimmed(frame, b, bg, tolerance, round);
         if b.width >= min_side && b.height >= min_side {
             parts.push(b);
         } else {
@@ -1308,16 +1729,6 @@ pub struct Measured {
 }
 
 #[derive(Clone, Debug, PartialEq, Serialize)]
-#[serde(rename_all = "camelCase")]
-pub struct EdgeReport {
-    pub px: [u32; 4],
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub pt: Option<[f64; 4]>,
-    /// The sides (`left`, `right`, `up`, `down`) whose ray ran to the image edge.
-    pub image_edge: Vec<&'static str>,
-}
-
-#[derive(Clone, Debug, PartialEq, Serialize)]
 pub struct GapReport {
     pub from: usize,
     pub to: usize,
@@ -1335,10 +1746,10 @@ pub struct Measurement {
     pub px_per_pt: Option<f64>,
     /// The measured image's size in px.
     pub image: [u32; 2],
+    /// Point mode: the box that holds the point. Left out when there is none (the point is on
+    /// the page background), and `warnings` says why.
     #[serde(rename = "box", skip_serializing_if = "Option::is_none")]
     pub component: Option<Measured>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub to_edges: Option<EdgeReport>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub boxes: Option<Vec<Measured>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -1390,7 +1801,6 @@ pub fn measure_picture(
         px_per_pt: space.ppp.map(|p| (p * 100.0).round() / 100.0),
         image: [w, h],
         component: None,
-        to_edges: None,
         boxes: None,
         gaps: None,
         warnings: Vec::new(),
@@ -1399,46 +1809,9 @@ pub fn measure_picture(
         Query::At(fx, fy) => {
             let (x, y) = to_px(&picture, crop, fx, fy);
             let (x, y) = (clamp_px(x, w), clamp_px(y, h));
-            let radius = (2.0 * ppp).round().clamp(3.0, 8.0) as u32;
-            let cap = ((f64::from(w) * f64::from(h) * FILL_CAP) as usize).max(1);
-            let min_side = (2.0 * MIN_SIDE_PT * ppp).round() as u32;
-            let (fill, stepped) = component_at(img, x, y, radius, min_side, cap);
-            if stepped {
-                warnings.push(
-                    "the point was on text or a thin line: this is the surface around it".into(),
-                );
-            }
-            if is_mark(img, &fill, min_side) {
-                warnings.push(
-                    "the box is a glyph or a thin line, not a component: put the point on the \
-                     component's fill"
-                        .into(),
-                );
-            }
-            if fill.capped {
-                warnings.push(
-                    "the fill stopped at half the image: the point is likely on the page \
-                     background, and the box is only part of it"
-                        .into(),
-                );
-            } else if fill.touches_border {
-                warnings.push("the box touches the image edge: it may run past it".into());
-            }
-            let bbox = blurred_box(img, &fill);
-            let rim = RIM_PX.max(ppp.ceil() as u32);
-            let edges = edges_around(img, bbox, fill.seed, fill.color, rim, FILL_TOLERANCE);
-            let sides = [edges.left, edges.right, edges.up, edges.down];
-            out.component = Some(measured(bbox, space, None));
-            out.to_edges = Some(EdgeReport {
-                px: sides.map(|s| s.px),
-                pt: space.ppp.map(|p| sides.map(|s| half(f64::from(s.px) / p))),
-                image_edge: ["left", "right", "up", "down"]
-                    .into_iter()
-                    .zip(sides)
-                    .filter(|(_, s)| s.image_edge)
-                    .map(|(n, _)| n)
-                    .collect(),
-            });
+            let pointed = box_at(img, x, y, ppp);
+            warnings.extend(pointed.notes.iter().map(|note| note.says(space.ppp)));
+            out.component = pointed.bbox.map(|b| measured(b, space, None));
         }
         Query::Region(r) => {
             let (x0, y0) = to_px(&picture, crop, r[0], r[1]);
@@ -1474,6 +1847,25 @@ pub fn measure_picture(
                     "{} smaller boxes left out (the {MAX_BOXES} largest are shown): draw a \
                      tighter region",
                     all.len() - boxes.len()
+                ));
+            }
+            // A box on the region's edge is cut there, unless it ends exactly on it.
+            let cut: Vec<String> = boxes
+                .iter()
+                .enumerate()
+                .filter(|(_, b)| {
+                    b.x == region.x
+                        || b.y == region.y
+                        || b.x1() == region.x1()
+                        || b.y1() == region.y1()
+                })
+                .map(|(i, _)| (i + 1).to_string())
+                .collect();
+            if !cut.is_empty() {
+                warnings.push(format!(
+                    "box {} touches the region edge and may be cut off there: draw a wider \
+                     region",
+                    cut.join(", ")
                 ));
             }
             let gaps = kept_gaps(&all, &boxes);
@@ -1570,22 +1962,11 @@ pub fn render_text(m: &Measurement) -> String {
         )),
         m.source.says()
     );
-    if let (Some(b), Some(e)) = (&m.component, &m.to_edges) {
+    if let Some(b) = &m.component {
         out.push_str(&format!("  box {}\n", size(b)));
-        let names = ["left", "right", "up", "down"];
-        let unit = if e.pt.is_some() { "pt" } else { "px" };
-        let parts: Vec<String> = (0..4)
-            .map(|i| {
-                let v = e.pt.map_or(f64::from(e.px[i]), |p| p[i]);
-                let edge = if e.image_edge.contains(&names[i]) {
-                    " (image edge)"
-                } else {
-                    ""
-                };
-                format!("{} {}{edge}", names[i], num(v))
-            })
-            .collect();
-        out.push_str(&format!("  to edges: {} {unit}\n", parts.join(" · ")));
+        out.push_str(
+            "  gaps: a point gives none. Use --region around this box and its neighbors\n",
+        );
     }
     if let Some(boxes) = &m.boxes {
         for b in boxes {
@@ -1677,12 +2058,6 @@ mod tests {
         kept_gaps(boxes, boxes)
     }
 
-    /// The edges of a fill's box as point mode reads them at 2 px per pt.
-    fn edges(f: &RgbaFrame, fill: &Fill) -> Edges {
-        let bbox = blurred_box(f, fill);
-        edges_around(f, bbox, fill.seed, fill.color, RIM_PX, FILL_TOLERANCE)
-    }
-
     fn picture(frame: RgbaFrame, source: Source, rect: Rect) -> Picture {
         Picture {
             frame,
@@ -1692,25 +2067,25 @@ mod tests {
         }
     }
 
+    /// The box that holds a point of `f` at 2 px per pt.
+    fn at(f: &RgbaFrame, x: u32, y: u32) -> Pointed {
+        box_at(f, x, y, 2.0)
+    }
+
     #[test]
     fn a_point_in_a_card_measures_the_card_even_off_or_next_to_text() {
         let f = cards(1200, 800);
         // The centre, 3 px off it, just under a line of text, just left of the text and 2 px
-        // past the end of a line (its window still holds some text).
+        // past the end of a line.
         for (x, y) in [(480, 440), (483, 437), (300, 316), (215, 300), (428, 330)] {
-            let fill = fill_at(&f, x, y, 4, FILL_TOLERANCE, 480_000);
-            assert_box(fill.bbox, 192, 280, 320, 184);
-            assert!(!fill.capped && !fill.touches_border);
+            let p = at(&f, x, y);
+            assert_box(p.bbox.unwrap(), 192, 280, 320, 184);
+            assert_eq!(p.notes, [], "{x},{y}");
         }
-        let fill = fill_at(&f, 480, 440, 4, FILL_TOLERANCE, 480_000);
-        let e = edges(&f, &fill);
-        // Left to the image edge, right across the 40 px gap to the next card.
-        assert!(close(e.left.px, 192) && e.left.image_edge);
-        assert!(close(e.right.px, 40) && !e.right.image_edge);
-        assert!(close(e.up.px, 280) && e.up.image_edge);
     }
 
-    /// A point on a button's label, even right on a glyph or a stray pixel, measures the button.
+    /// A point on a button's label, even right on a glyph or a stray pixel, measures the
+    /// button and says so.
     #[test]
     fn a_point_on_a_label_measures_the_button_around_it() {
         const BLUE: [u8; 3] = [0x25, 0x63, 0xEB];
@@ -1725,67 +2100,104 @@ mod tests {
         }
         // One stray pixel of another color, as a video frame has in antialiased text.
         rect(&mut f, 400, 216, 1, 1, [0x90, 0xB0, 0xF0]);
-        let cap = 800 * 400 / 2;
-        // 24 px: 12 pt at 2 px per pt.
-        // On a glyph's stroke (radius 1 seeds on the glyph), and on the stray pixel (radius 0
-        // seeds on it, as noisy video can when every color near the point differs).
-        for (x, y, radius) in [(330, 202, 1), (400, 216, 0)] {
-            let (fill, stepped) = component_at(&f, x, y, radius, 24, cap);
-            assert!(stepped, "{x},{y}");
-            assert_eq!(fill.color, BLUE);
-            assert_box(fill.bbox, 300, 180, 188, 44);
-        }
-        // A point on the fill measures the button without stepping.
-        let (fill, stepped) = component_at(&f, 310, 185, 3, 24, cap);
-        assert!(!stepped);
-        assert_box(fill.bbox, 300, 180, 188, 44);
-        // A small solid part (a 14 px icon, 7 pt) is a component, not a mark.
-        rect(&mut f, 600, 100, 14, 14, BLUE);
-        let (fill, stepped) = component_at(&f, 605, 105, 1, 24, cap);
-        assert!(!stepped);
-        assert_box(fill.bbox, 600, 100, 14, 14);
-        // A solid 3×5 px piece of a dark letter on the button is a mark.
+        // A solid 3×5 px piece of a dark letter on the button.
         rect(&mut f, 460, 200, 3, 5, [0x10, 0x20, 0x40]);
-        let (fill, stepped) = component_at(&f, 461, 202, 1, 24, cap);
-        assert!(stepped);
-        assert_box(fill.bbox, 300, 180, 188, 44);
+        // On a glyph's stroke, on the stray pixel, in a glyph's hole and on the dark piece.
+        for (x, y) in [(330, 202), (400, 216), (334, 202), (461, 202)] {
+            let p = at(&f, x, y);
+            assert_eq!(p.notes, [Note::OnMark], "{x},{y}");
+            assert_box(p.bbox.unwrap(), 300, 180, 188, 44);
+        }
+        // A point on the fill measures the button with nothing to say.
+        let p = at(&f, 310, 185);
+        assert_eq!(p.notes, []);
+        assert_box(p.bbox.unwrap(), 300, 180, 188, 44);
+        // A small solid part (a 14 px icon, 7 pt) is the box, and the output says it is small.
+        rect(&mut f, 600, 100, 14, 14, BLUE);
+        let p = at(&f, 605, 105);
+        assert_eq!(p.notes, [Note::SmallPart]);
+        assert_eq!(
+            p.bbox.unwrap(),
+            PxBox {
+                x: 600,
+                y: 100,
+                width: 14,
+                height: 14
+            }
+        );
     }
 
-    /// A card with a 2 px border reads its distance to the next card, not 1 px to its own border.
+    /// A card with a border on a page of another color: a point and a region give the same
+    /// box, with the border, and the point says how large the fill alone is.
     #[test]
-    fn a_bordered_card_reads_the_gap_past_its_border() {
+    fn a_point_and_a_region_give_a_bordered_card_with_its_border() {
         const BORDER: [u8; 3] = [0xD0, 0xD0, 0xD0];
         let mut f = canvas(800, 400, BG);
         for x in [100, 330] {
             rect(&mut f, x, 100, 200, 100, BORDER);
             rect(&mut f, x + 2, 102, 196, 96, CARD);
         }
-        let fill = fill_at(&f, 200, 150, 4, FILL_TOLERANCE, 800 * 400 / 2);
-        assert_box(fill.bbox, 102, 102, 196, 96);
-        let e = edges(&f, &fill);
-        // 2 px of border, then the 30 px gap to the next card's border.
-        assert!(close(e.right.px, 32), "{:?}", e.right);
-        assert!(!e.right.image_edge);
+        let card = PxBox {
+            x: 100,
+            y: 100,
+            width: 200,
+            height: 100,
+        };
+        let p = at(&f, 200, 150);
+        assert_eq!(p.bbox, Some(card));
+        assert_eq!(p.notes, [Note::Rim(196, 96)]);
+        assert!(
+            Note::Rim(196, 96)
+                .says(Some(2.0))
+                .ends_with("the fill alone is 98×48 pt (196×96 px)")
+        );
+        // On the border itself: the same box, from the fill beside the line.
+        let p = at(&f, 101, 150);
+        assert_eq!(
+            (p.bbox, p.notes),
+            (Some(card), vec![Note::OnMark, Note::Rim(196, 96)])
+        );
+        let region = PxBox {
+            x: 50,
+            y: 50,
+            width: 530,
+            height: 200,
+        };
+        let parts = boxes_in(&f, region, MASK_TOLERANCE, 3, 12, MAX_BOXES);
+        assert_eq!(parts.kept[0], card);
+        assert_eq!(nearest_gaps(&parts.kept)[0].px, 30);
     }
 
-    /// A line between two rows of one color is a divider: the reach is its width, not the next
-    /// row. A line all round a card is its border: the reach goes on to the next card.
+    /// Lines bound a list row, a table cell and an outlined card on a page of its own color:
+    /// the box is the fill between the lines, and the output says lines bound it. A point on
+    /// a line measures a surface next to it.
     #[test]
-    fn a_divider_reads_its_width_and_a_border_reads_the_gap_past_it() {
+    fn a_fill_between_lines_is_the_box_and_says_so() {
         const LINE: [u8; 3] = [0xE0, 0xE0, 0xE0];
-        let cap = 800 * 600 / 2;
+        let b = |x, y, width, height| PxBox {
+            x,
+            y,
+            width,
+            height,
+        };
         // Three white rows 88 px tall, split by 2 px lines, on the page.
         let mut f = canvas(800, 600, BG);
         rect(&mut f, 100, 100, 600, 268, CARD);
         for y in [188, 278] {
             rect(&mut f, 100, y, 600, 2, LINE);
         }
-        let fill = fill_at(&f, 400, 230, 4, FILL_TOLERANCE, cap);
-        assert_box(fill.bbox, 100, 190, 600, 88);
-        let e = edges(&f, &fill);
-        assert_eq!((e.up.px, e.down.px), (2, 2), "{e:?}");
-        assert!(e.left.px == 100 && e.left.image_edge);
-        // A cell of a table: lines on all four sides that go on past the cell.
+        let p = at(&f, 400, 230);
+        assert_eq!(
+            (p.bbox, p.notes),
+            (Some(b(100, 190, 600, 88)), vec![Note::Lines])
+        );
+        // On the divider: the row nearest the point.
+        let p = at(&f, 400, 189);
+        assert_eq!(
+            (p.bbox, p.notes),
+            (Some(b(100, 190, 600, 88)), vec![Note::OnMark, Note::Lines])
+        );
+        // A cell of a table.
         let mut f = canvas(800, 600, CARD);
         for x in [100, 302, 504, 706] {
             rect(&mut f, x, 100, 2, 400, LINE);
@@ -1793,45 +2205,66 @@ mod tests {
         for y in [100, 232, 364, 498] {
             rect(&mut f, 100, y, 608, 2, LINE);
         }
-        let fill = fill_at(&f, 400, 300, 4, FILL_TOLERANCE, cap);
-        assert_box(fill.bbox, 304, 234, 200, 130);
-        let e = edges(&f, &fill);
-        assert_eq!([e.left.px, e.right.px, e.up.px, e.down.px], [2; 4]);
-        // Two outlined cards on a page of their own color: 2 px of border, then the 30 px gap.
+        let p = at(&f, 400, 300);
+        assert_eq!(
+            (p.bbox, p.notes),
+            (Some(b(304, 234, 200, 130)), vec![Note::Lines])
+        );
+        // An outlined card on a page of its own color: the fill inside the outline. A 16 pt
+        // checkbox is one too, not the hole of a letter.
         let mut f = canvas(800, 400, CARD);
-        for x in [100, 330] {
-            rect(&mut f, x, 100, 200, 100, LINE);
-            rect(&mut f, x + 2, 102, 196, 96, CARD);
+        rect(&mut f, 100, 100, 200, 100, LINE);
+        rect(&mut f, 102, 102, 196, 96, CARD);
+        rect(&mut f, 400, 100, 32, 32, LINE);
+        rect(&mut f, 402, 102, 28, 28, CARD);
+        for (x, y, fill) in [
+            (200, 150, b(102, 102, 196, 96)),
+            (416, 116, b(402, 102, 28, 28)),
+        ] {
+            let p = at(&f, x, y);
+            assert_eq!((p.bbox, p.notes), (Some(fill), vec![Note::Lines]));
         }
-        let fill = fill_at(&f, 200, 150, 4, FILL_TOLERANCE, cap);
-        assert_box(fill.bbox, 102, 102, 196, 96);
-        assert_eq!(edges(&f, &fill).right.px, 32);
-        // A 3 px border (1 pt at 3 px per pt) before a 30 px gap.
-        let mut f = canvas(900, 400, BG);
-        for x in [100, 430] {
-            rect(&mut f, x, 100, 300, 150, LINE);
-            rect(&mut f, x + 3, 103, 294, 144, CARD);
-        }
-        let fill = fill_at(&f, 250, 175, 6, FILL_TOLERANCE, cap);
-        let bbox = blurred_box(&f, &fill);
-        let e = edges_around(&f, bbox, fill.seed, fill.color, 3, FILL_TOLERANCE);
-        assert_eq!(e.right.px, 33);
     }
 
-    /// Two boxes 2 px apart read 2 px, of one color or of two, not the box behind the gap.
+    /// Two boxes 2 px apart, of one color or of two: the box ends at the gap.
     #[test]
-    fn a_narrow_gap_between_two_boxes_reads_the_gap() {
+    fn a_box_2_px_from_the_next_ends_at_the_gap() {
         for neighbor in [CARD, [0xC8, 0xD2, 0xFF]] {
             let mut f = canvas(800, 400, BG);
             rect(&mut f, 100, 100, 200, 100, CARD);
             rect(&mut f, 302, 100, 200, 100, neighbor);
-            let fill = fill_at(&f, 200, 150, 4, FILL_TOLERANCE, 800 * 400 / 2);
-            assert_box(fill.bbox, 100, 100, 200, 100);
-            assert_eq!(blurred_box(&f, &fill), fill.bbox);
-            let e = edges(&f, &fill);
-            assert_eq!(e.right.px, 2, "{neighbor:?}");
-            assert!(e.left.px == 100 && e.left.image_edge);
+            let p = at(&f, 200, 150);
+            assert_eq!(p.notes, [], "{neighbor:?}");
+            assert_eq!(
+                p.bbox.unwrap(),
+                PxBox {
+                    x: 100,
+                    y: 100,
+                    width: 200,
+                    height: 100
+                }
+            );
         }
+    }
+
+    /// A panel between a sidebar and a toolbar of other colors has no one color round it: the
+    /// box is its fill, and the output says so.
+    #[test]
+    fn a_panel_with_two_colors_round_it_is_its_fill_and_says_so() {
+        let mut f = canvas(1200, 800, CARD);
+        rect(&mut f, 0, 0, 400, 800, [0x20, 0x24, 0x30]);
+        rect(&mut f, 400, 0, 800, 250, [0xD8, 0xDC, 0xE4]);
+        let p = at(&f, 800, 500);
+        assert_eq!(
+            p.bbox.unwrap(),
+            PxBox {
+                x: 400,
+                y: 250,
+                width: 800,
+                height: 550
+            }
+        );
+        assert_eq!(p.notes, [Note::Mixed, Note::ImageEdge]);
     }
 
     /// An antialiased dot `d` px wide with its corner at (x, y): a 4× supersampled circle.
@@ -1870,17 +2303,12 @@ mod tests {
         rect(&mut f, 344, 196, 9, 14, BLUE);
         rect(&mut f, 380, 188, 20, 27, WHITE);
         rect(&mut f, 384, 192, 12, 19, BLUE);
-        let cap = 800 * 400 / 2;
-        // 2 px per pt: a 4 px window, 24 px for 12 pt.
         for (x, y) in [(348, 203), (390, 201)] {
-            let (fill, stepped) = component_at(&f, x, y, 4, 24, cap);
-            assert!(stepped, "{x},{y}");
-            assert_eq!(fill.color, BLUE);
-            assert_box(fill.bbox, 300, 180, 188, 44);
+            let p = at(&f, x, y);
+            assert_eq!(p.notes, [Note::OnMark], "{x},{y}");
+            assert_box(p.bbox.unwrap(), 300, 180, 188, 44);
         }
-        // Dots of 3 to 6 pt on the button and on the page, at whole and at half pixels: each
-        // measures itself to the pixel, with no note. The 6 px ones are not the main color
-        // near the point.
+        // Dots of 3 to 6 pt on the button and on the page: each measures itself to the pixel.
         for (x, y, d, on) in [
             (420, 190, 6, BLUE),
             (440, 196, 8, BLUE),
@@ -1890,92 +2318,28 @@ mod tests {
         ] {
             let mut f = f.clone();
             dot(&mut f, x, y, d, GREEN);
-            let (fill, stepped) = component_at(&f, x + d / 2, y + d / 2, 4, 24, cap);
-            assert!(!stepped, "{d} px on {on:?}");
-            assert_eq!(fill.color, GREEN);
+            let p = at(&f, x + d / 2, y + d / 2);
+            assert_eq!(p.notes, [Note::SmallPart], "{d} px on {on:?}");
             let b = PxBox {
                 x,
                 y,
                 width: d,
                 height: d,
             };
-            assert_eq!(blurred_box(&f, &fill), b, "{d} px on {on:?}");
-            assert!(!is_mark(&f, &fill, 24));
+            assert_eq!(p.bbox.unwrap(), b, "{d} px on {on:?}");
         }
         // A point on the button next to a dot still measures the button.
         dot(&mut f, 420, 190, 6, GREEN);
-        let (fill, stepped) = component_at(&f, 430, 205, 4, 24, cap);
-        assert!(!stepped);
-        assert_box(fill.bbox, 300, 180, 188, 44);
+        let p = at(&f, 430, 205);
+        assert_eq!(p.notes, []);
+        assert_box(p.bbox.unwrap(), 300, 180, 188, 44);
     }
 
-    /// What H.264 4:2:0 does to a frame: each 2×2 block of pixels shares one hue (BT.601).
-    fn chroma_420(f: &RgbaFrame) -> RgbaFrame {
-        let ycc = |c: [u8; 3]| {
-            let [r, g, b] = c.map(f64::from);
-            let y = 0.299 * r + 0.587 * g + 0.114 * b;
-            (y, (b - y) * 0.564, (r - y) * 0.713)
-        };
-        let mut out = canvas(f.width, f.height, [0, 0, 0]);
-        for by in (0..f.height).step_by(2) {
-            for bx in (0..f.width).step_by(2) {
-                let block: Vec<(u32, u32)> =
-                    [(bx, by), (bx + 1, by), (bx, by + 1), (bx + 1, by + 1)]
-                        .into_iter()
-                        .filter(|&(x, y)| x < f.width && y < f.height)
-                        .collect();
-                let n = block.len() as f64;
-                let cb = block.iter().map(|&(x, y)| ycc(rgb(f, x, y)).1).sum::<f64>() / n;
-                let cr = block.iter().map(|&(x, y)| ycc(rgb(f, x, y)).2).sum::<f64>() / n;
-                for (x, y) in block {
-                    let luma = ycc(rgb(f, x, y)).0;
-                    let c = [
-                        luma + 1.403 * cr,
-                        luma - 0.344 * cb - 0.714 * cr,
-                        luma + 1.773 * cb,
-                    ]
-                    .map(|v| v.round().clamp(0.0, 255.0) as u8);
-                    rect(&mut out, x, y, 1, 1, c);
-                }
-            }
-        }
-        out
-    }
-
-    /// A movie blurs the hue of an edge that sits on an odd pixel. Both modes still put the
-    /// edge on the pixel, so a point and a region give one size and the gap is exact.
+    /// A point on the page background gives no box, not a part of the page.
     #[test]
-    fn a_point_and_a_region_agree_on_a_movie_frame_with_blurred_edges() {
-        let mut f = canvas(1200, 800, [0xFF, 0xFF, 0xFF]);
-        rect(&mut f, 401, 301, 199, 77, [37, 99, 235]);
-        rect(&mut f, 643, 301, 121, 77, [220, 38, 38]);
-        let f = chroma_420(&f);
-        // The edge pixels are neither color now.
-        assert!(!near(rgb(&f, 401, 340), rgb(&f, 420, 340), FILL_TOLERANCE));
-        assert!(!near(rgb(&f, 400, 340), rgb(&f, 390, 340), MASK_TOLERANCE));
-        let boxes = [(401, 301, 199, 77), (643, 301, 121, 77)].map(|(x, y, width, height)| PxBox {
-            x,
-            y,
-            width,
-            height,
-        });
-        let cap = 1200 * 800 / 2;
-        for (b, x) in boxes.iter().zip([500, 700]) {
-            let (fill, stepped) = component_at(&f, x, 340, 4, 24, cap);
-            assert!(!stepped);
-            assert_eq!(blurred_box(&f, &fill), *b);
-        }
-        let (fill, _) = component_at(&f, 500, 340, 4, 24, cap);
-        assert_eq!(edges(&f, &fill).right.px, 43);
-        let region = PxBox {
-            x: 300,
-            y: 250,
-            width: 600,
-            height: 180,
-        };
-        let parts = boxes_in(&f, region, MASK_TOLERANCE, 3, 12, MAX_BOXES);
-        assert_eq!(parts.kept, boxes);
-        assert_eq!(nearest_gaps(&parts.kept)[0].px, 43);
+    fn a_point_on_the_page_background_gives_no_box() {
+        let p = at(&cards(1200, 800), 20, 20);
+        assert_eq!((p.bbox, p.notes), (None, vec![Note::Page]));
     }
 
     /// A region that holds only a thin line says so, and does not call it one plain color.
@@ -2071,13 +2435,6 @@ mod tests {
         assert!(nearest_gaps(&kept).iter().any(|g| g.px == 100));
         // The 100 px gap spans the small box, so it is not reported.
         assert!(kept_gaps(&all, &kept).iter().all(|g| g.px != 100));
-    }
-
-    #[test]
-    fn a_point_on_the_background_stops_at_the_cap() {
-        let f = cards(1200, 800);
-        let fill = fill_at(&f, 20, 20, 4, FILL_TOLERANCE, 1200 * 800 / 2);
-        assert!(fill.capped);
     }
 
     #[test]
@@ -2342,8 +2699,6 @@ mod tests {
                 height: 50.0
             }
         );
-        let e = m.to_edges.unwrap();
-        assert!(close(e.px[1], 40), "{e:?}");
         // The region is the keyframe image's lower-middle band: both cards, 40 px (20 pt) apart.
         let m = measure(
             &dir,
@@ -2419,5 +2774,303 @@ mod tests {
         assert!(parse_point("50,20").is_err());
         assert!(parse_region("0.5,0.5,0.4,0.9").is_err());
         assert!(parse_region("0.1,0.1,0.9,0.9").is_ok());
+    }
+
+    /// A point prints its box and sends the reader to a region for gaps. On the page
+    /// background it prints no box.
+    #[test]
+    fn a_point_prints_its_box_and_no_gaps() {
+        let measure = |at| {
+            measure_picture(
+                1,
+                picture(cards(1200, 800), Source::Movie, FULL),
+                FULL,
+                Some(600.0),
+                &at,
+            )
+        };
+        let m = measure(Query::At(0.4, 0.55));
+        assert_eq!(
+            render_text(&m),
+            "frame 1 · 2 px per pt · from the movie\n  \
+             box 160×92 pt (320×184 px) at 96,140 pt\n  \
+             gaps: a point gives none. Use --region around this box and its neighbors\n"
+        );
+        let json = serde_json::to_value(&m).unwrap();
+        assert_eq!(json["box"]["px"]["width"], 320);
+        assert!(json.get("toEdges").is_none() && json.get("gaps").is_none());
+        let m = measure(Query::At(0.02, 0.02));
+        let text = render_text(&m);
+        assert!(
+            !text.contains("  box ") && !text.contains("gaps:"),
+            "{text}"
+        );
+        assert!(
+            text.contains("note: no box: the point is on the page background"),
+            "{text}"
+        );
+        assert!(serde_json::to_value(&m).unwrap().get("box").is_none());
+    }
+
+    /// A box that the region's edge cuts says so: its size is only what the region holds.
+    #[test]
+    fn a_box_on_the_region_edge_says_it_may_be_cut_off() {
+        // The region ends inside the first card and holds the second one whole.
+        let m = measure_picture(
+            1,
+            picture(cards(1200, 800), Source::Movie, FULL),
+            FULL,
+            Some(600.0),
+            &Query::Region([0.3, 0.25, 0.85, 0.75]),
+        );
+        let boxes = m.boxes.unwrap();
+        assert_eq!(boxes.len(), 2);
+        assert_eq!((boxes[0].px.x, boxes[0].px.width), (360, 152));
+        assert_eq!(
+            m.warnings,
+            ["box 1 touches the region edge and may be cut off there: draw a wider region"]
+        );
+    }
+
+    // ------------------------------------------------------------------------------------------
+    // Frames that went through a real encoder
+    // ------------------------------------------------------------------------------------------
+
+    const WHITE: [u8; 3] = [0xFF, 0xFF, 0xFF];
+    const BLUE: [u8; 3] = [37, 99, 235];
+    const RED: [u8; 3] = [220, 38, 38];
+    const GREEN: [u8; 3] = [52, 199, 89];
+    /// The buttons of `ui`: four on white, four on #F2F2F2.
+    const BUTTONS: [[u8; 3]; 8] = [
+        BLUE,
+        RED,
+        GREEN,
+        [255, 149, 0],
+        [175, 82, 222],
+        [30, 41, 59],
+        [0, 122, 255],
+        [255, 204, 0],
+    ];
+    const DOT_SIZES: [u32; 5] = [6, 8, 10, 12, 16];
+    const DOT_COLORS: [[u8; 3]; 3] = [GREEN, [255, 59, 48], [0, 122, 255]];
+
+    fn px_box(x: u32, y: u32, width: u32, height: u32) -> PxBox {
+        PxBox {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    /// The buttons of `ui`: 199×77 px at odd offsets.
+    fn ui_buttons() -> impl Iterator<Item = (PxBox, [u8; 3])> {
+        (0..8).map(|i| {
+            let (x, y) = (101 + (i as u32 % 4) * 300, [61, 261][i / 4]);
+            (px_box(x, y, 199, 77), BUTTONS[i])
+        })
+    }
+
+    /// The dots of `ui`: 3 to 8 pt, on #F2F2F2 and on white.
+    fn ui_dots() -> impl Iterator<Item = (PxBox, [u8; 3])> {
+        [672, 752].into_iter().flat_map(|y| {
+            (0..15).map(move |i: usize| {
+                let d = DOT_SIZES[i % 5];
+                (px_box(60 + i as u32 * 80, y, d, d), DOT_COLORS[i / 5])
+            })
+        })
+    }
+
+    const CHIPS: [(u32, u32, u32, u32); 2] = [(101, 421, 199, 77), (343, 421, 121, 77)];
+    const PANEL: (u32, u32, u32, u32) = (560, 420, 400, 200);
+    const BADGES: [(u32, u32, u32); 2] = [(1040, 440, 16), (1100, 440, 22)];
+    const LABELED: (u32, u32, u32, u32) = (101, 850, 188, 44);
+
+    /// A 1280×960 px screen at 2 px per pt with known boxes: buttons with a neighbor 2 px to
+    /// the right, two chips 43 px apart, a white panel on #F2F2F2, count badges, status dots
+    /// and a button with a label.
+    fn ui() -> RgbaFrame {
+        let mut f = canvas(1280, 960, BG);
+        rect(&mut f, 0, 0, 1280, 200, WHITE);
+        rect(&mut f, 0, 720, 1280, 80, WHITE);
+        for (b, c) in ui_buttons() {
+            rect(&mut f, b.x, b.y, b.width, b.height, c);
+            let tint = c.map(|v| v.saturating_add(40));
+            rect(&mut f, b.x1() + 2, b.y, 60, b.height, tint);
+        }
+        for ((x, y, w, h), c) in CHIPS.into_iter().zip([BLUE, RED]) {
+            rect(&mut f, x, y, w, h, c);
+        }
+        rect(&mut f, PANEL.0, PANEL.1, PANEL.2, PANEL.3, WHITE);
+        // A badge: a red circle with a white "1" in it.
+        for (x, y, d) in BADGES {
+            dot(&mut f, x, y, d, [255, 59, 48]);
+            rect(&mut f, x + d / 2 - 1, y + d / 4, 2, d / 2, WHITE);
+        }
+        for (b, c) in ui_dots() {
+            dot(&mut f, b.x, b.y, b.width, c);
+        }
+        let (x, y, w, h) = LABELED;
+        rect(&mut f, x, y, w, h, BLUE);
+        for i in 0..10 {
+            rect(&mut f, x + 30 + i * 12, y + 15, 9, 14, WHITE);
+            rect(&mut f, x + 32 + i * 12, y + 17, 5, 10, BLUE);
+        }
+        f
+    }
+
+    /// `ui` as a movie gives it back: encoded to H.264 4:2:0 by `encoder` (`x264` or `vt`,
+    /// Apple's VideoToolbox, which records every capture) and decoded again, saved in
+    /// `Tests/fixtures/measure/`. `SCRAWL_MEASURE_FIXTURES=write cargo test measure` makes
+    /// the files again with ffmpeg, after a change to `ui`.
+    fn encoded_ui(encoder: &str) -> RgbaFrame {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("Tests/fixtures/measure")
+            .join(format!("ui-{encoder}.png"));
+        if std::env::var("SCRAWL_MEASURE_FIXTURES").as_deref() == Ok("write") {
+            let dir = temp_dir(&format!("encode-{encoder}"));
+            let (source, movie) = (dir.join("ui.png"), dir.join("ui.mp4"));
+            crate::render::save_png(&ui(), &source).unwrap();
+            let codec: &[&str] = match encoder {
+                "x264" => &["-c:v", "libx264", "-crf", "23"],
+                // 1200 kbit/s here is the bits per pixel of a 2560×1440 capture at 3.4 Mbit/s.
+                _ => &["-c:v", "h264_videotoolbox", "-b:v", "1200k"],
+            };
+            let ffmpeg = |args: &[&str]| {
+                let status = std::process::Command::new("ffmpeg")
+                    .args(["-loglevel", "error", "-y"])
+                    .args(args)
+                    .status()
+                    .expect("ffmpeg runs");
+                assert!(status.success(), "ffmpeg {args:?}");
+            };
+            let (source, movie) = (source.to_str().unwrap(), movie.to_str().unwrap());
+            let mut encode = vec!["-loop", "1", "-i", source, "-t", "3", "-r", "30"];
+            encode.extend_from_slice(codec);
+            encode.extend_from_slice(&["-pix_fmt", "yuv420p", movie]);
+            ffmpeg(&encode);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            ffmpeg(&[
+                "-ss",
+                "1",
+                "-i",
+                movie,
+                "-frames:v",
+                "1",
+                path.to_str().unwrap(),
+            ]);
+            let _ = std::fs::remove_dir_all(&dir);
+        }
+        let f = read_png(&path).unwrap();
+        // The file is `ui`, and the encoder left its marks on it.
+        let clean = ui();
+        assert_eq!((f.width, f.height), (clean.width, clean.height));
+        let changed = (0..f.height)
+            .flat_map(|y| (0..f.width).map(move |x| (x, y)))
+            .filter(|&(x, y)| !near(rgb(&f, x, y), rgb(&clean, x, y), MASK_TOLERANCE))
+            .count();
+        assert!((1_000..60_000).contains(&changed), "{encoder}: {changed}");
+        f
+    }
+
+    fn assert_within_1(b: PxBox, want: (u32, u32, u32, u32), what: &str) {
+        let (x, y, w, h) = want;
+        assert!(
+            close(b.x, x) && close(b.y, y) && close(b.width, w) && close(b.height, h),
+            "{what}: {b:?} is not {want:?}"
+        );
+    }
+
+    /// On a frame from a real encoder, a region gives each box and gap within 1 px, and a
+    /// point gives the same box.
+    #[test]
+    fn a_region_and_a_point_agree_within_1_px_on_an_encoded_frame() {
+        for encoder in ["x264", "vt"] {
+            let f = encoded_ui(encoder);
+            // Both chips and the 43 px between them.
+            let parts = boxes_in(
+                &f,
+                px_box(60, 390, 460, 140),
+                MASK_TOLERANCE,
+                3,
+                12,
+                MAX_BOXES,
+            );
+            assert_eq!(parts.kept.len(), 2, "{encoder}: {:?}", parts.kept);
+            for (i, chip) in CHIPS.into_iter().enumerate() {
+                assert_within_1(parts.kept[i], chip, encoder);
+                let p = at(&f, chip.0 + chip.2 / 2, chip.1 + chip.3 / 2);
+                assert_eq!(p.notes, [], "{encoder} chip {i}");
+                assert_within_1(p.bbox.unwrap(), chip, encoder);
+                let (a, b) = (p.bbox.unwrap(), parts.kept[i]);
+                assert_within_1(a, (b.x, b.y, b.width, b.height), encoder);
+            }
+            let gaps = nearest_gaps(&parts.kept);
+            assert!(
+                gaps.len() == 1 && close(gaps[0].px, 43),
+                "{encoder}: {gaps:?}"
+            );
+            // A white panel on #F2F2F2: 13 levels of contrast.
+            let parts = boxes_in(
+                &f,
+                px_box(540, 400, 440, 240),
+                MASK_TOLERANCE,
+                3,
+                12,
+                MAX_BOXES,
+            );
+            assert_eq!(parts.kept.len(), 1, "{encoder}: {:?}", parts.kept);
+            assert_within_1(parts.kept[0], PANEL, encoder);
+            for (x, y) in [(760, 520), (570, 430), (950, 610)] {
+                let p = at(&f, x, y);
+                assert_eq!(p.notes, [], "{encoder} panel at {x},{y}");
+                assert_eq!(p.bbox, Some(parts.kept[0]), "{encoder} panel at {x},{y}");
+            }
+        }
+    }
+
+    /// On a frame from a real encoder, a button ends at the 2 px gap to its neighbor, on white
+    /// and on #F2F2F2, and a point on its label measures it.
+    #[test]
+    fn a_point_measures_a_button_within_1_px_on_an_encoded_frame() {
+        for encoder in ["x264", "vt"] {
+            let f = encoded_ui(encoder);
+            for (b, color) in ui_buttons() {
+                let p = at(&f, b.x + 100, b.y + 38);
+                assert_eq!(p.notes, [], "{encoder} {color:?}");
+                let want = (b.x, b.y, b.width, b.height);
+                assert_within_1(p.bbox.unwrap(), want, &format!("{encoder} {color:?}"));
+            }
+            // On the stroke of a glyph, and on the fill beside the label.
+            let (x, y, w, h) = LABELED;
+            let p = at(&f, x + 30, y + 22);
+            assert_eq!(p.notes, [Note::OnMark], "{encoder}");
+            assert_within_1(p.bbox.unwrap(), LABELED, encoder);
+            let p = at(&f, x + w - 12, y + h / 2);
+            assert_eq!(p.notes, [], "{encoder}");
+            assert_within_1(p.bbox.unwrap(), LABELED, encoder);
+        }
+    }
+
+    /// On a frame from a real encoder, a 3 to 8 pt dot and a count badge measure themselves
+    /// within 1 px, not the page round them.
+    #[test]
+    fn a_point_measures_a_dot_and_a_badge_within_1_px_on_an_encoded_frame() {
+        for encoder in ["x264", "vt"] {
+            let f = encoded_ui(encoder);
+            for (b, color) in ui_dots() {
+                let what = format!("{encoder} {} px {color:?} at {},{}", b.width, b.x, b.y);
+                let p = at(&f, b.x + b.width / 2, b.y + b.height / 2);
+                assert_eq!(p.notes, [Note::SmallPart], "{what}");
+                assert_within_1(p.bbox.unwrap(), (b.x, b.y, b.width, b.height), &what);
+            }
+            // On the red of a badge, left of its digit.
+            for (x, y, d) in BADGES {
+                let what = format!("{encoder} {d} px badge");
+                let p = at(&f, x + d / 4, y + d / 2);
+                assert_eq!(p.notes, [Note::SmallPart], "{what}");
+                assert_within_1(p.bbox.unwrap(), (x, y, d, d), &what);
+            }
+        }
     }
 }
