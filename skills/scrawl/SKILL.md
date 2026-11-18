@@ -83,7 +83,7 @@ A point gives one box and no gaps. For a gap, a padding or the distance between 
 
 Put a point on the component's fill, not on its text. Every `note:` line says what the box is, so read them before you use the size:
 
-- `the point was on text, a glyph or a thin line: this is the surface around it`: the point was on a label, in the hole of a letter such as "o", on a divider or on a 1 px border. The box is the surface next to it.
+- `the point was on text, a glyph or a thin line: this is the surface around it`: the point was on a label, in the hole of a letter such as "o", or on a divider. The box is the surface next to it. A point on a faint 1 px border can get the `more than one color` or `not a solid shape` note instead.
 - `this is a small part under the point`: a part under 12 pt on a side, such as a 3 to 8 pt status dot, a count badge, an icon or a pill, measures itself. For the surface it sits on, move the point off it.
 - `the point is on text, an icon or a line inside this box`: the box is the component. The point was not on its fill.
 - `the box ends at lines`: a list row between dividers, a table cell or an outlined card. The box is the fill between the lines. A faint line lets it run on, so check it against the image.
@@ -91,12 +91,13 @@ Put a point on the component's fill, not on its text. Every `note:` line says wh
 - `the box includes a border, a shadow or a part against its fill`: the box has them, and the note gives the size of the fill alone.
 - `no box: the point is on the page background`: use a region for the parts on it.
 - `box N touches the region edge and may be cut off there`: the size is only what the region holds. Draw a wider region.
+- `the box covers over half the image`: the component's edge was too faint to find, such as a white card on a near-white page. The box is not the component: draw a tight region around it.
 
 How to read the output:
 
-- A point and a region give the same box, within 1 px, with and without the movie. With a border, both give the box with its border when the page has another color.
+- On a part with a clear edge, a point and a region give the same box, within 1 px, with and without the movie. With a border, both give the box with its border when the page has another color. On a white card on a near-white page, or one with a faint 1 px border, a point can give the whole window: then trust a tight region.
 - A region joins parts up to 1.5 pt apart into one box, so two boxes that close show as one. A point on each gives each box.
-- Rows split by dividers: a point in a row gives that row. A region over the rows gives the whole list as one box, because the dividers join them.
+- Rows split by clear dividers: a point in a row gives that row. A region over the rows gives the whole list as one box, because the dividers join them. With faint dividers, a point in a row can give the whole window, and a region gives the parts inside the rows: measure a row's height from the gap between the parts of two rows.
 - A region shows at most 30 boxes and says how many it left out. A shown box next to a left-out one gets no gap, so draw a tighter region.
 - `no boxes found` names the cause: one plain color, or only parts under 6 pt on a side (a thin line, small text). Neither mode measures a line under 6 pt thick: read its width in the source code.
 - A faint 1 px border can give the area past it, up to the whole window. The note says the box ends at lines or has more than one color round it: check the box against the image, and try a second point or a tight region.

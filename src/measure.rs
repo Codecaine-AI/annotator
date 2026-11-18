@@ -897,6 +897,8 @@ pub enum Note {
     Thin,
     /// The box touches the image edge.
     ImageEdge,
+    /// The box covers over half the image.
+    Large,
 }
 
 impl Note {
@@ -947,6 +949,10 @@ impl Note {
                            found around it. Put the point on a fill"
                 .into(),
             Note::ImageEdge => "the box touches the image edge: it may run past it".into(),
+            Note::Large => "the box covers over half the image: the component's edge may be \
+                            too faint to find (a white card on a near-white page, a faint 1 px \
+                            border). Draw a tight --region around the component"
+                .into(),
         }
     }
 }
@@ -1188,6 +1194,11 @@ pub fn box_at(frame: &RgbaFrame, x: u32, y: u32, ppp: f64) -> Pointed {
         && (b.x == 0 || b.y == 0 || b.x1() == frame.width || b.y1() == frame.height)
     {
         notes.push(Note::ImageEdge);
+    }
+    if let Some(b) = bbox
+        && b.area() * 2 > u64::from(frame.width) * u64::from(frame.height)
+    {
+        notes.push(Note::Large);
     }
     Pointed { bbox, notes }
 }
@@ -2070,6 +2081,23 @@ mod tests {
     /// The box that holds a point of `f` at 2 px per pt.
     fn at(f: &RgbaFrame, x: u32, y: u32) -> Pointed {
         box_at(f, x, y, 2.0)
+    }
+
+    /// A point whose box runs over most of the image, as on a white card on a near-white page
+    /// whose edge is too faint to find: the output says so rather than give it as the card.
+    #[test]
+    fn a_box_over_most_of_the_image_says_its_edge_may_be_too_faint() {
+        // A window's white content, full of lines of text, inside a thin grey frame.
+        let mut f = canvas(400, 300, [0x80, 0x80, 0x80]);
+        rect(&mut f, 30, 30, 340, 240, [0xFF, 0xFF, 0xFF]);
+        for line in 0..20 {
+            rect(&mut f, 50, 34 + line * 12, 300, 8, TEXT);
+        }
+        let p = at(&f, 40, 150);
+        assert!(p.notes.contains(&Note::Large), "{:?}", p.notes);
+        // A card of its own size says nothing of the kind.
+        let p = at(&cards(1200, 800), 480, 440);
+        assert!(!p.notes.contains(&Note::Large));
     }
 
     #[test]
