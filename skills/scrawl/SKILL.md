@@ -79,7 +79,15 @@ scrawl measure <bundle> --frame 3 --region 0.1,0.2,0.9,0.6      # every box in t
 scrawl measure <bundle> --frame 3 --at 0.42,0.31 --json
 ```
 
-A region over text gives one box per word (a one-letter word can join the next), so draw the region tight around the parts you compare. Put a point on the component's fill, not on its text: a point on a label usually still measures the surface around it, with a note. A gradient fill or a faint 1 px border can give a part of the component or the whole window: check the box against the image, and try a second point or a tight region. Sizes come in pt, which match SwiftUI points and CSS px at 100% browser zoom, and in px of the recording (not the screen's pixels). Positions are in the full recording frame, which the keyframe image is a crop of, so read sizes and gaps rather than positions. An iPhone capture without a screen size gives px only. Compare each pt value with the project's design tokens, such as its spacing scale and max widths, and name the token that fits or the one it misses. When the source code sets the value, read it there too: the measure shows what rendered on screen.
+A region over text gives one box per word (a one-letter word can join the next), so draw the region tight around the parts you compare. Put a point on the component's fill, not on its text: a point on a label, or in the hole of a letter such as "o", still measures the surface around it, with a note. A small solid part, such as a 3 pt status dot, measures itself. A gradient fill or a faint 1 px border can give a part of the component or the whole window: check the box against the image, and try a second point or a tight region.
+
+How to read the output:
+
+- `to edges` is the distance from each side of the box to the next component, in the order left, right, up, down. It skips the box's own border, so a card with a 1 pt border reads the border plus the gap to the next card.
+- A line between two areas of one color is a divider. A list row reads the 1 pt line above and below it, not the next row's height. For the distance between two rows or cards, use a region.
+- A box with a border is 2 borders larger from `--region` than from `--at`: the region gives the box with its border, the point gives the fill inside it. Without a border the two agree to the pixel, with and without the movie.
+- A region shows at most 30 boxes and says how many it left out. A shown box next to a left-out one gets no gap, so draw a tighter region.
+- `no boxes found` names the cause: one plain color, or only parts under 6 pt on a side (a thin line, small text). Measure a thin line with a point next to it and read `to edges`. Sizes come in pt, which match SwiftUI points and CSS px at 100% browser zoom, and in px of the recording (not the screen's pixels). Positions are in the full recording frame, which the keyframe image is a crop of, so read sizes and gaps rather than positions. An iPhone capture without a screen size gives px only. Compare each pt value with the project's design tokens, such as its spacing scale and max widths, and name the token that fits or the one it misses. When the source code sets the value, read it there too: the measure shows what rendered on screen.
 
 ### Other commands
 
