@@ -105,11 +105,24 @@ struct Fill {
     capped: bool,
     /// The fill's pixels on the left, right, top and bottom side of `bbox`.
     sides: [Vec<(u32, u32)>; 4],
+    /// The fill's pixel nearest the seed, within `reach` px of it, with the fill `room` px all
+    /// round it (else half of that, else 1 px): a place on the surface that no stroke of a
+    /// label is next to.
+    open: Option<(u32, u32)>,
+    /// The fill's most common color (of every pixel up to 4,096, then of every 31st).
+    main: Option<[u8; 3]>,
 }
 
 /// Flood fill (4-connected) from `seed` over pixels within `tolerance` of `color`, stopping
 /// after `cap` pixels.
-fn flood(frame: &RgbaFrame, seed: (u32, u32), color: [u8; 3], tolerance: u8, cap: usize) -> Fill {
+fn flood(
+    frame: &RgbaFrame,
+    seed: (u32, u32),
+    color: [u8; 3],
+    tolerance: u8,
+    cap: usize,
+    (reach, room): (u32, u32),
+) -> Fill {
     let (w, h) = (frame.width, frame.height);
     let mut visited = vec![false; w as usize * h as usize];
     let mut stack = vec![seed];
@@ -120,8 +133,12 @@ fn flood(frame: &RgbaFrame, seed: (u32, u32), color: [u8; 3], tolerance: u8, cap
     let mut columns = vec![(u32::MAX, 0u32); w as usize];
     let mut pixels = 0usize;
     let mut capped = false;
+    let mut samples: Vec<[u8; 3]> = Vec::new();
     while let Some((px, py)) = stack.pop() {
         pixels += 1;
+        if pixels <= 4096 || pixels % 31 == 0 {
+            samples.push(rgb(frame, px, py));
+        }
         bx0 = bx0.min(px);
         by0 = by0.min(py);
         bx1 = bx1.max(px);
@@ -169,6 +186,35 @@ fn flood(frame: &RgbaFrame, seed: (u32, u32), color: [u8; 3], tolerance: u8, cap
             .map(|x| (x, by1))
             .collect(),
     ];
+    let near_seed = window(
+        frame,
+        PxBox {
+            x: seed.0,
+            y: seed.1,
+            width: 1,
+            height: 1,
+        },
+        reach,
+    );
+    let filled = |x: u32, y: u32| x < w && y < h && visited[y as usize * w as usize + x as usize];
+    let mut rooms = vec![room.max(1), (room / 2).max(1), 1];
+    rooms.dedup();
+    let open = rooms.into_iter().find_map(|r| {
+        (near_seed.y..near_seed.y1())
+            .flat_map(|y| (near_seed.x..near_seed.x1()).map(move |x| (x, y)))
+            .filter(|&(x, y)| {
+                x >= r
+                    && y >= r
+                    && (y - r..=y + r).all(|py| (x - r..=x + r).all(|px| filled(px, py)))
+            })
+            .min_by_key(|&(x, y)| {
+                (
+                    u64::from(x.abs_diff(seed.0)).pow(2) + u64::from(y.abs_diff(seed.1)).pow(2),
+                    y,
+                    x,
+                )
+            })
+    });
     Fill {
         bbox: PxBox {
             x: bx0,
@@ -179,6 +225,8 @@ fn flood(frame: &RgbaFrame, seed: (u32, u32), color: [u8; 3], tolerance: u8, cap
         color,
         capped,
         sides,
+        open,
+        main: commonest(&samples).map(|(c, _)| c),
     }
 }
 
@@ -491,6 +539,8 @@ struct Judge<'a> {
     hi: u8,
     /// 0: not judged, 1: strong, 2: not.
     judged: Vec<u8>,
+    /// The same for `core`.
+    cored: Vec<u8>,
 }
 
 impl Judge<'_> {
@@ -516,9 +566,14 @@ impl Judge<'_> {
         self.judged[i] == 1
     }
 
-    /// Strong, with eight strong neighbors.
+    /// Strong, with eight strong neighbors. For a pixel of the window.
     fn core(&mut self, x: i64, y: i64) -> bool {
-        (-1..=1).all(|dy| (-1..=1).all(|dx| self.strong(x + dx, y + dy)))
+        let i = (y * i64::from(self.win.width) + x) as usize;
+        if self.cored[i] == 0 {
+            let core = (-1..=1).all(|dy| (-1..=1).all(|dx| self.strong(x + dx, y + dy)));
+            self.cored[i] = if core { 1 } else { 2 };
+        }
+        self.cored[i] == 1
     }
 }
 
@@ -533,12 +588,16 @@ impl Judge<'_> {
 /// whose eight neighbors are too, and it takes in the pixels next to those. A part too thin to
 /// have such a pixel (a glyph, a line) is joined through its clear pixels, or failing that
 /// through every pixel off the background.
+///
+/// With `solid`, the seed must be on the part: clearly off the background itself, or within
+/// 2 px of a pixel that is, with its neighbors. Else `None`.
 fn part_at(
     frame: &RgbaFrame,
     win: PxBox,
     bg: [u8; 3],
     seed: (u32, u32),
     own: [u8; 3],
+    solid: bool,
 ) -> Option<Part> {
     if near(rgb(frame, seed.0, seed.1), bg, MASK_TOLERANCE) {
         return None;
@@ -552,6 +611,7 @@ fn part_at(
         bg,
         hi,
         judged: vec![0; n],
+        cored: vec![0; n],
     };
     let (sx, sy) = (i64::from(seed.0 - win.x), i64::from(seed.1 - win.y));
     // The core pixel to start from: the seed, or one within 2 px of it.
@@ -606,6 +666,8 @@ fn part_at(
     } else {
         let by = if judge.strong(sx, sy) {
             hi
+        } else if solid {
+            return None;
         } else {
             MASK_TOLERANCE
         };
@@ -653,7 +715,31 @@ fn closed_by(
     colors
         .iter()
         .filter(|(c, n)| n * 8 >= *total && !near(own, *c, MASK_TOLERANCE))
-        .find_map(|(c, _)| part_at(frame, win, *c, seed, own))
+        .find_map(|(c, _)| {
+            let part = part_at(frame, win, *c, seed, own, false)?;
+            // A seed a little off the background takes a low threshold, and at that one the
+            // letters of a word and the tint a movie leaves round them join into one part. So
+            // a part whose main color is further off the background than the seed is found
+            // again at that color's threshold, as a seed on its fill finds it. A seed that is
+            // not on that part is a tinted pixel of the background: this color closes nothing.
+            // At the highest threshold already, no color takes a higher one.
+            if part.hi >= CLEAR {
+                return Some(part);
+            }
+            match main_color(frame, &part) {
+                Some(main)
+                    if (contrast(main, part.bg) / 2).clamp(MASK_TOLERANCE, CLEAR) > part.hi =>
+                {
+                    let again = part_at(frame, win, part.bg, seed, main, true)?;
+                    Some(if part.bbox.contains(&again.bbox) {
+                        again
+                    } else {
+                        part
+                    })
+                }
+                _ => Some(part),
+            }
+        })
 }
 
 /// The color of the surface at a pixel: the mean of the pixels within 2 px that are within 6
@@ -700,14 +786,36 @@ fn thin_at(frame: &RgbaFrame, (x, y): (u32, u32), own: [u8; 3], thin: u32) -> bo
     run(1, 0).min(run(0, 1)) <= thin as usize
 }
 
+/// Whether the pixels joined to `seed` through its color `own` in `win` reach open surface: a
+/// pixel with that color `thin / 2 + 1` px all round it. A line or the stroke of a letter does
+/// not, and so does not the crossing of two lines. The fill of a button in the channel between
+/// two letters of its label does: it is as thin there as a stroke, and it is the surface.
+fn reaches_open_surface(
+    frame: &RgbaFrame,
+    win: PxBox,
+    seed: (u32, u32),
+    own: [u8; 3],
+    thin: u32,
+) -> bool {
+    let mask = fill_within(frame, win, seed, own, CLEAR);
+    let (w, h) = (win.width as i64, win.height as i64);
+    let r = i64::from(thin / 2 + 1);
+    let on = |x: i64, y: i64| x >= 0 && y >= 0 && x < w && y < h && mask[(y * w + x) as usize];
+    (r..h - r).any(|y| (r..w - r).any(|x| (-r..=r).all(|dy| (-r..=r).all(|dx| on(x + dx, y + dy)))))
+}
+
 /// The surface beside a thin mark at `seed`, of the color `own`: the nearest pixel within 15 pt
-/// that is clearly not the mark's color and is not on something thin itself (a blurred edge
-/// pixel, the next letter, the hole of an "o"), and the color there.
+/// that is more than `off` per channel from the mark's color and is not on something thin
+/// itself (a blurred edge pixel, the next letter, the hole of an "o"), and the color there.
+/// With `flat`, its eight neighbors have its color too: beside a sliver of a blurred edge lies
+/// the next line of that blur, and the surface starts past it.
 fn beside(
     frame: &RgbaFrame,
     seed: (u32, u32),
     own: [u8; 3],
     scale: &Scale,
+    off: u8,
+    flat: bool,
 ) -> Option<((u32, u32), [u8; 3])> {
     let at = PxBox {
         x: seed.0,
@@ -718,16 +826,33 @@ fn beside(
     let win = window(frame, at, scale.small + scale.margin);
     let mut others: Vec<(u64, u32, u32)> = (win.y..win.y1())
         .flat_map(|y| (win.x..win.x1()).map(move |x| (x, y)))
-        .filter(|&(x, y)| !near(rgb(frame, x, y), own, CLEAR))
+        .filter(|&(x, y)| !near(rgb(frame, x, y), own, off))
         .map(|(x, y)| {
             let d = u64::from(x.abs_diff(seed.0)).pow(2) + u64::from(y.abs_diff(seed.1)).pow(2);
             (d, y, x)
         })
         .collect();
     others.sort_unstable();
+    let level = |x: u32, y: u32, color: [u8; 3]| {
+        let around = window(
+            frame,
+            PxBox {
+                x,
+                y,
+                width: 1,
+                height: 1,
+            },
+            1,
+        );
+        around.area() == 9
+            && (around.y..around.y1()).all(|py| {
+                (around.x..around.x1()).all(|px| near(rgb(frame, px, py), color, FILL_TOLERANCE))
+            })
+    };
     others.into_iter().find_map(|(_, y, x)| {
         let color = settled(frame, x, y);
-        (!thin_at(frame, (x, y), color, scale.thin)).then_some(((x, y), color))
+        (!thin_at(frame, (x, y), color, scale.thin) && (!flat || level(x, y, color)))
+            .then_some(((x, y), color))
     })
 }
 
@@ -768,12 +893,16 @@ fn from_border(w: usize, h: usize, free: impl Fn(usize, usize) -> bool) -> Vec<b
 }
 
 /// The pixel nearest `seed` on the surface round a mark: of the color `bg`, and joined through
-/// it to the border of `win`, so never shut inside the mark (the hole of an "o").
+/// it to the border of `win`, so never shut inside the mark (the hole of an "o"). A pixel with
+/// the surface `open` px all round it comes first, then one with half of that, then any: in
+/// the channel between two letters a movie's noise can shut a fill in, and the open surface
+/// past the word is one piece.
 fn surface_near(
     frame: &RgbaFrame,
     win: PxBox,
     seed: (u32, u32),
     bg: [u8; 3],
+    open: u32,
 ) -> Option<(u32, u32)> {
     let (w, h) = (win.width as usize, win.height as usize);
     let surface = from_border(w, h, |x, y| {
@@ -783,16 +912,50 @@ fn surface_near(
             MASK_TOLERANCE,
         )
     });
-    (0..w * h)
-        .filter(|&i| surface[i])
-        .map(|i| (win.x + (i % w) as u32, win.y + (i / w) as u32))
-        .min_by_key(|&(x, y)| {
-            (
-                u64::from(x.abs_diff(seed.0)).pow(2) + u64::from(y.abs_diff(seed.1)).pow(2),
-                y,
-                x,
-            )
+    // Past the window counts as surface: the window ends where the search does, not the surface.
+    let clear = |x: u32, y: u32, r: i64| {
+        (-r..=r).all(|dy| {
+            (-r..=r).all(|dx| {
+                let (px, py) = (i64::from(x - win.x) + dx, i64::from(y - win.y) + dy);
+                px < 0
+                    || py < 0
+                    || px >= w as i64
+                    || py >= h as i64
+                    || surface[py as usize * w + px as usize]
+            })
         })
+    };
+    let mut radii = vec![i64::from(open), i64::from(open / 2), 0];
+    radii.dedup();
+    // One pass for each radius: a pixel is tested only when it is nearer than the best so far.
+    radii.into_iter().find_map(|r| {
+        let mut best: Option<(u64, u32, u32)> = None;
+        for i in (0..w * h).filter(|&i| surface[i]) {
+            let (x, y) = (win.x + (i % w) as u32, win.y + (i / w) as u32);
+            let d = u64::from(x.abs_diff(seed.0)).pow(2) + u64::from(y.abs_diff(seed.1)).pow(2);
+            if best.is_none_or(|b| (d, y, x) < b) && (r == 0 || clear(x, y, r)) {
+                best = Some((d, y, x));
+            }
+        }
+        best.map(|(_, y, x)| (x, y))
+    })
+}
+
+/// The surface round a pocket: a fill with the box `b` that is no larger than the hole of a
+/// letter, on a surface of the color `own`. The pixel nearest `seed` of that color that is
+/// joined through it to the border of a window two small parts wider than the box, and the
+/// color there. A pocket of that color is not joined to that border, or its fill would have
+/// run on.
+fn round_pocket(
+    frame: &RgbaFrame,
+    b: PxBox,
+    seed: (u32, u32),
+    own: [u8; 3],
+    scale: &Scale,
+) -> Option<((u32, u32), [u8; 3])> {
+    let win = window(frame, b, 2 * scale.small);
+    let (x, y) = surface_near(frame, win, seed, own, scale.thin)?;
+    Some(((x, y), settled(frame, x, y)))
 }
 
 /// How many pixels of `b` a part covers, with the holes shut inside it (the digit of a count
@@ -861,6 +1024,44 @@ fn fill_box(frame: &RgbaFrame, part: &Part, own: [u8; 3]) -> Option<PxBox> {
     })
 }
 
+/// Whether a small part has its background next to it: of the pixels up to 3 px past its box,
+/// one in eight is the background's color. The bowl of an "a" in white text is shut in by
+/// strokes that are as far off a near-white page as the page's own noise, so the page closes
+/// it as a part. The page is nowhere near it: the bowl is a pocket of the button's fill.
+fn touches_background(frame: &RgbaFrame, part: &Part) -> bool {
+    let (b, ring) = (part.bbox, window(frame, part.bbox, 3));
+    let (x0, y0) = (ring.x.max(part.win.x), ring.y.max(part.win.y));
+    let (x1, y1) = (ring.x1().min(part.win.x1()), ring.y1().min(part.win.y1()));
+    let (mut all, mut background) = (0usize, 0usize);
+    for y in y0..y1 {
+        for x in x0..x1 {
+            if x < b.x || y < b.y || x >= b.x1() || y >= b.y1() {
+                all += 1;
+                background += usize::from(near(rgb(frame, x, y), part.bg, MASK_TOLERANCE));
+            }
+        }
+    }
+    background * 8 >= all
+}
+
+/// Whether a part is strokes rather than a shape: in its box `b`, under half of the pixels
+/// are on the side of its main color (not of its background), and its top and bottom lines
+/// are not both of that color over 0.7 of their length (an outlined field's are). A word whose
+/// letters touch in the recording is such a part.
+fn is_strokes(frame: &RgbaFrame, part: &Part, b: PxBox) -> bool {
+    let Some(main) = main_color(frame, part) else {
+        return false;
+    };
+    let ink = |x: u32, y: u32| {
+        let c = rgb(frame, x, y);
+        distance(c, main) < distance(c, part.bg)
+    };
+    let row = |y: u32| (b.x..b.x1()).filter(|&x| ink(x, y)).count();
+    let all: usize = (b.y..b.y1()).map(row).sum();
+    let lined = |y: u32| row(y) * 10 >= b.width as usize * 7;
+    (all as u64) * 2 < b.area() && !(lined(b.y) && lined(b.y1() - 1))
+}
+
 /// The most common color of a part (of at most 65,536 of its pixels, evenly spread).
 fn main_color(frame: &RgbaFrame, part: &Part) -> Option<[u8; 3]> {
     let count = part.on.iter().filter(|on| **on).count();
@@ -899,6 +1100,11 @@ pub enum Note {
     ImageEdge,
     /// The box covers over half the image.
     Large,
+    /// Points close to this one give other boxes, and the box is the point's own.
+    Edge,
+    /// The box is the one the points close to this one give. The point itself gave another, of
+    /// this width and height (px), or none.
+    Voted(Option<(u32, u32)>),
 }
 
 impl Note {
@@ -953,6 +1159,26 @@ impl Note {
                             too faint to find (a white card on a near-white page, a faint 1 px \
                             border). Draw a tight --region around the component"
                 .into(),
+            Note::Edge => "points close to this one give other boxes: the point is at an edge, \
+                           or on text or a small part. Check the box against the image, or \
+                           put the point well inside the component's fill"
+                .into(),
+            Note::Voted(own) => {
+                let own = match (own, ppp) {
+                    (Some((w, h)), Some(p)) => format!(
+                        "{}×{} pt ({w}×{h} px)",
+                        num(half(f64::from(w) / p)),
+                        num(half(f64::from(h) / p))
+                    ),
+                    (Some((w, h)), None) => format!("{w}×{h} px"),
+                    (None, _) => "no box".into(),
+                };
+                format!(
+                    "points close to this one give this box, and the point itself gave {own}: \
+                     it is on text, a small part or noise in the recording. Check the box \
+                     against the image, or use --region"
+                )
+            }
         }
     }
 }
@@ -969,6 +1195,10 @@ struct Scale {
     thin: u32,
     /// A dot's short side is at least this (2.5 pt, at least 3 px).
     least: u32,
+    /// How far from the point its four other seeds are (0.5 pt, at least 1 px).
+    apart: u32,
+    /// A line of text is under this tall (20 pt).
+    text: u32,
 }
 
 impl Scale {
@@ -980,6 +1210,8 @@ impl Scale {
             join: px(JOIN_PT).max(1),
             thin: px(1.5).max(3),
             least: px(2.5).max(3),
+            apart: px(0.5).max(1),
+            text: px(20.0),
         }
     }
 
@@ -990,6 +1222,18 @@ impl Scale {
     /// Under `small` on one side: a word is, and so is a pill or a bar.
     fn is_short(&self, b: PxBox) -> bool {
         b.width.min(b.height) < self.small
+    }
+
+    /// A fill under 24 pt on both sides whose main color round it is a shade of its own: a
+    /// patch of that surface that a movie tinted, next to the letters of a label.
+    fn is_a_patch(&self, b: PxBox, found: &Found, own: [u8; 3]) -> bool {
+        matches!(found, Found::Mixed { bg, .. } if near(own, *bg, CLEAR))
+            && b.width.max(b.height) < 2 * self.small
+    }
+
+    /// Thinner than the smallest dot.
+    fn is_sliver(&self, b: PxBox) -> bool {
+        b.width.min(b.height) < self.least
     }
 
     /// Under `small` on one side and twice that on the other: the hole of a large letter is
@@ -1025,7 +1269,16 @@ enum Found {
 /// of the size, and the same test on a window round it gives the part: the box region mode
 /// gives. When the fill's own color is the main color round it, lines bound it and the fill is
 /// the box. When no one color closes it, the fill is the box too.
-fn find(frame: &RgbaFrame, seed: (u32, u32), own: [u8; 3], scale: &Scale, cap: usize) -> Found {
+///
+/// Without `small`, the first window is not tried: the seed is known to be on a surface.
+fn find(
+    frame: &RgbaFrame,
+    seed: (u32, u32),
+    own: [u8; 3],
+    scale: &Scale,
+    cap: usize,
+    small: bool,
+) -> Found {
     let at = PxBox {
         x: seed.0,
         y: seed.1,
@@ -1036,20 +1289,34 @@ fn find(frame: &RgbaFrame, seed: (u32, u32), own: [u8; 3], scale: &Scale, cap: u
     let colors = border_colors(frame, near_win);
     // A closed part too large to be small still tells the next window what to hold.
     let mut hold = None;
-    if let Some(part) = closed_by(frame, near_win, &colors, seed, own) {
+    if small && let Some(part) = closed_by(frame, near_win, &colors, seed, own) {
         let b = trimmed(frame, part.bbox, part.bg, MASK_TOLERANCE, true);
-        if scale.is_small(b) {
+        if !scale.is_small(b) {
+            hold = Some(part.bbox);
+        } else if touches_background(frame, &part) {
             return Found::Part(part, b);
         }
-        hold = Some(part.bbox);
     }
     // A thin run of a color that is not the main one round it: a line, the stroke of a letter.
     let around = colors.0.first().map_or(own, |(c, _)| *c);
-    if hold.is_none() && !near(own, around, MASK_TOLERANCE) && thin_at(frame, seed, own, scale.thin)
+    if hold.is_none()
+        && !near(own, around, MASK_TOLERANCE)
+        && thin_at(frame, seed, own, scale.thin)
+        && !reaches_open_surface(frame, near_win, seed, own, scale.thin)
     {
         return Found::Line;
     }
-    let fill = flood(frame, seed, own, FILL_TOLERANCE, cap);
+    let room = (scale.small, scale.thin);
+    let mut fill = flood(frame, seed, own, FILL_TOLERANCE, cap, room);
+    // The fill is taken again round its own main color when the seed's is off it: next to
+    // text a movie tints a pixel by up to the fill's tolerance, and a fill round that tint
+    // holds only the half of the surface's shades that are on its side.
+    if let Some(main) = fill
+        .main
+        .filter(|main| !fill.capped && !near(*main, own, 3))
+    {
+        fill = flood(frame, seed, main, FILL_TOLERANCE, cap, room);
+    }
     if fill.capped {
         return Found::Page;
     }
@@ -1071,7 +1338,10 @@ fn find(frame: &RgbaFrame, seed: (u32, u32), own: [u8; 3], scale: &Scale, cap: u
             bbox: blurred_box(frame, &fill),
         };
     }
-    match closed_by(frame, win, &colors, seed, fill.color) {
+    // The part is looked for from an open place of the fill. A seed between the strokes of a
+    // label has no pixel clearly off the page next to it on every side, and from there the
+    // part is the few pixels between those strokes.
+    match closed_by(frame, win, &colors, fill.open.unwrap_or(seed), fill.color) {
         Some(part) => {
             let b = trimmed(frame, part.bbox, part.bg, MASK_TOLERANCE, true);
             Found::Part(part, b)
@@ -1093,22 +1363,112 @@ pub struct Pointed {
 
 /// The box that holds `(x, y)`, at `ppp` px per pt.
 ///
-/// A small part under the point (a dot, a badge) is the box. A point on a mark steps out to
-/// the surface round it, at most three times: a thin line or stroke, a small part that is no
-/// solid shape or that is a letter of a word, and the hole of a letter (`hole_exit`).
+/// One pixel decides little on a movie frame: noise can shut a fill in between two letters,
+/// or join the letters of a word into one part. So the point and four pixels 0.5 pt from it
+/// (`Scale::apart`) are each measured on their own (`box_from`), and boxes within 1 px of each
+/// other on every side are one answer.
+/// - The point's box, when two of the four give it too (all four, when the point stepped off
+///   a mark to the surface next to it).
+/// - The point's box with `Note::Edge`, when fewer do: the point is at an edge, or on a part
+///   too small for its neighbors.
+/// - The box three of the four give, with `Note::Voted`, when none gives the point's box.
 pub fn box_at(frame: &RgbaFrame, x: u32, y: u32, ppp: f64) -> Pointed {
     let (x, y) = (x.min(frame.width - 1), y.min(frame.height - 1));
     let scale = Scale::of(ppp);
     let cap = ((f64::from(frame.width) * f64::from(frame.height) * FILL_CAP) as usize).max(1);
+    let first = box_from(frame, (x, y), &scale, cap);
+    let d = i64::from(scale.apart);
+    let others: Vec<Pointed> = [(-d, 0), (d, 0), (0, -d), (0, d)]
+        .into_iter()
+        .map(|(dx, dy)| (i64::from(x) + dx, i64::from(y) + dy))
+        .filter(|&(sx, sy)| {
+            sx >= 0 && sy >= 0 && sx < i64::from(frame.width) && sy < i64::from(frame.height)
+        })
+        .map(|(sx, sy)| box_from(frame, (sx as u32, sy as u32), &scale, cap))
+        .collect();
+    vote(first, &others)
+}
+
+/// The answer of a point (`first`) and of the pixels close to it (`others`), as one: see
+/// `box_at`.
+fn vote(mut first: Pointed, others: &[Pointed]) -> Pointed {
+    let same = |a: &Pointed, b: &Pointed| match (a.bbox, b.bbox) {
+        (Some(a), Some(b)) => {
+            a.x.abs_diff(b.x) <= 1
+                && a.y.abs_diff(b.y) <= 1
+                && a.x1().abs_diff(b.x1()) <= 1
+                && a.y1().abs_diff(b.y1()) <= 1
+        }
+        (None, None) => true,
+        _ => false,
+    };
+    let agree = others.iter().filter(|o| same(&first, o)).count();
+    // A point that stepped off a mark took the nearest surface: at an edge, that is a guess.
+    let stepped = first.notes.contains(&Note::OnMark);
+    if agree == others.len() || (agree * 2 >= others.len() && !stepped) {
+        return first;
+    }
+    // The first of the others that all but one of them agree with.
+    let voted = others
+        .iter()
+        .find(|o| (others.iter().filter(|p| same(o, p)).count() + 1) >= others.len().max(3));
+    match voted {
+        Some(most) if agree == 0 => {
+            // What the other pixel was on says nothing of the point.
+            let mut notes: Vec<Note> = most
+                .notes
+                .iter()
+                .copied()
+                .filter(|n| !matches!(n, Note::OnMark | Note::OffFill))
+                .collect();
+            notes.push(Note::Voted(first.bbox.map(|b| (b.width, b.height))));
+            Pointed {
+                bbox: most.bbox,
+                notes,
+            }
+        }
+        _ => {
+            first.notes.push(Note::Edge);
+            first
+        }
+    }
+}
+
+/// The box that holds the pixel `at`, measured from that pixel alone.
+///
+/// A small part under the pixel (a dot, a badge) is the box. A pixel on a mark steps out to
+/// the surface round it, at most three times:
+/// - a thin line or stroke, a small part that is no solid shape or that is a letter of a word,
+///   and the hole of a letter (`hole_exit`);
+/// - a part as low as a line of text (under 20 pt) that is letters of a word, or a word whose
+///   letters touch: at 1 px per pt the letters of 17 pt text are 12 px tall;
+/// - a fill that no color closes and that is thinner than a dot (a line of an edge's blur),
+///   no larger than the hole of a letter, or a patch a movie tinted (`round_pocket`): on a
+///   movie frame, noise shuts a fill in between the strokes of a label.
+///
+/// When a mark has no surface to step to, or the three steps end on one, there is no box
+/// (`Note::Thin`): a pocket or a sliver is never given as a component.
+fn box_from(frame: &RgbaFrame, at: (u32, u32), scale: &Scale, cap: usize) -> Pointed {
+    let (x, y) = at;
     let under = rgb(frame, x, y);
     let (mut seed, mut own) = ((x, y), settled(frame, x, y));
     let mut notes = Vec::new();
     let (mut steps, mut small_part, mut mark) = (0, false, false);
+    // The last thing found was a mark with nowhere to step to.
+    let lost;
+    // The seed is on a surface: a step led back into the small part it left, which is then a
+    // patch of that surface in another shade (a movie leaves such patches next to text).
+    let mut surface = false;
     let found = loop {
-        let found = find(frame, seed, own, &scale, cap);
-        let onto = |win: PxBox, bg: [u8; 3]| surface_near(frame, win, seed, bg).map(|s| (s, bg));
+        let found = find(frame, seed, own, scale, cap, !surface);
+        surface = false;
+        let onto = |win: PxBox, bg: [u8; 3]| {
+            surface_near(frame, win, seed, bg, scale.thin).map(|s| (s, bg))
+        };
+        // Whether what was found must not be the box.
+        let mut no_box = false;
         let step = match &found {
-            Found::Line => beside(frame, seed, own, &scale),
+            Found::Line => beside(frame, seed, own, scale, CLEAR, false),
             Found::Part(part, b) if scale.is_short(*b) => {
                 // A solid shape of its own: a dot, a badge, a pill. A letter is not solid, or
                 // is one of a word, and the stem of an "l" is not roughly round or square.
@@ -1124,15 +1484,68 @@ pub fn box_at(frame: &RgbaFrame, x: u32, y: u32, ppp: f64) -> Pointed {
                 small_part = hole.is_none() && solid;
                 mark = hole.is_none() && !solid;
                 match hole {
-                    Some(exit) => Some(exit),
+                    Some(exit) => {
+                        no_box = true;
+                        let (ex, ey) = exit.0;
+                        surface = ex >= b.x && ey >= b.y && ex < b.x1() && ey < b.y1();
+                        Some(exit)
+                    }
                     None if solid => None,
-                    None => onto(part.win, part.bg),
+                    // A mark on its background. Or strokes shut it in and its background is
+                    // not next to it: a pocket of the surface of its own color.
+                    None if touches_background(frame, part) => onto(part.win, part.bg),
+                    None => round_pocket(frame, *b, seed, own, scale),
                 }
             }
-            Found::Part(_, b) | Found::Lines { bbox: b } if scale.can_be_a_hole(*b) => {
-                hole_exit(frame, *b, own, scale.small)
+            // Over 12 pt tall and text all the same, as low as a line of it: letters with the
+            // next letter of their word beside them, or a word whose letters touch in the
+            // recording (strokes, in a box at least 1.5 times as wide as tall).
+            Found::Part(part, b)
+                if b.height < scale.text
+                    && (in_a_word(frame, part, *b, scale.join)
+                        || (2 * b.width >= 3 * b.height && is_strokes(frame, part, *b))) =>
+            {
+                mark = true;
+                if touches_background(frame, part) {
+                    onto(part.win, part.bg)
+                } else {
+                    round_pocket(frame, *b, seed, own, scale)
+                }
             }
-            Found::Mixed { bbox, win, bg } if scale.is_small(*bbox) => onto(*win, *bg),
+            // A fill that no color closes, no larger than the hole of a letter (a pocket of
+            // the surface between strokes) or thinner than a dot (one line of an edge's blur).
+            Found::Lines { bbox: b } | Found::Mixed { bbox: b, .. }
+                if scale.can_be_a_hole(*b)
+                    || scale.is_sliver(*b)
+                    || scale.is_a_patch(*b, &found, own) =>
+            {
+                // The surface is of the fill's own color. Or the fill is a patch that a movie
+                // tinted, and the surface is of the main color round it.
+                let around = match &found {
+                    Found::Mixed { bg, .. } if near(own, *bg, CLEAR) => *bg,
+                    _ => own,
+                };
+                let pocket = (scale.can_be_a_hole(*b) || scale.is_a_patch(*b, &found, own))
+                    .then(|| round_pocket(frame, *b, seed, around, scale))
+                    .flatten();
+                let exit = pocket.or_else(|| {
+                    scale
+                        .is_sliver(*b)
+                        .then(|| beside(frame, seed, own, scale, FILL_TOLERANCE, true))
+                        .flatten()
+                });
+                match &found {
+                    // A small fill between two colors that are not its own.
+                    Found::Mixed { win, bg, .. } if exit.is_none() && !scale.is_sliver(*b) => {
+                        no_box = scale.is_small(*b);
+                        no_box.then(|| onto(*win, *bg)).flatten()
+                    }
+                    _ => {
+                        no_box = true;
+                        exit
+                    }
+                }
+            }
             _ => None,
         };
         match step {
@@ -1140,11 +1553,17 @@ pub fn box_at(frame: &RgbaFrame, x: u32, y: u32, ppp: f64) -> Pointed {
                 (seed, own, steps) = (next, color, steps + 1);
                 (small_part, mark) = (false, false);
             }
-            _ => break found,
+            _ => {
+                lost = no_box;
+                break found;
+            }
         }
     };
-    if steps > 0 {
-        notes.push(Note::OnMark);
+    if lost {
+        return Pointed {
+            bbox: None,
+            notes: vec![Note::Thin],
+        };
     }
     let bbox = match &found {
         Found::Page => {
@@ -1190,6 +1609,10 @@ pub fn box_at(frame: &RgbaFrame, x: u32, y: u32, ppp: f64) -> Pointed {
             Some(*b)
         }
     };
+    // A step led to this box, unless the box is the mark itself.
+    if steps > 0 && bbox.is_some() && !notes.contains(&Note::Mark) {
+        notes.insert(0, Note::OnMark);
+    }
     if let Some(b) = bbox
         && (b.x == 0 || b.y == 0 || b.x1() == frame.width || b.y1() == frame.height)
     {
@@ -1598,7 +2021,7 @@ pub fn load_picture(
     let name = Path::new(&keyframe.file)
         .file_name()
         .context("The keyframe has no file")?;
-    let ink = "red ink, pins and click rings drawn on it may show".to_owned();
+    let ink = "red ink, pins and click rings drawn on it may show";
     if let Some(info) = &bundle.autocrop {
         let path = dir.join(&info.full_frames).join(name);
         if path.is_file() {
@@ -1618,7 +2041,10 @@ pub fn load_picture(
         keyframe.index,
         path.display()
     );
-    warnings.push(format!("measured {}: {ink}", Source::Keyframe.says()));
+    warnings.push(format!(
+        "measured {}: {ink}, and so does the keyframe's number chip in a corner",
+        Source::Keyframe.says()
+    ));
     Ok(Picture {
         frame: read_png(&path)?,
         source: Source::Keyframe,
@@ -1645,11 +2071,28 @@ pub fn width_pt(bundle: &ScrawlBundle) -> Option<f64> {
     (w.is_finite() && w > 0.0).then_some(w)
 }
 
-/// The image's place in full-frame px: its offset there, and px per pt.
+/// The image's place in full-frame px: its offset there, the full frame's size, and px per pt.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Space {
     pub offset: (f64, f64),
+    pub full: (f64, f64),
     pub ppp: Option<f64>,
+}
+
+/// Px per pt for the size limits of a capture that does not say its size in points (a cabled
+/// iPhone), from the shape of its full frame. The limits are in pt (12 pt for a small part,
+/// 1.5 pt between the letters of a word), and at 1 px per pt on a 3x frame a point on a label
+/// gave one letter and a region cut a word in two.
+/// - An iPhone's screen is 16:9 or taller and 375 to 440 pt wide: its short side over 400,
+///   to a whole number. That is 2 for a 750 or 828 px frame and 3 for 1080 to 1320 px.
+/// - A wider shape is an iPad's, 744 to 1032 pt wide: its short side over 834.
+///
+/// A whole number at least 1, so a saved image fit to 1600 px gets 1 or 2. It sets the limits
+/// only: no size is given in pt from it.
+fn estimated_ppp((w, h): (f64, f64)) -> f64 {
+    let (short, long) = (w.min(h), w.max(h));
+    let pt = if long >= 1.65 * short { 400.0 } else { 834.0 };
+    (short / pt).round().max(1.0)
 }
 
 pub fn space(picture: &Picture, width_pt: Option<f64>) -> Space {
@@ -1658,6 +2101,7 @@ pub fn space(picture: &Picture, width_pt: Option<f64>) -> Space {
     let full_h = f64::from(picture.frame.height) / f64::from((r[3] - r[1]).max(1e-6));
     Space {
         offset: (f64::from(r[0]) * full_w, f64::from(r[1]) * full_h),
+        full: (full_w, full_h),
         ppp: width_pt.map(|pt| full_w / pt),
     }
 }
@@ -1755,6 +2199,10 @@ pub struct Measurement {
     pub frame: usize,
     pub source: Source,
     pub px_per_pt: Option<f64>,
+    /// Px per pt that the size limits used when `px_per_pt` is unknown: an estimate from the
+    /// frame's size. Left out when `px_per_pt` is known.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub limits_px_per_pt: Option<f64>,
     /// The measured image's size in px.
     pub image: [u32; 2],
     /// Point mode: the box that holds the point. Left out when there is none (the point is on
@@ -1801,15 +2249,22 @@ pub fn measure_picture(
     let img = &picture.frame;
     let (w, h) = (img.width, img.height);
     let mut warnings = picture.warnings.clone();
-    if space.ppp.is_none() {
-        warnings.push("the capture's size in points is unknown: px only".into());
+    let estimate = space.ppp.is_none().then(|| estimated_ppp(space.full));
+    if let Some(ppp) = estimate {
+        warnings.push(format!(
+            "the capture's size in points is unknown: px only. The size limits (a small part, \
+             a thin line, the join of letters) used {} px per pt, an estimate from the frame's \
+             size",
+            num(ppp)
+        ));
     }
-    let ppp = space.ppp.unwrap_or(1.0);
+    let ppp = space.ppp.or(estimate).unwrap_or(1.0);
     let clamp_px = |v: f64, max: u32| (v.floor().max(0.0) as u32).min(max - 1);
     let mut out = Measurement {
         frame: frame_n,
         source: picture.source,
         px_per_pt: space.ppp.map(|p| (p * 100.0).round() / 100.0),
+        limits_px_per_pt: estimate,
         image: [w, h],
         component: None,
         boxes: None,
@@ -2179,11 +2634,15 @@ mod tests {
                 .says(Some(2.0))
                 .ends_with("the fill alone is 98×48 pt (196×96 px)")
         );
-        // On the border itself: the same box, from the fill beside the line.
+        // On the border itself: the same box, from the fill beside the line. The pixel next
+        // to it is on the page, and the output says that points close by differ.
         let p = at(&f, 101, 150);
         assert_eq!(
             (p.bbox, p.notes),
-            (Some(card), vec![Note::OnMark, Note::Rim(196, 96)])
+            (
+                Some(card),
+                vec![Note::OnMark, Note::Rim(196, 96), Note::Edge]
+            )
         );
         let region = PxBox {
             x: 50,
@@ -2219,11 +2678,15 @@ mod tests {
             (p.bbox, p.notes),
             (Some(b(100, 190, 600, 88)), vec![Note::Lines])
         );
-        // On the divider: the row nearest the point.
+        // On the divider: the row nearest the point. The pixel above gives the row above,
+        // and the output says that points close by differ.
         let p = at(&f, 400, 189);
         assert_eq!(
             (p.bbox, p.notes),
-            (Some(b(100, 190, 600, 88)), vec![Note::OnMark, Note::Lines])
+            (
+                Some(b(100, 190, 600, 88)),
+                vec![Note::OnMark, Note::Lines, Note::Edge]
+            )
         );
         // A cell of a table.
         let mut f = canvas(800, 600, CARD);
@@ -2947,56 +3410,84 @@ mod tests {
         f
     }
 
-    /// `ui` as a movie gives it back: encoded to H.264 4:2:0 by `encoder` (`x264` or `vt`,
-    /// Apple's VideoToolbox, which records every capture) and decoded again, saved in
-    /// `Tests/fixtures/measure/`. `SCRAWL_MEASURE_FIXTURES=write cargo test measure` makes
-    /// the files again with ffmpeg, after a change to `ui`.
-    fn encoded_ui(encoder: &str) -> RgbaFrame {
-        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+    fn fixture(name: &str) -> std::path::PathBuf {
+        Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("Tests/fixtures/measure")
-            .join(format!("ui-{encoder}.png"));
+            .join(name)
+    }
+
+    /// With `SCRAWL_MEASURE_FIXTURES=write`, makes the fixture `name` again: the PNG `source`
+    /// encoded to H.264 4:2:0 by `encoder` (`x264`, or `vt`, Apple's VideoToolbox, which
+    /// records every capture, at `bitrate`) and one frame of that movie decoded again. Needs
+    /// ffmpeg.
+    fn encode_fixture(source: &Path, name: &str, encoder: &str, bitrate: &str) {
+        if std::env::var("SCRAWL_MEASURE_FIXTURES").as_deref() != Ok("write") {
+            return;
+        }
+        // Tests run side by side, and more than one asks for a fixture.
+        static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let dir = temp_dir(&format!("encode-{call}-{name}"));
+        let movie = dir.join("frame.mp4");
+        let codec: &[&str] = match encoder {
+            "x264" => &["-c:v", "libx264", "-crf", "23"],
+            _ => &["-c:v", "h264_videotoolbox", "-b:v", bitrate],
+        };
+        let ffmpeg = |args: &[&str]| {
+            let status = std::process::Command::new("ffmpeg")
+                .args(["-loglevel", "error", "-y"])
+                .args(args)
+                .status()
+                .expect("ffmpeg runs");
+            assert!(status.success(), "ffmpeg {args:?}");
+        };
+        let (source, movie) = (source.to_str().unwrap(), movie.to_str().unwrap());
+        let mut encode = vec!["-loop", "1", "-i", source, "-t", "3", "-r", "30"];
+        encode.extend_from_slice(codec);
+        encode.extend_from_slice(&["-pix_fmt", "yuv420p", movie]);
+        ffmpeg(&encode);
+        let path = fixture(name);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        ffmpeg(&[
+            "-ss",
+            "1",
+            "-i",
+            movie,
+            "-frames:v",
+            "1",
+            path.to_str().unwrap(),
+        ]);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// How many pixels of `f` are more than 8 per channel off `clean`: the marks an encoder
+    /// left. A stale or a clean fixture fails the range its test gives.
+    fn changed(f: &RgbaFrame, clean: &RgbaFrame) -> usize {
+        assert_eq!((f.width, f.height), (clean.width, clean.height));
+        (0..f.height)
+            .flat_map(|y| (0..f.width).map(move |x| (x, y)))
+            .filter(|&(x, y)| !near(rgb(f, x, y), rgb(clean, x, y), MASK_TOLERANCE))
+            .count()
+    }
+
+    /// `ui` as a movie gives it back: encoded by `encoder` (`x264` or `vt`) and decoded again,
+    /// saved in `Tests/fixtures/measure/`. `SCRAWL_MEASURE_FIXTURES=write cargo test measure`
+    /// makes the files again with ffmpeg, after a change to `ui`.
+    fn encoded_ui(encoder: &str) -> RgbaFrame {
+        let name = format!("ui-{encoder}.png");
         if std::env::var("SCRAWL_MEASURE_FIXTURES").as_deref() == Ok("write") {
-            let dir = temp_dir(&format!("encode-{encoder}"));
-            let (source, movie) = (dir.join("ui.png"), dir.join("ui.mp4"));
+            static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+            let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+            let dir = temp_dir(&format!("source-{call}-{encoder}"));
+            let source = dir.join("ui.png");
             crate::render::save_png(&ui(), &source).unwrap();
-            let codec: &[&str] = match encoder {
-                "x264" => &["-c:v", "libx264", "-crf", "23"],
-                // 1200 kbit/s here is the bits per pixel of a 2560×1440 capture at 3.4 Mbit/s.
-                _ => &["-c:v", "h264_videotoolbox", "-b:v", "1200k"],
-            };
-            let ffmpeg = |args: &[&str]| {
-                let status = std::process::Command::new("ffmpeg")
-                    .args(["-loglevel", "error", "-y"])
-                    .args(args)
-                    .status()
-                    .expect("ffmpeg runs");
-                assert!(status.success(), "ffmpeg {args:?}");
-            };
-            let (source, movie) = (source.to_str().unwrap(), movie.to_str().unwrap());
-            let mut encode = vec!["-loop", "1", "-i", source, "-t", "3", "-r", "30"];
-            encode.extend_from_slice(codec);
-            encode.extend_from_slice(&["-pix_fmt", "yuv420p", movie]);
-            ffmpeg(&encode);
-            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
-            ffmpeg(&[
-                "-ss",
-                "1",
-                "-i",
-                movie,
-                "-frames:v",
-                "1",
-                path.to_str().unwrap(),
-            ]);
+            // 1200 kbit/s here is the bits per pixel of a 2560×1440 capture at 3.4 Mbit/s.
+            encode_fixture(&source, &name, encoder, "1200k");
             let _ = std::fs::remove_dir_all(&dir);
         }
-        let f = read_png(&path).unwrap();
+        let f = read_png(&fixture(&name)).unwrap();
         // The file is `ui`, and the encoder left its marks on it.
-        let clean = ui();
-        assert_eq!((f.width, f.height), (clean.width, clean.height));
-        let changed = (0..f.height)
-            .flat_map(|y| (0..f.width).map(move |x| (x, y)))
-            .filter(|&(x, y)| !near(rgb(&f, x, y), rgb(&clean, x, y), MASK_TOLERANCE))
-            .count();
+        let changed = changed(&f, &ui());
         assert!((1_000..60_000).contains(&changed), "{encoder}: {changed}");
         f
     }
@@ -3099,6 +3590,325 @@ mod tests {
                 assert_eq!(p.notes, [Note::SmallPart], "{what}");
                 assert_within_1(p.bbox.unwrap(), (x, y, d, d), &what);
             }
+        }
+    }
+
+    fn pointed(bbox: Option<PxBox>, notes: &[Note]) -> Pointed {
+        Pointed {
+            bbox,
+            notes: notes.to_vec(),
+        }
+    }
+
+    /// The point and the pixels close to it each give an answer. The point's own stands when
+    /// enough of them give it too, and the output says so when they do not.
+    #[test]
+    fn a_point_whose_neighbors_disagree_says_so() {
+        let button = Some(px_box(200, 700, 300, 80));
+        // The same box within 1 px, as a movie's edges give.
+        let nearly = Some(px_box(201, 700, 299, 81));
+        let sliver = Some(px_box(374, 746, 5, 1));
+        let fill = pointed(button, &[]);
+        // Two of the four agree: the point is at an edge, and its box stands with no note.
+        let others = [
+            pointed(nearly, &[]),
+            pointed(button, &[Note::OnMark]),
+            pointed(None, &[Note::Page]),
+            pointed(None, &[Note::Page]),
+        ];
+        assert_eq!(vote(fill.clone(), &others), fill);
+        // One noisy pixel next to the point changes nothing.
+        let others = [
+            fill.clone(),
+            fill.clone(),
+            fill.clone(),
+            pointed(sliver, &[Note::Lines]),
+        ];
+        assert_eq!(vote(fill.clone(), &others), fill);
+        // The point alone gives a sliver: the box the others give, and what the point gave.
+        let noisy = pointed(sliver, &[Note::OnMark, Note::Lines]);
+        let others = [
+            pointed(button, &[Note::OnMark]),
+            fill.clone(),
+            pointed(nearly, &[Note::OffFill]),
+            pointed(None, &[Note::Thin]),
+        ];
+        assert_eq!(
+            vote(noisy.clone(), &others),
+            pointed(button, &[Note::Voted(Some((5, 1)))])
+        );
+        assert!(
+            Note::Voted(Some((5, 1)))
+                .says(Some(2.0))
+                .contains("the point itself gave 2.5×0.5 pt (5×1 px)")
+        );
+        assert!(Note::Voted(None).says(None).contains("gave no box"));
+        // The others are split: the point's own box, and the output says they differ.
+        let others = [
+            fill.clone(),
+            fill.clone(),
+            pointed(None, &[Note::Page]),
+            pointed(None, &[Note::Page]),
+        ];
+        let p = vote(noisy.clone(), &others);
+        assert_eq!((p.bbox, p.notes.last()), (sliver, Some(&Note::Edge)));
+        // A point that stepped off a mark took the surface nearest to it. When one pixel
+        // close by gives another box, the point is at an edge and the output says so.
+        let stepped = pointed(button, &[Note::OnMark]);
+        let others = [
+            fill.clone(),
+            fill.clone(),
+            fill.clone(),
+            pointed(None, &[Note::Page]),
+        ];
+        assert_eq!(
+            vote(stepped.clone(), &others).notes,
+            [Note::OnMark, Note::Edge]
+        );
+        let others = [fill.clone(), fill.clone(), fill.clone(), fill.clone()];
+        assert_eq!(vote(stepped.clone(), &others), stepped);
+        // At the image's corner there are two other pixels.
+        assert_eq!(vote(fill.clone(), &others[..2]), fill);
+    }
+
+    /// The fill of a button between two letters of its label is as thin as a stroke there.
+    /// It is the button's surface all the same, not a line with the page beside it.
+    #[test]
+    fn a_point_between_two_letters_of_a_label_measures_the_button() {
+        const TEAL: [u8; 3] = [48, 110, 149];
+        const WHITE: [u8; 3] = [0xFF, 0xFF, 0xFF];
+        // A 96×24 px button at 0.85 px per pt, as a 6K screen records it. Its "letters" are
+        // bars 2 px wide and 10 px tall, 2 px apart.
+        let mut f = canvas(400, 200, WHITE);
+        rect(&mut f, 100, 80, 96, 24, TEAL);
+        for i in 0..12 {
+            rect(&mut f, 120 + i * 4, 87, 2, 10, WHITE);
+        }
+        let button = px_box(100, 80, 96, 24);
+        // Between two letters, and on the fill beside the label.
+        for (x, y) in [(122, 92), (123, 90), (150, 95), (108, 92)] {
+            let p = box_at(&f, x, y, 0.85);
+            assert_eq!((p.bbox, p.notes), (Some(button), vec![]), "{x},{y}");
+        }
+        // On a letter: the button, and the output says the point was on text.
+        let p = box_at(&f, 120, 92, 0.85);
+        assert_eq!((p.bbox, p.notes), (Some(button), vec![Note::OnMark]));
+    }
+
+    /// A label fixture: its px per pt, its button, and a grid of 405 points over the label.
+    struct Label {
+        name: &'static str,
+        ppp: f64,
+        button: (u32, u32, u32, u32),
+        /// The grid's first point, its step, and its columns and rows.
+        grid: (u32, u32, u32),
+        /// The VideoToolbox bit rate with the bits per pixel of a 2560×1440 capture at
+        /// 3.4 Mbit/s.
+        bitrate: &'static str,
+    }
+
+    /// `label-1x.png` is a Mac screen at 1 px per pt (a 6K screen records at 0.85), and
+    /// `label-2x.png` and `label-3x.png` an iPhone's at 2 and 3. Each holds one button with
+    /// "Load Docs" in 17 pt Helvetica on it: real text, which the frames drawn here do not
+    /// hold.
+    const LABELS: [Label; 2] = [
+        Label {
+            name: "label-1x",
+            ppp: 1.0,
+            button: (100, 350, 150, 40),
+            grid: (131, 362, 2),
+            bitrate: "850k",
+        },
+        Label {
+            name: "label-2x",
+            ppp: 2.0,
+            button: (225, 600, 300, 80),
+            grid: (287, 624, 4),
+            bitrate: "1000k",
+        },
+    ];
+
+    impl Label {
+        fn grid(&self) -> impl Iterator<Item = (u32, u32)> {
+            let (x, y, step) = self.grid;
+            (0..9).flat_map(move |row| (0..45).map(move |col| (x + col * step, y + row * step)))
+        }
+
+        fn clean(&self) -> RgbaFrame {
+            read_png(&fixture(&format!("{}.png", self.name))).unwrap()
+        }
+
+        /// The frame as a movie gives it back (see `encode_fixture`).
+        fn encoded(&self, encoder: &str) -> RgbaFrame {
+            let name = format!("{}-{encoder}.png", self.name);
+            let source = fixture(&format!("{}.png", self.name));
+            encode_fixture(&source, &name, encoder, self.bitrate);
+            let f = read_png(&fixture(&name)).unwrap();
+            let changed = changed(&f, &self.clean());
+            assert!((100..20_000).contains(&changed), "{name}: {changed}");
+            f
+        }
+
+        fn is_button(&self, p: &Pointed) -> bool {
+            let (x, y, w, h) = self.button;
+            p.bbox.is_some_and(|b| {
+                close(b.x, x) && close(b.y, y) && close(b.width, w) && close(b.height, h)
+            })
+        }
+    }
+
+    /// On a movie frame, noise shuts a fill in between the strokes of a label and joins
+    /// letters into words. At 1 px per pt the letters touch on a clean frame too, and their
+    /// strokes are as near a near-white page as its own noise. A point anywhere on the label
+    /// still measures the button. Where it cannot, it gives no box or says that the points
+    /// close to it give other boxes: never a sliver, the inside of a letter or a word as if
+    /// it were the component, and never the page.
+    #[test]
+    fn every_point_on_a_label_measures_the_button_or_says_it_is_unsure() {
+        for label in &LABELS {
+            // The clean frame, which no noise is on: every point gives the button.
+            let clean = label.clean();
+            for (x, y) in label.grid() {
+                let p = box_at(&clean, x, y, label.ppp);
+                assert!(label.is_button(&p), "{} {x},{y}: {p:?}", label.name);
+                // At 1 px per pt a letter can be a small part of its own for one pixel: the
+                // box is then the one the pixels close to it give.
+                let fine = |n: &Note| matches!(n, Note::OnMark | Note::Edge | Note::Voted(_));
+                assert!(
+                    p.notes.iter().all(fine),
+                    "{} {x},{y}: {:?}",
+                    label.name,
+                    p.notes
+                );
+            }
+            for encoder in ["x264", "vt"] {
+                let f = label.encoded(encoder);
+                let what = format!("{} {encoder}", label.name);
+                let (mut right, mut total) = (0, 0);
+                for (x, y) in label.grid() {
+                    let p = box_at(&f, x, y, label.ppp);
+                    let unsure = match p.bbox {
+                        Some(_) => p
+                            .notes
+                            .iter()
+                            .any(|n| matches!(n, Note::Edge | Note::Voted(_) | Note::Mark)),
+                        None => p.notes.contains(&Note::Thin),
+                    };
+                    assert!(label.is_button(&p) || unsure, "{what} {x},{y}: {p:?}");
+                    (right, total) = (right + usize::from(label.is_button(&p)), total + 1);
+                }
+                assert_eq!(total, 405);
+                assert!(right >= 401, "{what}: {right} of 405 give the button");
+            }
+        }
+    }
+
+    #[test]
+    fn the_limits_of_a_capture_with_no_size_in_points_come_from_the_shape_of_its_frame() {
+        for (size, ppp) in [
+            // iPhones, upright and on their side.
+            ((750.0, 1334.0), 2.0),
+            ((828.0, 1792.0), 2.0),
+            ((1080.0, 2340.0), 3.0),
+            ((1179.0, 2556.0), 3.0),
+            ((1320.0, 2868.0), 3.0),
+            ((2868.0, 1320.0), 3.0),
+            // A saved image fit to 1600 px.
+            ((736.0, 1600.0), 2.0),
+            // iPads.
+            ((1488.0, 2266.0), 2.0),
+            ((1640.0, 2360.0), 2.0),
+            ((2064.0, 2752.0), 2.0),
+            ((1200.0, 1600.0), 1.0),
+        ] {
+            assert_eq!(estimated_ppp(size), ppp, "{size:?}");
+        }
+    }
+
+    /// A cabled iPhone capture has no size in points. Its limits are in pt all the same, and
+    /// they take px per pt from the frame's shape: at 1 px per pt on a 2x or 3x frame, a point
+    /// on a label gave one letter and a region cut a word in two. Sizes stay in px.
+    #[test]
+    fn a_capture_with_no_size_in_points_measures_a_label_as_one_with_them_does() {
+        let mut bundle = mac_bundle();
+        bundle.target.mode = CaptureMode::Device;
+        bundle.device = Some(DeviceInfo {
+            width: 1179,
+            height: 2556,
+            ..Default::default()
+        });
+        assert_eq!(width_pt(&bundle), None);
+        let frames = [
+            ("label-2x.png".to_owned(), 2u32),
+            ("label-2x-x264.png".to_owned(), 2),
+            ("label-2x-vt.png".to_owned(), 2),
+            ("label-3x.png".to_owned(), 3),
+        ];
+        for (name, s) in frames {
+            let f = match name.as_str() {
+                "label-2x-x264.png" => LABELS[1].encoded("x264"),
+                "label-2x-vt.png" => LABELS[1].encoded("vt"),
+                _ => read_png(&fixture(&name)).unwrap(),
+            };
+            let (w, h) = (f64::from(f.width), f64::from(f.height));
+            let (bx, by) = if s == 2 { (225, 600) } else { (364, 1200) };
+            let button = (bx, by, 150 * s, 40 * s);
+            let ask = |query: Query| {
+                measure_picture(
+                    1,
+                    picture(f.clone(), Source::Movie, FULL),
+                    FULL,
+                    None,
+                    &query,
+                )
+            };
+            // On the stem of the "L", in the hole of the first "o" and on the "D".
+            let points = match s {
+                2 => [(297, 640), (320, 641), (383, 638)],
+                _ => [(473, 1255), (508, 1261), (599, 1255)],
+            };
+            for (x, y) in points {
+                let m = ask(Query::At(
+                    (f64::from(x) + 0.5) / w,
+                    (f64::from(y) + 0.5) / h,
+                ));
+                let what = format!("{name} {x},{y}: {:?}", m.warnings);
+                assert_eq!(
+                    (m.px_per_pt, m.limits_px_per_pt),
+                    (None, Some(f64::from(s)))
+                );
+                let b = m.component.expect(&what);
+                assert_eq!(b.pt, None);
+                let px = px_box(
+                    b.px.x as u32,
+                    b.px.y as u32,
+                    b.px.width as u32,
+                    b.px.height as u32,
+                );
+                assert_within_1(px, button, &what);
+                assert!(
+                    m.warnings[0].starts_with("the capture's size in points is unknown: px only")
+                        && m.warnings[0].contains(&format!("used {s} px per pt, an estimate")),
+                    "{what}"
+                );
+                assert!(m.warnings[1].starts_with("the point was on text"), "{what}");
+            }
+            // A region over the label: the two words and the space between them, in px.
+            let (x0, y0, x1, y1) = (bx + 20 * s, by + 8 * s, bx + 130 * s, by + 32 * s);
+            let m = ask(Query::Region([
+                f64::from(x0) / w,
+                f64::from(y0) / h,
+                f64::from(x1) / w,
+                f64::from(y1) / h,
+            ]));
+            let (boxes, gaps) = (m.boxes.unwrap(), m.gaps.unwrap());
+            assert_eq!(boxes.len(), 2, "{name}: {boxes:?}");
+            assert!(boxes.iter().all(|b| b.pt.is_none()));
+            let space = if s == 2 { 15 } else { 21 };
+            assert!(
+                gaps.len() == 1 && gaps[0].pt.is_none() && gaps[0].px.abs_diff(space) <= 2,
+                "{name}: {gaps:?}"
+            );
         }
     }
 }
