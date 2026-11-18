@@ -1030,9 +1030,14 @@ pub struct SharedCaptureTelemetry {
     /// the last event the tap took, so it may be the one macOS timed the tap out on.
     #[cfg_attr(target_os = "windows", allow(dead_code))]
     kept_at_event: AtomicU64,
-    /// The poller found the key tap off and has not seen it on since (`recover_tap`).
+    /// The poller found the key tap off and has not seen it on since (`recover_tap`). Each
+    /// tap starts with it clear (`tap_presses_on` making a tap, `tap_presses_off`).
     #[cfg_attr(target_os = "windows", allow(dead_code))]
     tap_found_off: AtomicBool,
+    /// The event time of the last left press the key tap judged (`note_left_down_at`), so the
+    /// kept one's when it is kept.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    kept_down_at: AtomicU64,
 }
 
 /// Why the key tap is being brought back (`SharedCaptureTelemetry::recover_tap`).
@@ -1108,6 +1113,7 @@ impl SharedCaptureTelemetry {
             tap_events: AtomicU64::new(0),
             kept_at_event: AtomicU64::new(0),
             tap_found_off: AtomicBool::new(false),
+            kept_down_at: AtomicU64::new(0),
         })
     }
 
@@ -1662,8 +1668,9 @@ impl SharedCaptureTelemetry {
     /// only one that is the last event the tap took (`kept_press_is_last_event`): the tap may
     /// have timed out on it, and the app got it. A kept press with a later event after it (the
     /// draw modifier let go while the button stays down, and that event timed out) was kept in
-    /// time, so its drags and release stay kept. If its release went by while the tap was off,
-    /// the next press forgets it (`block_press`).
+    /// time, so its drags and release stay kept. If its release, or a new press, went by while
+    /// the tap was off, the mouse monitor saw it reach the app and forgets the kept press
+    /// (`left_edge_reached_app`); the next press through the tap does too (`block_press`).
     ///
     /// The tap's notices (`TapOff::Timeout`, `TapOff::UserInput`) come in the order of its
     /// events and say why. The poller's look (`TapOff::Found`) has neither: it can come long
@@ -1709,7 +1716,36 @@ impl SharedCaptureTelemetry {
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
         turn_off();
+        self.tap_found_off.store(false, Ordering::Release);
         self.tap_takes_presses.store(false, Ordering::Release);
+    }
+
+    /// A new key tap is being made (call it inside `tap_presses_on`): no look at an earlier
+    /// tap counts for it, so its first time found off waits for its own notice.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn tap_made(&self) {
+        self.tap_found_off.store(false, Ordering::Release);
+    }
+
+    /// The key tap is about to judge a left press made at `at` (its event time). Call it
+    /// before `block_press`.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn note_left_down_at(&self, at: u64) {
+        self.kept_down_at.store(at, Ordering::Release);
+    }
+
+    /// The mouse monitor saw a left press or release at `at` (event time) reach an app. The
+    /// monitor sees no event the tap kept, so one after the kept press went down means that
+    /// press is over: its release went by, or a new press went down, while the tap was off.
+    /// The kept press is forgotten, so the new press's drags and release reach the app with
+    /// it. Without this, a press that ended during an outage would keep the next one's.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn left_edge_reached_app(&self, at: u64) {
+        if self.blocked_press.load(Ordering::Acquire)
+            && at > self.kept_down_at.load(Ordering::Acquire)
+        {
+            self.forget_press();
+        }
     }
 
     /// A left press at the key tap: when it is a draw-press (`blocks_draw_press`) it starts as
@@ -3574,6 +3610,58 @@ mod tests {
         assert!(telemetry.recover_tap(TapOff::Found, || false, || true));
         assert!(!telemetry.press_blocked());
         assert_eq!(pins(&telemetry), vec![1, 2]);
+    }
+
+    /// Review r6-s4-1: the tap kept a draw-press and timed out on a later event. While it was
+    /// off, that press came up and a new one went down, both reaching the app. The tap came
+    /// back still keeping the old press, so it kept the new press's drags and release, and the
+    /// app was left with a press that never came up. The mouse monitor saw the new press reach
+    /// the app, so the kept press is over. A release or press from before it changes nothing.
+    #[test]
+    fn a_press_that_reached_the_app_during_an_outage_ends_the_kept_one() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        assert!(telemetry.tap_presses_on(|| true));
+
+        telemetry.note_tap_event();
+        telemetry.note_left_down_at(100);
+        assert!(telemetry.block_press(200.0, 200.0, draw, || false));
+        telemetry.left_edge_reached_app(90); // an older click, seen late
+        assert!(telemetry.press_blocked());
+        telemetry.note_tap_event(); // the tap times out on a later event
+        // The tap is off: the kept press comes up and a new one goes down, past the tap.
+        telemetry.left_edge_reached_app(150);
+        telemetry.left_edge_reached_app(160);
+        assert!(telemetry.recover_tap(TapOff::Timeout, || false, || true));
+        assert!(
+            !telemetry.press_blocked(),
+            "the new press's drags reach the app"
+        );
+        assert!(!telemetry.release_press(300.0, 300.0), "and its release");
+        assert_eq!(pins(&telemetry), Vec::<u32>::new());
+    }
+
+    /// Review r6-s4-2: the poller found a tap off, and that tap was stopped and a new one made
+    /// before it looked again. The new tap's first time found off counted as the old tap's
+    /// second, so it was taken as timed out before its own notice came. Each tap starts afresh.
+    #[test]
+    fn a_new_tap_waits_for_its_own_notice() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        assert!(telemetry.tap_presses_on(|| true));
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || true));
+        telemetry.tap_presses_off(|| {});
+        assert!(telemetry.tap_presses_on(|| {
+            telemetry.tap_made();
+            true
+        }));
+
+        telemetry.note_tap_event();
+        assert!(telemetry.block_press(200.0, 200.0, draw, || false));
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || true));
+        assert!(telemetry.recover_tap(TapOff::UserInput, || false, || true));
+        assert!(telemetry.release_press(200.0, 200.0), "its release is kept");
+        assert_eq!(pins(&telemetry), vec![1]);
     }
 
     /// Review r5-s4-1: the tap kept a draw-press, and with the button still down macOS turned
