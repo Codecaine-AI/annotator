@@ -32,6 +32,7 @@ mod keyframes;
 mod laser_overlay;
 mod live_audio;
 mod live_transcribe;
+mod measure;
 mod mic;
 mod model;
 mod native;
@@ -434,6 +435,27 @@ enum Command {
         /// Show the whole screen even when the bundle's keyframes are auto-cropped.
         #[arg(long)]
         full: bool,
+    },
+    /// Measure a keyframe exactly: the box that holds a point, or every box in a region and the
+    /// gaps between neighbors, in pt and px. Coordinates are fractions (0 to 1) of the keyframe
+    /// image (`frames/frame-NN.png`); the pixels come from the ink-free movie frame when there
+    /// is one.
+    Measure {
+        /// A capture's id, the path to its `.scrawl` folder, or `latest`.
+        #[arg(default_value = "latest")]
+        bundle: PathBuf,
+        /// The keyframe, by its number (`--frame 2` for #2).
+        #[arg(long)]
+        frame: usize,
+        /// A point, `X,Y`, as fractions of the keyframe image (`0.5,0.5` is its centre).
+        #[arg(long, required_unless_present = "region", conflicts_with = "region")]
+        at: Option<String>,
+        /// A region, `X0,Y0,X1,Y1`, as fractions of the keyframe image.
+        #[arg(long)]
+        region: Option<String>,
+        /// Print JSON.
+        #[arg(long)]
+        json: bool,
     },
     /// Print the app state saved with a capture: the app, window title, URL and text outline of
     /// the window each keyframe shows (an app shot). Without `--frame` it lists the keyframes.
@@ -2270,6 +2292,26 @@ fn main() -> Result<()> {
         } => {
             let (dir, loaded) = handoff::load_bundle(&bundle)?;
             let (text, code) = appshot::report(&dir, &loaded, frame, json);
+            print!("{text}");
+            if code != 0 {
+                std::process::exit(code);
+            }
+            Ok(())
+        }
+        Command::Measure {
+            bundle,
+            frame,
+            at,
+            region,
+            json,
+        } => {
+            let (dir, loaded) = handoff::load_bundle(&bundle)?;
+            let query = match (&at, &region) {
+                (Some(at), _) => measure::parse_point(at)?,
+                (None, Some(region)) => measure::parse_region(region)?,
+                (None, None) => anyhow::bail!("Pass --at X,Y or --region X0,Y0,X1,Y1"),
+            };
+            let (text, code) = measure::report(&dir, &loaded, frame, &query, json)?;
             print!("{text}");
             if code != 0 {
                 std::process::exit(code);

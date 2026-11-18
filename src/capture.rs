@@ -539,6 +539,84 @@ pub fn draw_in_chord(draw: u32, held: u32) -> bool {
     held & draw != 0 && held & !draw != 0
 }
 
+/// What decides whether a left press is kept from the app under the pointer.
+#[derive(Clone, Copy)]
+pub struct DrawPress {
+    /// `blockDrawClicks` was on when the recording started.
+    pub setting: bool,
+    /// A recording takes input (not paused, not finished).
+    pub active: bool,
+    /// The draw modifier alone is held (`draws`).
+    pub draws: bool,
+    /// The draw modifier is left over from a chord, so it doesn't draw yet (the chord latch).
+    pub latched: bool,
+    /// The press is inside the capture target's rectangle.
+    pub inside: bool,
+}
+
+/// Whether a left press stops at Annotator: it is one that drops a pin or draws ink, so the app
+/// under the pointer never gets it. `elsewhere` (a window list, so asked last) says the press
+/// lands on something that is not being recorded, and it then goes there: one of Annotator's own
+/// windows such as the capsule, a macOS prompt, or a window in front of the recorded one
+/// (`SharedCaptureTelemetry::press_misses_target`).
+pub fn blocks_draw_press(press: DrawPress, elsewhere: impl FnOnce() -> bool) -> bool {
+    press.setting && press.active && press.draws && !press.latched && press.inside && !elsewhere()
+}
+
+/// Bit 0 of the chord latch word (`SharedCaptureTelemetry::draw_latch`): the draw modifier is
+/// latched. The bits above it count the key tap's modifier events.
+const DRAW_LATCHED: u64 = 1;
+
+/// The chord latch after the modifiers `held` (Carbon bits) are seen: off once the draw
+/// modifier `draw` is up, on while it is down with another one (`draw_in_chord`), and as it was
+/// while it is down alone.
+fn latch_after(latched: bool, draw: u32, held: u32) -> bool {
+    if held & draw == 0 {
+        false
+    } else if draw_in_chord(draw, held) {
+        true
+    } else {
+        latched
+    }
+}
+
+/// The chord latch as the poller found it before it read the modifier flags
+/// (`SharedCaptureTelemetry::draw_latch_mark`): its sample counts only if the key tap has seen
+/// no modifier change since.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct LatchMark(u64);
+
+/// A draw-press waiting for its release: when, where (global points) and on which frame.
+#[derive(Clone, Copy, Debug)]
+struct PinPress {
+    t_ms: u64,
+    x: f64,
+    y: f64,
+    frame: TargetFrame,
+    /// The key tap kept this press from the app and ends it (`release_press`). Otherwise the
+    /// mouse monitor or the polled buttons saw it and end it (`shift_up`).
+    by_tap: bool,
+}
+
+/// What is under a global point, from one read of the window list (`window_hit_in`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct WindowHit {
+    /// One of Annotator's own windows (`scrawl_window_in`).
+    scrawl: bool,
+    /// A macOS prompt (`windows::system_prompt_at`): a press there answers macOS.
+    prompt: bool,
+    /// A press there goes to what is being recorded. Always so for a Screen or Area capture;
+    /// for a Window or iPhone capture only when it goes to that window (`windows::press_goes_to`).
+    target: bool,
+}
+
+impl WindowHit {
+    /// A press there lands on something that is not being recorded, so it is no draw-press.
+    fn misses_target(self) -> bool {
+        self.scrawl || self.prompt || !self.target
+    }
+}
+
 /// The active layout's key for `kind`'s default letter (Windows' hooks and poller match on it).
 #[cfg_attr(target_os = "macos", allow(dead_code))]
 pub fn layout_default_keycode(kind: ShortcutKind) -> u16 {
@@ -881,7 +959,11 @@ pub struct SharedCaptureTelemetry {
     /// The `scrawl-helper` whose window is what's being recorded (the iPhone mirror): its clicks
     /// count, unlike those on other helper windows (Settings, onboarding). 0 when none.
     capture_source_pid: AtomicI32,
+    /// The window a Window capture records (`TargetInfo::window_id`), 0 when there is none.
+    target_window_id: AtomicU32,
     /// The last `on_scrawl_window` answer (when, where, what), reused for a burst of scrolls.
+    /// The mouse monitor, the polled buttons and scrolls ask it. The key tap never reads or
+    /// writes it: each press it judges gets an answer of its own (`press_misses_target`).
     scrawl_hit: Mutex<Option<(Instant, f64, f64, bool)>>,
     /// macOS's key event tap (`CFMachPortRef`), made once Accessibility is on (`check_key_tap`).
     #[cfg_attr(target_os = "windows", allow(dead_code))]
@@ -895,8 +977,18 @@ pub struct SharedCaptureTelemetry {
     /// When the last key tap was tried (ms since `UNIX_EPOCH`), to space out retries.
     #[cfg_attr(target_os = "windows", allow(dead_code))]
     tap_tried_ms: AtomicU64,
-    /// Whether key presses are arriving (macOS's key tap, Windows' keyboard hook).
+    /// Whether key presses are arriving (macOS's key tap, Windows' keyboard hook), as the
+    /// poller last found it (every 500 ms): for the log and `keys_live`, never for who records
+    /// a press (`tap_takes_presses`).
     tap_live: AtomicBool,
+    /// macOS's key tap may be delivering left presses: set before it is made or enabled and
+    /// cleared once it is off (`tap_presses_on`, `tap_presses_off`), so it is never off while
+    /// the tap delivers.
+    tap_takes_presses: AtomicBool,
+    /// Held while the key tap is turned on or off, so `tap_takes_presses` and the tap change
+    /// together, and while a tap that macOS turned off is brought back (`recover_tap`), so a
+    /// look at the tap, the forgetting of its kept press and its enabling are one step.
+    tap_gate: Mutex<()>,
     /// When the cancel key went down, for each press since the UI loop last looked
     /// (`take_escape`, `take_cancel_presses`).
     cancel_presses: Mutex<Vec<Instant>>,
@@ -915,8 +1007,50 @@ pub struct SharedCaptureTelemetry {
     /// App state was on when this capture started (`handoff::app_state`): clicks and strokes
     /// are looked up in the Accessibility tree (`crate::ax`).
     agent_context: AtomicBool,
-    /// A ⇧-press inside the target: when, where (global points) and on which frame.
-    shift_press: Mutex<Option<(u64, f64, f64, TargetFrame)>>,
+    /// A ⇧-press inside the target, and who ends it. Whoever starts one (the key tap, or the
+    /// mouse monitor and the polled buttons) decides under this lock, so a press has one owner.
+    shift_press: Mutex<Option<PinPress>>,
+    /// `blockDrawClicks` as the recording started (`handoff::block_draw_clicks`).
+    block_draw_clicks: AtomicBool,
+    /// The chord latch (bit `DRAW_LATCHED`): the draw modifier came down with another one and
+    /// doesn't draw until it is let go, so a press then is not a draw-press either. The bits
+    /// above count the key tap's modifier events, so a polled sample taken before the tap's
+    /// last one never replaces it, and while the tap is on only its own events clear the
+    /// latch (`note_tap_modifiers`, `note_polled_modifiers`).
+    draw_latch: AtomicU64,
+    /// The left button is down on a press the key tap kept from the app: its drags and its
+    /// release are kept too, even if the recording pauses or finishes before the release.
+    /// Set and forgotten under `shift_press`'s lock, with the press it belongs to.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    blocked_press: AtomicBool,
+    /// Counts the events the key tap was handed (`note_tap_event`), notices aside.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    tap_events: AtomicU64,
+    /// `tap_events` when the kept press came down. While they are equal, the kept press is
+    /// the last event the tap took, so it may be the one macOS timed the tap out on.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    kept_at_event: AtomicU64,
+    /// The poller found the key tap off and has not seen it on since (`recover_tap`). Each
+    /// tap starts with it clear (`tap_presses_on` making a tap, `tap_presses_off`).
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    tap_found_off: AtomicBool,
+    /// How many left presses the system had seen when the key tap judged its last one
+    /// (`note_left_downs`), so the kept press's count while it is kept.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    kept_downs: AtomicU64,
+}
+
+/// Why the key tap is being brought back (`SharedCaptureTelemetry::recover_tap`).
+#[cfg_attr(target_os = "windows", allow(dead_code))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum TapOff {
+    /// The tap's notice that macOS timed it out on a slow callback.
+    Timeout,
+    /// The tap's notice that macOS turned it off for the user (Secure Input, say). No callback
+    /// was cut short, so every press the tap kept was kept in time.
+    UserInput,
+    /// The poller's look every 500 ms. It knows no reason.
+    Found,
 }
 
 impl SharedCaptureTelemetry {
@@ -955,12 +1089,15 @@ impl SharedCaptureTelemetry {
             ui_sender,
             passthrough_window_ids: Mutex::new(Vec::new()),
             capture_source_pid: AtomicI32::new(0),
+            target_window_id: AtomicU32::new(0),
             scrawl_hit: Mutex::new(None),
             tap_port: AtomicU64::new(0),
             tap_run_loop: AtomicU64::new(0),
             tap_starting: AtomicBool::new(false),
             tap_tried_ms: AtomicU64::new(0),
             tap_live: AtomicBool::new(false),
+            tap_takes_presses: AtomicBool::new(false),
+            tap_gate: Mutex::new(()),
             cancel_presses: Mutex::new(Vec::new()),
             paused: AtomicBool::new(false),
             active_before_pause: AtomicBool::new(false),
@@ -970,6 +1107,13 @@ impl SharedCaptureTelemetry {
             drag_start: Mutex::new(None),
             agent_context: AtomicBool::new(false),
             shift_press: Mutex::new(None),
+            block_draw_clicks: AtomicBool::new(true),
+            draw_latch: AtomicU64::new(0),
+            blocked_press: AtomicBool::new(false),
+            tap_events: AtomicU64::new(0),
+            kept_at_event: AtomicU64::new(0),
+            tap_found_off: AtomicBool::new(false),
+            kept_downs: AtomicU64::new(0),
         })
     }
 
@@ -1120,7 +1264,9 @@ impl SharedCaptureTelemetry {
         }
     }
 
-    pub fn set_capture_mode(&self, mode: CaptureMode) {
+    /// What the next recording is of: its mode and, for a Window capture, that window's id
+    /// (an iPhone capture's window is known by its process, `set_capture_source_pid`).
+    pub fn set_capture_target(&self, mode: CaptureMode, window_id: Option<u32>) {
         let code = match mode {
             CaptureMode::Display => 0,
             CaptureMode::Region => 1,
@@ -1128,6 +1274,8 @@ impl SharedCaptureTelemetry {
             CaptureMode::Device => 3,
         };
         self.capture_mode.store(code, Ordering::Release);
+        self.target_window_id
+            .store(window_id.unwrap_or(0), Ordering::Release);
     }
 
     pub fn begin_picker_session(&self) {
@@ -1198,6 +1346,8 @@ impl SharedCaptureTelemetry {
         self.window_log_request.store(false, Ordering::Release);
         let agent_context = crate::handoff::app_state();
         self.agent_context.store(agent_context, Ordering::Release);
+        self.block_draw_clicks
+            .store(crate::handoff::block_draw_clicks(), Ordering::Release);
         if agent_context {
             crate::ax::Prober::shared().begin();
         }
@@ -1411,34 +1561,364 @@ impl SharedCaptureTelemetry {
             .push(event);
     }
 
-    /// The left button went down with only ⇧ held: a pin if it comes up as a click (`shift_up`).
+    /// The key tap saw the modifiers change to `held` (Carbon bits). Returns whether the draw
+    /// modifier is latched: it came down with another one (`draw_in_chord`, as in ⌥⇧S) and
+    /// draws nothing until it is let go. The tap's events come in the order the keys moved, the
+    /// same order as the presses it judges, so each one counts, and it is counted so that an
+    /// older polled sample can't replace it (`note_polled_modifiers`). One latch decides ink,
+    /// pins and kept presses alike.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn note_tap_modifiers(&self, held: u32) -> bool {
+        let draw = self.draw_mask();
+        let mut word = self.draw_latch.load(Ordering::Acquire);
+        loop {
+            let latched = latch_after(word & DRAW_LATCHED != 0, draw, held);
+            let next = (word & !DRAW_LATCHED).wrapping_add(2) | u64::from(latched);
+            match self.draw_latch.compare_exchange_weak(
+                word,
+                next,
+                Ordering::AcqRel,
+                Ordering::Acquire,
+            ) {
+                Ok(_) => return latched,
+                Err(now) => word = now,
+            }
+        }
+    }
+
+    /// The chord latch as it is now, for the poller to take before it reads the modifier flags
+    /// and hand back with what it read (`note_polled_modifiers`).
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn draw_latch_mark(&self) -> LatchMark {
+        LatchMark(self.draw_latch.load(Ordering::Acquire))
+    }
+
+    /// The poller read the modifiers `held` (Carbon bits) after taking `mark`. Returns whether
+    /// the draw modifier is latched. The sample counts only if the key tap has seen no modifier
+    /// change since `mark`: otherwise the sample may be from before that change, and the tap's
+    /// answer stands. While the tap is on (`tap_presses_on`) a sample may set the latch but
+    /// never clears it: the flags are read as the keys are now, which can be later than a
+    /// press still waiting at the tap, and that press must be judged by the keys as they were.
+    /// Only the tap's own event, in the order of its presses, says the draw modifier is up
+    /// (`note_tap_modifiers`). A change the tap never sees leaves the latch on until it sees
+    /// the next one, and a latched press passes. Without a tap every sample counts, as there
+    /// is no other writer.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn note_polled_modifiers(&self, mark: LatchMark, held: u32) -> bool {
+        let LatchMark(mark) = mark;
+        let was = mark & DRAW_LATCHED != 0;
+        let latched = latch_after(was, self.draw_mask(), held);
+        if was && !latched && self.tap_takes_presses.load(Ordering::Acquire) {
+            return self.draw_latch.load(Ordering::Acquire) & DRAW_LATCHED != 0;
+        }
+        let next = (mark & !DRAW_LATCHED) | u64::from(latched);
+        match self
+            .draw_latch
+            .compare_exchange(mark, next, Ordering::AcqRel, Ordering::Acquire)
+        {
+            Ok(_) => latched,
+            Err(now) => now & DRAW_LATCHED != 0,
+        }
+    }
+
+    /// Whether the draw modifier alone is held and draws: not left over from a chord.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn draws_now(&self, held: u32) -> bool {
+        draws(self.draw_mask(), held) && self.draw_latch.load(Ordering::Acquire) & DRAW_LATCHED == 0
+    }
+
+    /// The key tap takes every draw-press: it may be delivering left presses
+    /// (`tap_presses_on`) and `blockDrawClicks` is on. The mouse monitor and the polled buttons
+    /// then start none (`shift_down`), so a press is counted once.
+    pub(crate) fn tap_owns_draw_presses(&self) -> bool {
+        self.tap_takes_presses.load(Ordering::Acquire)
+            && self.block_draw_clicks.load(Ordering::Acquire)
+    }
+
+    /// Turns the key tap on: `turn_on` makes or enables it and says whether it is on. The tap's
+    /// ownership of draw-presses is published before `turn_on` runs and taken back if the tap
+    /// did not come on, under one lock with `tap_presses_off`. So the tap never delivers a
+    /// press while the mouse monitor and the polled buttons still start draw-presses, and no
+    /// late answer from an earlier look at the tap can undo it.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn tap_presses_on(&self, turn_on: impl FnOnce() -> bool) -> bool {
+        let _gate = self
+            .tap_gate
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        self.publish_tap_presses(turn_on)
+    }
+
+    /// `tap_presses_on` for a caller that holds `tap_gate`.
+    fn publish_tap_presses(&self, turn_on: impl FnOnce() -> bool) -> bool {
+        self.tap_takes_presses.store(true, Ordering::Release);
+        let on = turn_on();
+        if !on {
+            self.tap_takes_presses.store(false, Ordering::Release);
+        }
+        on
+    }
+
+    /// Brings the key tap back after macOS may have turned it off, as one step under the lock
+    /// every enabling of the tap takes: a look at the tap (`is_on`), the forgetting of a kept
+    /// press whose release may have gone by (`forget_press`), and `turn_on`, which enables the
+    /// tap as `tap_presses_on` would. Returns whether the tap is on.
+    ///
+    /// Only a timeout can cut a callback short, so only then is a kept press forgotten, and
+    /// only one that is the last event the tap took (`kept_press_is_last_event`): the tap may
+    /// have timed out on it, and the app got it. A kept press with a later event after it (the
+    /// draw modifier let go while the button stays down, and that event timed out) was kept in
+    /// time, so its drags and release stay kept. If its release and a new press went by while
+    /// the tap was off, the system's count of presses has moved on, and the tap forgets the
+    /// kept press before it judges the new one's drags (`check_kept_press`). The next press
+    /// through the tap forgets it too (`block_press`).
+    ///
+    /// The tap's notices (`TapOff::Timeout`, `TapOff::UserInput`) come in the order of its
+    /// events and say why. The poller's look (`TapOff::Found`) has neither: it can come long
+    /// after the tap was brought back, and it cannot tell a timeout from the user's. A tap it
+    /// finds on is left as it is. One it finds off is left for the notice that is on its way;
+    /// only a tap still off at its next look, with no notice between, is taken as timed out and
+    /// brought back.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn recover_tap(
+        &self,
+        off: TapOff,
+        is_on: impl FnOnce() -> bool,
+        turn_on: impl FnOnce() -> bool,
+    ) -> bool {
+        let _gate = self
+            .tap_gate
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        let timed_out = match off {
+            TapOff::Timeout => true,
+            TapOff::UserInput => false,
+            TapOff::Found if is_on() => false,
+            TapOff::Found => {
+                if !self.tap_found_off.swap(true, Ordering::AcqRel) {
+                    return false;
+                }
+                true
+            }
+        };
+        self.tap_found_off.store(false, Ordering::Release);
+        if timed_out && self.kept_press_is_last_event() {
+            self.forget_press();
+        }
+        self.publish_tap_presses(turn_on)
+    }
+
+    /// Turns the key tap off with `turn_off`, and only then hands draw-presses back to the mouse
+    /// monitor and the polled buttons.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn tap_presses_off(&self, turn_off: impl FnOnce()) {
+        let _gate = self
+            .tap_gate
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        turn_off();
+        self.tap_found_off.store(false, Ordering::Release);
+        self.tap_takes_presses.store(false, Ordering::Release);
+    }
+
+    /// A new key tap is being made (call it inside `tap_presses_on`): no look at an earlier
+    /// tap counts for it, so its first time found off waits for its own notice.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn tap_made(&self) {
+        self.tap_found_off.store(false, Ordering::Release);
+    }
+
+    /// The key tap is about to judge a left press, and the system has seen `downs` left presses
+    /// so far (its own count, this one in it). Call it before `block_press`, on the tap's thread.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn note_left_downs(&self, downs: u64) {
+        self.kept_downs.store(downs, Ordering::Release);
+    }
+
+    /// Whether the kept press is still the press under way: the key tap is about to judge one
+    /// of its drags or its release, and the system has seen `downs` left presses so far. A
+    /// left press after the kept one went down means it is over: its release and a new press
+    /// went by while the tap was off. Then it is forgotten, so the new press's drags and
+    /// release reach the app, which saw it go down. The system counts each press as it comes
+    /// in, before any tap sees it, so this needs no other thread to catch up. Call it on the
+    /// tap's thread, before `press_blocked` or `release_press`.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn check_kept_press(&self, downs: u64) {
+        if self.blocked_press.load(Ordering::Acquire)
+            && downs != self.kept_downs.load(Ordering::Acquire)
+        {
+            self.forget_press();
+        }
+    }
+
+    /// A left press at the key tap: when it is a draw-press (`blocks_draw_press`) it starts as
+    /// `shift_down` would, and the tap keeps it, its drags and its release from the app.
+    /// `held` is the event's modifiers (Carbon bits). `elsewhere` says the press lands on
+    /// something that is not being recorded (`press_misses_target`). A press while an earlier
+    /// kept one never saw its release (the tap was off for a moment) starts afresh.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn block_press(
+        &self,
+        screen_x: f64,
+        screen_y: f64,
+        held: u32,
+        elsewhere: impl FnOnce() -> bool,
+    ) -> bool {
+        if self.blocked_press.load(Ordering::Acquire) {
+            self.forget_press();
+        }
+        let setting = self.block_draw_clicks.load(Ordering::Acquire);
+        let active = self.active.load(Ordering::Acquire);
+        let draws = draws(self.draw_mask(), held);
+        // Every left press on the Mac passes here: no lock until it could be a draw-press.
+        if !(setting && active && draws) {
+            return false;
+        }
+        let press = DrawPress {
+            setting,
+            active,
+            draws,
+            latched: self.draw_latch.load(Ordering::Acquire) & DRAW_LATCHED != 0,
+            inside: self.contains_screen_point(screen_x, screen_y),
+        };
+        // Kept only once its pin is waiting: a press with nowhere to drop one passes.
+        blocks_draw_press(press, elsewhere)
+            && self.start_press(self.elapsed_ms(), screen_x, screen_y, true)
+    }
+
+    /// A kept press whose release the tap may not see is over: a press Annotator posted itself,
+    /// or the tap was disabled, stopped or made again. Its drags and release pass, since a
+    /// release the app never pressed for does no harm and a press it never sees released does.
+    /// Its pin goes with it, so no later release is taken for it. A press the mouse monitor or
+    /// the polled buttons started is theirs and stays.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn forget_press(&self) {
+        let mut press = self
+            .shift_press
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        self.blocked_press.store(false, Ordering::Release);
+        if press.is_some_and(|press| press.by_tap) {
+            *press = None;
+        }
+    }
+
+    /// Whether the left button is down on a kept press, so a drag is kept too.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn press_blocked(&self) -> bool {
+        self.blocked_press.load(Ordering::Acquire)
+    }
+
+    /// The left button came up: when its press was kept, the release is kept too, and it ends
+    /// the press as `shift_up` would while the recording still takes input (a pause or finish
+    /// during the press drops it). Returns whether the release is kept.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn release_press(&self, screen_x: f64, screen_y: f64) -> bool {
+        if !self.blocked_press.swap(false, Ordering::AcqRel) {
+            return false;
+        }
+        if self.active.load(Ordering::Acquire) {
+            self.end_press(self.elapsed_ms(), screen_x, screen_y, true);
+        } else {
+            // Paused or finished during the press (a pause may have raced `block_press`).
+            self.take_press(true);
+        }
+        true
+    }
+
+    /// The left button went down with only ⇧ held, as the mouse monitor or the polled buttons
+    /// saw it: a pin if it comes up as a click (`shift_up`). Nothing while the key tap takes
+    /// draw-presses: it has kept this one and records it, or it let it through to something
+    /// that is not being recorded.
     fn shift_down(&self, t_ms: u64, screen_x: f64, screen_y: f64) {
+        self.start_press(t_ms, screen_x, screen_y, false);
+    }
+
+    /// Starts a draw-press inside the target for the key tap (`by_tap`) or for the mouse
+    /// monitor and the polled buttons, and says whether it did. Who owns draw-presses is read
+    /// under the lock the press is stored under, and the tap owns them before it can deliver
+    /// one (`tap_presses_on`), so a press never has two owners: however late a monitor's or a
+    /// poll's press gets here, it starts nothing once the tap has taken over.
+    fn start_press(&self, t_ms: u64, screen_x: f64, screen_y: f64, by_tap: bool) -> bool {
         if !self.contains_screen_point(screen_x, screen_y) {
-            return;
+            return false;
         }
         let frame = *self
             .target_frame
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        *self
+        let mut press = self
             .shift_press
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) =
-            Some((t_ms, screen_x, screen_y, frame));
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if !by_tap && self.tap_owns_draw_presses() {
+            return false;
+        }
+        *press = Some(PinPress {
+            t_ms,
+            x: screen_x,
+            y: screen_y,
+            frame,
+            by_tap,
+        });
+        if by_tap {
+            self.kept_at_event
+                .store(self.tap_events.load(Ordering::Acquire), Ordering::Release);
+            self.blocked_press.store(true, Ordering::Release);
+        }
+        true
     }
 
-    /// The button of a ⇧-press came up (with or without ⇧ still held; ⇧ is the draw modifier,
-    /// unless Settings changed it). Every ⇧-click drops the next numbered pin where it went
-    /// down. Ink the hold drew before the press stays: it becomes a stroke that ends at the
-    /// press, and ink after the click starts a new one.
-    /// A ⇧-drag is left to the ink the poller is drawing. Returns whether a ⇧-press was waiting,
-    /// so the release isn't also taken as a click's.
-    fn shift_up(&self, t_ms: u64, screen_x: f64, screen_y: f64) -> bool {
-        let Some((t0, x0, y0, start_frame)) = self
+    /// The key tap was handed an event (not a notice that it was disabled). Call it first in
+    /// the tap's callback, before the event is judged.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn note_tap_event(&self) {
+        self.tap_events.fetch_add(1, Ordering::AcqRel);
+    }
+
+    /// Whether the kept press is the last event the key tap took. macOS times the tap out on
+    /// the event its callback is busy with and hands no other event on until the tap is on
+    /// again, so only that press can be the one the app got when the tap went off. A press
+    /// with a later event after it was kept in time: the app never saw it go down.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    fn kept_press_is_last_event(&self) -> bool {
+        self.kept_at_event.load(Ordering::Acquire) == self.tap_events.load(Ordering::Acquire)
+    }
+
+    /// Takes the waiting draw-press if `by_tap` says it is the caller's: the key tap ends the
+    /// presses it kept, the mouse monitor and the polled buttons end theirs.
+    fn take_press(&self, by_tap: bool) -> Option<PinPress> {
+        let mut press = self
             .shift_press
             .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner)
-            .take()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if press.is_some_and(|press| press.by_tap == by_tap) {
+            press.take()
+        } else {
+            None
+        }
+    }
+
+    /// The button of a ⇧-press came up, as the mouse monitor or the polled buttons saw it (with
+    /// or without ⇧ still held; ⇧ is the draw modifier, unless Settings changed it). Returns
+    /// whether a ⇧-press of theirs was waiting, so the release isn't also taken as a click's.
+    fn shift_up(&self, t_ms: u64, screen_x: f64, screen_y: f64) -> bool {
+        self.end_press(t_ms, screen_x, screen_y, false)
+    }
+
+    /// Ends the waiting draw-press of the key tap (`by_tap`) or of the mouse monitor and the
+    /// polled buttons. Every ⇧-click drops the next numbered pin where it went down. Ink the
+    /// hold drew before the press stays: it becomes a stroke that ends at the press, and ink
+    /// after the click starts a new one. A ⇧-drag is left to the ink the poller is drawing.
+    /// Returns whether a press was waiting.
+    fn end_press(&self, t_ms: u64, screen_x: f64, screen_y: f64, by_tap: bool) -> bool {
+        let Some(PinPress {
+            t_ms: t0,
+            x: x0,
+            y: y0,
+            frame: start_frame,
+            ..
+        }) = self.take_press(by_tap)
         else {
             return false;
         };
@@ -1518,28 +1998,116 @@ impl SharedCaptureTelemetry {
     }
 
     /// Whether the topmost window at a global point is Scrawl's own or a `scrawl-helper`'s other
-    /// than the capture source (ignoring the click-through ink overlay). Asked once per press, and
-    /// for scrolls, which come in bursts at one point, at most every 250 ms.
+    /// than the capture source (ignoring the click-through ink overlay). The mouse monitor and
+    /// the polled buttons ask once per press, and for scrolls, which come in bursts at one
+    /// point, at most every 250 ms.
     fn on_scrawl_window(&self, x: f64, y: f64) -> bool {
-        let mut hit = self
+        self.on_scrawl_window_in(x, y, platform::raw_windows_now, platform::is_helper_process)
+    }
+
+    /// `on_scrawl_window` with `windows` to read the window list (front to back). The answer
+    /// is kept for 250 ms for the same point. Nothing but this reads it: it decides what is
+    /// recorded, never what is kept from an app.
+    fn on_scrawl_window_in(
+        &self,
+        x: f64,
+        y: f64,
+        windows: impl FnOnce() -> Vec<crate::windows::RawWindow>,
+        is_helper: impl Fn(i32) -> bool,
+    ) -> bool {
+        let last = *self
             .scrawl_hit
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some((at, hx, hy, on)) = *hit
+        if let Some((at, hx, hy, on)) = last
             && at.elapsed() < Duration::from_millis(250)
             && (hx - x).abs() <= 2.0
             && (hy - y).abs() <= 2.0
         {
             return on;
         }
-        let on = self.scrawl_window_in(
-            &platform::raw_windows_now(),
+        // The window list is read with no lock held: the main thread and the poller both ask.
+        let on = self.scrawl_window_in(&windows(), x, y, is_helper);
+        *self
+            .scrawl_hit
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((Instant::now(), x, y, on));
+        on
+    }
+
+    /// Whether a press at a global point inside the target's rectangle lands on something that
+    /// is not being recorded, so it goes there and is no draw-press: one of Annotator's own
+    /// windows, a macOS prompt, or for a Window or iPhone capture any window but the recorded
+    /// one. The key tap asks only for a press that is otherwise a draw-press, and reads the
+    /// window list for each one: an answer for another press, however near in time and place,
+    /// says nothing about this one (another window starts a point away, a prompt or a menu
+    /// has just opened under the pointer).
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn press_misses_target(&self, x: f64, y: f64) -> bool {
+        #[cfg(target_os = "macos")]
+        let pressed = || platform::window_taking_press(x, y);
+        #[cfg(not(target_os = "macos"))]
+        let pressed = || None;
+        self.press_misses_target_in(
             x,
             y,
+            platform::raw_windows_now,
             platform::is_helper_process,
-        );
-        *hit = Some((Instant::now(), x, y, on));
-        on
+            pressed,
+        )
+    }
+
+    /// `press_misses_target` with `windows` to read the window list (front to back) and
+    /// `pressed` to ask the window server which window a press at the point goes to.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    fn press_misses_target_in(
+        &self,
+        x: f64,
+        y: f64,
+        windows: impl FnOnce() -> Vec<crate::windows::RawWindow>,
+        is_helper: impl Fn(i32) -> bool,
+        pressed: impl FnOnce() -> Option<u32>,
+    ) -> bool {
+        self.window_hit_in(&windows(), x, y, is_helper, pressed)
+            .misses_target()
+    }
+
+    /// What is under a global point (`WindowHit`), going by a window list (front to back).
+    /// `pressed` asks the window server which window a press at the point goes to
+    /// (`windows::press_goes_to`).
+    fn window_hit_in(
+        &self,
+        windows: &[crate::windows::RawWindow],
+        x: f64,
+        y: f64,
+        is_helper: impl Fn(i32) -> bool,
+        pressed: impl FnOnce() -> Option<u32>,
+    ) -> WindowHit {
+        let passthrough = self
+            .passthrough_window_ids
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .clone();
+        let goes_to = |recorded: &dyn Fn(&crate::windows::RawWindow) -> bool| {
+            crate::windows::press_goes_to(windows, x, y, &passthrough, recorded, pressed)
+        };
+        // Without the window or the process to look for, nothing says the press is on it.
+        let target = match self.capture_mode.load(Ordering::Acquire) {
+            2 => {
+                let id = self.target_window_id.load(Ordering::Acquire);
+                id != 0 && goes_to(&|w| w.id == id)
+            }
+            3 => {
+                let pid = self.capture_source_pid.load(Ordering::Acquire);
+                pid != 0 && goes_to(&|w| w.pid == pid)
+            }
+            _ => true,
+        };
+        WindowHit {
+            scrawl: self.scrawl_window_in(windows, x, y, is_helper),
+            prompt: crate::windows::system_prompt_at(windows, x, y),
+            target,
+        }
     }
 
     fn scrawl_window_in(
@@ -1658,6 +2226,7 @@ fn poll_clicks(
             if !pure_shift {
                 telemetry.pointer_down(telemetry.elapsed_ms(), x, y);
             } else if left {
+                // Nothing while the key tap takes draw-presses (`shift_down`).
                 telemetry.shift_down(telemetry.elapsed_ms(), x, y);
             }
         } else if !down && before {
@@ -2554,6 +3123,747 @@ mod tests {
             strokes[0].normalized_points()[1],
             strokes[1].normalized_points()[0]
         );
+    }
+
+    /// A left press stops at Annotator only when it would drop a pin or draw ink: the setting
+    /// is on, the recording takes input, the draw modifier alone is held and not left over from
+    /// a chord, the press is inside the target and not on Annotator's own window.
+    #[test]
+    fn only_a_draw_press_inside_the_target_is_kept_from_the_app() {
+        let yes = DrawPress {
+            setting: true,
+            active: true,
+            draws: true,
+            latched: false,
+            inside: true,
+        };
+        assert!(blocks_draw_press(yes, || false));
+        assert!(
+            !blocks_draw_press(yes, || true),
+            "on the capsule, a macOS prompt or another window"
+        );
+        for no in [
+            DrawPress {
+                setting: false,
+                ..yes
+            },
+            DrawPress {
+                active: false,
+                ..yes
+            },
+            DrawPress {
+                draws: false,
+                ..yes
+            },
+            DrawPress {
+                latched: true,
+                ..yes
+            },
+            DrawPress {
+                inside: false,
+                ..yes
+            },
+        ] {
+            let mut asked = false;
+            assert!(!blocks_draw_press(no, || {
+                asked = true;
+                false
+            }));
+            assert!(!asked, "the window list is asked only for a draw-press");
+        }
+    }
+
+    /// A kept press drops its pin at the release, once. A press kept when the recording pauses
+    /// keeps its drags and release from the app until the button comes up, and drops nothing.
+    /// Presses outside the target, during a chord or with the setting off pass.
+    #[test]
+    fn a_kept_press_drops_its_pin_and_keeps_its_release_past_a_pause() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        assert!(telemetry.block_press(200.0, 300.0, draw, || false));
+        assert!(telemetry.press_blocked());
+        assert!(telemetry.release_press(201.0, 300.0));
+        assert!(!telemetry.press_blocked());
+        assert!(
+            !telemetry.release_press(201.0, 300.0),
+            "a release passes after"
+        );
+
+        // Not the draw modifier alone, outside the target, or on Annotator: passes.
+        assert!(!telemetry.block_press(200.0, 300.0, 0, || false));
+        assert!(!telemetry.block_press(2000.0, 300.0, draw, || false));
+        assert!(!telemetry.block_press(200.0, 300.0, draw, || true));
+        // Left over from a chord (⌘ came down with it, then went up): passes.
+        let chord = draw | CARBON_CMD_KEY;
+        assert!(telemetry.note_tap_modifiers(chord));
+        assert!(telemetry.note_tap_modifiers(draw));
+        assert!(!telemetry.draws_now(draw));
+        assert!(!telemetry.block_press(200.0, 300.0, draw, || false));
+        // Let go and pressed again alone: draws and is kept.
+        assert!(!telemetry.note_tap_modifiers(0));
+        assert!(!telemetry.note_tap_modifiers(draw));
+        assert!(telemetry.draws_now(draw));
+        telemetry.block_draw_clicks.store(false, Ordering::Release);
+        assert!(!telemetry.block_press(200.0, 300.0, draw, || false));
+        telemetry.block_draw_clicks.store(true, Ordering::Release);
+
+        // Paused mid-press: the release is still kept, and no pin drops.
+        assert!(telemetry.block_press(400.0, 400.0, draw, || false));
+        telemetry.pause_input();
+        assert!(telemetry.press_blocked());
+        assert!(telemetry.release_press(400.0, 400.0));
+        // While paused nothing is kept.
+        assert!(!telemetry.block_press(400.0, 400.0, draw, || false));
+        telemetry.resume_input();
+
+        // A kept press whose release never came is over at the next press, and when the tap
+        // was disabled in between.
+        assert!(telemetry.block_press(500.0, 500.0, draw, || false));
+        assert!(!telemetry.block_press(500.0, 500.0, 0, || false));
+        assert!(!telemetry.press_blocked());
+        assert!(telemetry.block_press(500.0, 500.0, draw, || false));
+        telemetry.forget_press();
+        assert!(!telemetry.press_blocked());
+        assert!(!telemetry.release_press(500.0, 500.0));
+
+        let (_, strokes) = telemetry.finish_session();
+        let pins: Vec<_> = strokes.iter().filter_map(|s| s.pin).collect();
+        assert_eq!(pins, vec![1]);
+    }
+
+    /// With the key tap taking draw-presses, the polled buttons leave them alone, so one click
+    /// is one pin even when both see it.
+    #[test]
+    fn polled_buttons_leave_draw_presses_to_the_tap() {
+        let telemetry = session(1000.0, 1000.0);
+        assert!(telemetry.tap_presses_on(|| true));
+        let draw = telemetry.draw_mask();
+        let mut prev = [false; 2];
+        assert!(telemetry.block_press(300.0, 300.0, draw, || false));
+        poll_clicks(
+            &telemetry,
+            &mut prev,
+            [true, false],
+            (300.0, 300.0),
+            true,
+            |_, _| false,
+        );
+        assert!(telemetry.release_press(300.0, 300.0));
+        poll_clicks(
+            &telemetry,
+            &mut prev,
+            [false, false],
+            (300.0, 300.0),
+            true,
+            |_, _| false,
+        );
+        poll_clicks(
+            &telemetry,
+            &mut prev,
+            [true, false],
+            (300.0, 300.0),
+            true,
+            |_, _| false,
+        );
+        poll_clicks(
+            &telemetry,
+            &mut prev,
+            [false, false],
+            (300.0, 300.0),
+            true,
+            |_, _| false,
+        );
+        assert_eq!(pins(&telemetry), vec![1]);
+    }
+
+    /// The pins of a finished session, in order.
+    fn pins(telemetry: &SharedCaptureTelemetry) -> Vec<u32> {
+        let (_, strokes) = telemetry.finish_session();
+        strokes.iter().filter_map(|s| s.pin).collect()
+    }
+
+    /// The key tap owns draw-presses from before it is made or enabled until after it is off,
+    /// so it never delivers a press while the mouse monitor and the polled buttons still start
+    /// draw-presses. A tap that did not come on owns nothing.
+    #[test]
+    fn the_tap_owns_draw_presses_before_it_can_deliver_one() {
+        let telemetry = session(1000.0, 1000.0);
+        assert!(!telemetry.tap_owns_draw_presses(), "no tap yet");
+        let on = telemetry.tap_presses_on(|| {
+            assert!(telemetry.tap_owns_draw_presses(), "before the tap is on");
+            true
+        });
+        assert!(on && telemetry.tap_owns_draw_presses());
+        telemetry.tap_presses_off(|| {
+            assert!(telemetry.tap_owns_draw_presses(), "until the tap is off");
+        });
+        assert!(!telemetry.tap_owns_draw_presses());
+        // Secure Input, or no tap to enable: the others keep recording.
+        assert!(!telemetry.tap_presses_on(|| false));
+        assert!(!telemetry.tap_owns_draw_presses());
+        // `blockDrawClicks` off: the tap keeps nothing, so it owns nothing.
+        assert!(telemetry.tap_presses_on(|| true));
+        telemetry.block_draw_clicks.store(false, Ordering::Release);
+        assert!(!telemetry.tap_owns_draw_presses());
+    }
+
+    /// Review r2-s4-2: a tap just made kept a ⇧-click while the polled buttons, not yet told
+    /// (`tap_live` came 500 ms later), counted the same click: the poll saw the button down,
+    /// waited on the window list while the tap dropped pin 1 at the release, then started the
+    /// press again and dropped pin 2 at its next sample.
+    #[test]
+    fn a_tap_just_made_and_the_polled_buttons_count_one_click_once() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        let at = (300.0, 300.0);
+        // As `spawn_key_tap` makes it, and nothing else has run since.
+        assert!(telemetry.tap_presses_on(|| true));
+        assert!(telemetry.block_press(at.0, at.1, draw, || false));
+        let mut prev = [false; 2];
+        poll_clicks(&telemetry, &mut prev, [true, false], at, true, |x, y| {
+            // The poll is here, in the window list, when the tap sees the release.
+            assert!(telemetry.release_press(x, y));
+            false
+        });
+        poll_clicks(&telemetry, &mut prev, [false, false], at, true, |_, _| {
+            false
+        });
+        assert_eq!(pins(&telemetry), vec![1]);
+    }
+
+    /// The same click with the poll one step earlier: it saw the button down before the tap was
+    /// made. Whatever it decided then, it starts no press once the tap owns them, and leaves
+    /// nothing behind that a later release would be taken for.
+    #[test]
+    fn a_poll_that_falls_behind_a_new_tap_starts_no_press() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        let at = (300.0, 300.0);
+        let mut prev = [false; 2];
+        poll_clicks(&telemetry, &mut prev, [true, false], at, true, |x, y| {
+            assert!(telemetry.tap_presses_on(|| true));
+            assert!(telemetry.block_press(x, y, draw, || false));
+            assert!(telemetry.release_press(x, y));
+            false
+        });
+        poll_clicks(&telemetry, &mut prev, [false, false], at, true, |_, _| {
+            false
+        });
+        // The tap goes (Accessibility off): the next plain click is a click.
+        telemetry.tap_presses_off(|| {});
+        poll_clicks(&telemetry, &mut prev, [true, false], at, false, |_, _| {
+            false
+        });
+        poll_clicks(&telemetry, &mut prev, [false, false], at, false, |_, _| {
+            false
+        });
+        let (events, strokes) = telemetry.finish_session();
+        assert!(
+            matches!(events[..], [InteractionEvent::Click { .. }]),
+            "{events:?}"
+        );
+        let pins: Vec<_> = strokes.iter().filter_map(|s| s.pin).collect();
+        assert_eq!(pins, vec![1]);
+    }
+
+    /// A press has one owner from its start to its end. One the polled buttons started before
+    /// the tap came on still drops its pin (the tap never saw it go down), and the tap's own
+    /// press is not ended by a polled release.
+    #[test]
+    fn a_press_is_ended_by_whoever_started_it() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        let mut prev = [false; 2];
+        poll_clicks(
+            &telemetry,
+            &mut prev,
+            [true, false],
+            (300.0, 300.0),
+            true,
+            |_, _| false,
+        );
+        assert!(telemetry.tap_presses_on(|| true));
+        assert!(
+            !telemetry.release_press(300.0, 300.0),
+            "not the tap's: it passes"
+        );
+        poll_clicks(
+            &telemetry,
+            &mut prev,
+            [false, false],
+            (300.0, 300.0),
+            true,
+            |_, _| false,
+        );
+
+        assert!(telemetry.block_press(600.0, 600.0, draw, || false));
+        assert!(!telemetry.shift_up(telemetry.elapsed_ms(), 600.0, 600.0));
+        assert!(telemetry.release_press(600.0, 600.0));
+        assert_eq!(pins(&telemetry), vec![1, 2]);
+    }
+
+    /// Review r2-s3 #2: a kept press that was forgotten (the tap timed out on it) left its pin
+    /// waiting. With the tap gone later, the next plain release took it: that click was not
+    /// recorded and dropped a pin. A forgotten press takes its pin with it, and a press the
+    /// polled buttons started is not the tap's to forget.
+    #[test]
+    fn a_forgotten_kept_press_leaves_no_pin_waiting() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        let at = (500.0, 500.0);
+        assert!(telemetry.tap_presses_on(|| true));
+        assert!(telemetry.block_press(at.0, at.1, draw, || false));
+        telemetry.forget_press();
+        assert!(!telemetry.release_press(at.0, at.1), "its release passes");
+        telemetry.tap_presses_off(|| {});
+        let mut prev = [false; 2];
+        poll_clicks(&telemetry, &mut prev, [true, false], at, false, |_, _| {
+            false
+        });
+        poll_clicks(&telemetry, &mut prev, [false, false], at, false, |_, _| {
+            false
+        });
+        // A ⇧-press of the polled buttons outlives a forget.
+        poll_clicks(&telemetry, &mut prev, [true, false], at, true, |_, _| false);
+        telemetry.forget_press();
+        poll_clicks(&telemetry, &mut prev, [false, false], at, true, |_, _| {
+            false
+        });
+        let (events, strokes) = telemetry.finish_session();
+        assert!(
+            matches!(events[..], [InteractionEvent::Click { .. }]),
+            "{events:?}"
+        );
+        let pins: Vec<_> = strokes.iter().filter_map(|s| s.pin).collect();
+        assert_eq!(pins, vec![1]);
+    }
+
+    /// Review r2-s4-1: the poller read ⌘⇧, was held up, and wrote its old sample over what the
+    /// key tap had seen since (both let go, then ⇧ alone), so the whole fresh ⇧ hold drew
+    /// nothing and its click reached the app. A sample taken before the tap's last modifier
+    /// event does not count.
+    #[test]
+    fn a_late_polled_sample_does_not_undo_the_taps_modifier_events() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        let chord = draw | CARBON_CMD_KEY;
+
+        // A fresh hold, and a poll that still holds the chord it read before.
+        assert!(telemetry.note_polled_modifiers(telemetry.draw_latch_mark(), chord));
+        let mark = telemetry.draw_latch_mark();
+        telemetry.note_tap_modifiers(draw);
+        telemetry.note_tap_modifiers(0);
+        assert!(!telemetry.note_tap_modifiers(draw));
+        assert!(
+            !telemetry.note_polled_modifiers(mark, chord),
+            "the tap's answer"
+        );
+        assert!(telemetry.draws_now(draw));
+        assert!(telemetry.block_press(200.0, 300.0, draw, || false));
+        assert!(telemetry.release_press(200.0, 300.0));
+
+        // The other way round: a poll that read no modifier, then ⌘⇧ and ⌘ let go at the tap.
+        telemetry.note_tap_modifiers(0);
+        let mark = telemetry.draw_latch_mark();
+        telemetry.note_tap_modifiers(chord);
+        assert!(telemetry.note_tap_modifiers(draw));
+        assert!(telemetry.note_polled_modifiers(mark, 0), "the tap's answer");
+        assert!(!telemetry.draws_now(draw), "left over from the chord");
+        assert!(!telemetry.block_press(200.0, 300.0, draw, || false));
+
+        // A sample taken after the tap's last event counts, and so does every sample when
+        // there is no tap: the chord's leftover ends when the poller sees the modifier up.
+        assert!(telemetry.note_polled_modifiers(telemetry.draw_latch_mark(), draw));
+        assert!(!telemetry.note_polled_modifiers(telemetry.draw_latch_mark(), 0));
+        assert!(!telemetry.note_polled_modifiers(telemetry.draw_latch_mark(), draw));
+        assert!(telemetry.draws_now(draw));
+        assert!(telemetry.note_polled_modifiers(telemetry.draw_latch_mark(), chord));
+        assert!(telemetry.note_polled_modifiers(telemetry.draw_latch_mark(), draw));
+        assert!(!telemetry.draws_now(draw));
+        assert_eq!(pins(&telemetry), vec![1]);
+    }
+
+    /// Review r3-s4-2: the poller reads the keys as they are now, which can be later than a
+    /// press still waiting at the key tap. ⌘⇧, ⌘ let go, a click, ⇧ let go: the poller saw no
+    /// modifier before the tap got to the click and cleared the latch, and the tap then kept a
+    /// click that was left over from the chord. While the tap is on a polled sample sets the
+    /// latch and never clears it. The tap's own ⇧-up does, after the click.
+    #[test]
+    fn a_polled_sample_never_clears_the_latch_while_the_tap_is_on() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        let chord = draw | CARBON_CMD_KEY;
+        let polled = |held| telemetry.note_polled_modifiers(telemetry.draw_latch_mark(), held);
+        assert!(telemetry.tap_presses_on(|| true));
+
+        // The tap has seen ⌘⇧ and ⌘ let go. The click and the ⇧-up still wait at it.
+        telemetry.note_tap_modifiers(chord);
+        assert!(telemetry.note_tap_modifiers(draw));
+        assert!(polled(0), "the keys are up by now, the latch stays");
+        assert!(!telemetry.draws_now(draw));
+        assert!(
+            !telemetry.block_press(200.0, 300.0, draw, || false),
+            "left over from the chord"
+        );
+        // The tap gets to the ⇧-up: the next hold draws, and its click is kept.
+        assert!(!telemetry.note_tap_modifiers(0));
+        assert!(!telemetry.note_tap_modifiers(draw));
+        assert!(telemetry.block_press(200.0, 300.0, draw, || false));
+        assert!(telemetry.release_press(200.0, 300.0));
+        telemetry.note_tap_modifiers(0);
+
+        // A chord the tap never saw (Secure Input, a tap that was off for a moment) latches
+        // from a poll, and stays latched until the tap sees the modifier up: presses pass.
+        assert!(polled(chord));
+        assert!(polled(0));
+        assert!(polled(draw), "a new hold, and the tap saw none of it");
+        assert!(!telemetry.block_press(200.0, 300.0, draw, || false));
+        assert!(!telemetry.note_tap_modifiers(0));
+
+        // Without a tap the poller is the only writer, and its sample clears the latch.
+        assert!(polled(chord));
+        telemetry.tap_presses_off(|| {});
+        assert!(!polled(0));
+        assert_eq!(pins(&telemetry), vec![1]);
+    }
+
+    /// Review r3-s4-3: the poller found the tap disabled and was held up before it forgot the
+    /// kept press. The tap's own notice brought the tap back meanwhile, and the tap kept a new
+    /// press. The poller then forgot that one: its drags and release reached the app, and no
+    /// pin dropped. The poller forgets only for a tap that is still off when it looks, in one
+    /// step with enabling it. The tap's notice always forgets: a press kept before it may be
+    /// the one the tap timed out on, which the app got.
+    #[test]
+    fn a_late_look_at_the_tap_does_not_forget_a_press_kept_since_it_came_back() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        assert!(telemetry.tap_presses_on(|| true));
+
+        // A kept press, and macOS disables the tap. Its notice brings it back.
+        assert!(telemetry.block_press(200.0, 200.0, draw, || false));
+        assert!(telemetry.recover_tap(
+            TapOff::Timeout,
+            || false,
+            || {
+                assert!(!telemetry.press_blocked(), "forgotten before the tap is on");
+                true
+            }
+        ));
+        assert!(!telemetry.release_press(200.0, 200.0), "its release passes");
+        // The tap keeps a new press. The poller's look comes now and finds the tap on.
+        assert!(telemetry.block_press(600.0, 600.0, draw, || false));
+        assert!(telemetry.recover_tap(TapOff::Found, || true, || true));
+        assert!(telemetry.press_blocked(), "its drags are still kept");
+        assert!(telemetry.release_press(600.0, 600.0));
+
+        // The poller finds the tap off and leaves it for the notice. Still off at its next
+        // look, with no notice: the kept press is over.
+        assert!(telemetry.block_press(400.0, 400.0, draw, || false));
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || true));
+        assert!(telemetry.press_blocked(), "kept until the next look");
+        assert!(telemetry.recover_tap(TapOff::Found, || false, || true));
+        assert!(!telemetry.release_press(400.0, 400.0));
+        // The tap timed out on a press and the app got it. The poller brought the tap back,
+        // and only then did the slow callback keep the press. The notice comes next.
+        assert!(telemetry.block_press(400.0, 400.0, draw, || false));
+        assert!(telemetry.recover_tap(TapOff::Timeout, || true, || true));
+        assert!(!telemetry.release_press(400.0, 400.0), "it passes too");
+
+        // A tap that does not come back owns no press.
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || false));
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || false));
+        assert!(!telemetry.tap_owns_draw_presses());
+        assert_eq!(pins(&telemetry), vec![1]);
+    }
+
+    /// Review r4-s4-1: the tap kept a draw-press. With the button still down the draw modifier
+    /// was let go, and macOS timed the tap out on that event. Its notice forgot the kept press,
+    /// so the drags and the release after it reached the app, which never saw the press go
+    /// down. The tap timed out on a later event, so that press stays kept. One the tap timed
+    /// out on itself is still forgotten, by the notice or by the poller.
+    #[test]
+    fn a_press_kept_before_the_event_the_tap_timed_out_on_stays_kept() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        assert!(telemetry.tap_presses_on(|| true));
+
+        telemetry.note_tap_event();
+        assert!(telemetry.block_press(200.0, 200.0, draw, || false));
+        telemetry.note_tap_event(); // the draw modifier let go: the tap times out on it
+        telemetry.note_tap_modifiers(0);
+        assert!(telemetry.recover_tap(TapOff::Timeout, || false, || true));
+        assert!(telemetry.press_blocked(), "its drags are kept");
+        assert!(telemetry.release_press(200.0, 200.0), "its release is kept");
+        // The poller finds the tap off after the same kind of outage.
+        telemetry.note_tap_event();
+        assert!(telemetry.block_press(300.0, 300.0, draw, || false));
+        telemetry.note_tap_event();
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || true));
+        assert!(telemetry.recover_tap(TapOff::Found, || false, || true));
+        assert!(telemetry.release_press(300.0, 300.0));
+
+        // The tap timed out on the press itself: the app got it, so its release passes.
+        telemetry.note_tap_event();
+        assert!(telemetry.block_press(400.0, 400.0, draw, || false));
+        assert!(telemetry.recover_tap(TapOff::Timeout, || false, || true));
+        assert!(!telemetry.press_blocked());
+        telemetry.note_tap_event();
+        assert!(telemetry.block_press(500.0, 500.0, draw, || false));
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || true));
+        assert!(telemetry.recover_tap(TapOff::Found, || false, || true));
+        assert!(!telemetry.press_blocked());
+        assert_eq!(pins(&telemetry), vec![1, 2]);
+    }
+
+    /// Review r6-s4-1 and r7-s4-1: the tap kept a draw-press and timed out on a later event.
+    /// While it was off, that press came up and a new one went down, both reaching the app. The
+    /// tap came back still keeping the old press, so it kept the new press's drags and release,
+    /// and the app was left with a press that never came up. The system counted the new press
+    /// before any of its drags reached the tap, so the kept press is over by then.
+    #[test]
+    fn a_press_that_reached_the_app_during_an_outage_ends_the_kept_one() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        assert!(telemetry.tap_presses_on(|| true));
+
+        telemetry.note_tap_event();
+        telemetry.note_left_downs(7);
+        assert!(telemetry.block_press(200.0, 200.0, draw, || false));
+        telemetry.check_kept_press(7); // its own drag
+        assert!(telemetry.press_blocked(), "its drags are kept");
+        telemetry.note_tap_event(); // the tap times out on a later event
+        // The tap is off: the kept press comes up and a new one goes down, past the tap.
+        assert!(telemetry.recover_tap(TapOff::Timeout, || false, || true));
+        assert!(
+            telemetry.press_blocked(),
+            "kept until the tap sees the count move on"
+        );
+        telemetry.check_kept_press(8); // the new press's drag
+        assert!(
+            !telemetry.press_blocked(),
+            "the new press's drags reach the app"
+        );
+        assert!(!telemetry.release_press(300.0, 300.0), "and its release");
+        assert_eq!(pins(&telemetry), Vec::<u32>::new());
+    }
+
+    /// Review r6-s4-2: the poller found a tap off, and that tap was stopped and a new one made
+    /// before it looked again. The new tap's first time found off counted as the old tap's
+    /// second, so it was taken as timed out before its own notice came. Each tap starts afresh.
+    #[test]
+    fn a_new_tap_waits_for_its_own_notice() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        assert!(telemetry.tap_presses_on(|| true));
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || true));
+        telemetry.tap_presses_off(|| {});
+        assert!(telemetry.tap_presses_on(|| {
+            telemetry.tap_made();
+            true
+        }));
+
+        telemetry.note_tap_event();
+        assert!(telemetry.block_press(200.0, 200.0, draw, || false));
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || true));
+        assert!(telemetry.recover_tap(TapOff::UserInput, || false, || true));
+        assert!(telemetry.release_press(200.0, 200.0), "its release is kept");
+        assert_eq!(pins(&telemetry), vec![1]);
+    }
+
+    /// Review r5-s4-1: the tap kept a draw-press, and with the button still down macOS turned
+    /// the tap off for the user, not for a slow callback. Recovery forgot the press, so its
+    /// drags and release reached the app without their press. No callback was cut short, so
+    /// the press stays kept, also when the poller finds the tap off before the notice comes.
+    #[test]
+    fn a_tap_turned_off_for_the_user_keeps_its_press() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        assert!(telemetry.tap_presses_on(|| true));
+
+        telemetry.note_tap_event();
+        assert!(telemetry.block_press(200.0, 200.0, draw, || false));
+        assert!(telemetry.recover_tap(TapOff::UserInput, || false, || true));
+        assert!(telemetry.press_blocked(), "its drags are kept");
+        assert!(telemetry.release_press(200.0, 200.0), "its release is kept");
+
+        // The poller looks first, then the notice comes and brings the tap back.
+        telemetry.note_tap_event();
+        assert!(telemetry.block_press(300.0, 300.0, draw, || false));
+        assert!(!telemetry.recover_tap(TapOff::Found, || false, || true));
+        assert!(telemetry.recover_tap(TapOff::UserInput, || false, || true));
+        assert!(telemetry.recover_tap(TapOff::Found, || true, || true));
+        assert!(telemetry.press_blocked());
+        assert!(telemetry.release_press(300.0, 300.0));
+        assert_eq!(pins(&telemetry), vec![1, 2]);
+    }
+
+    /// Review r2-s3 #1: "inside the target" was its rectangle only, so a ⇧-click on a macOS
+    /// prompt, or on another app's window floating over a recorded window, was kept from it and
+    /// dropped a pin on content nobody pointed at. Such a press passes. One on the recorded
+    /// window is kept, also under another app's overlay that lets presses through.
+    #[test]
+    fn a_draw_press_on_a_prompt_or_on_a_window_over_the_recorded_one_passes() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        let window = |id, pid, owner: &str, bounds, layer| crate::windows::RawWindow {
+            id,
+            pid,
+            owner: owner.into(),
+            title: String::new(),
+            bounds,
+            layer,
+            alpha: 1.0,
+        };
+        let own = std::process::id() as i32;
+        let (safari, slack, mirror) = (own + 1, own + 2, own + 3);
+        let windows = [
+            window(1, own, "Annotator", [0.0, 0.0, 1000.0, 1000.0], 30), // the ink overlay
+            window(
+                2,
+                own + 4,
+                "SecurityAgent",
+                [400.0, 400.0, 200.0, 100.0],
+                1000,
+            ),
+            window(3, own + 5, "Wispr Flow", [0.0, 800.0, 300.0, 200.0], 1000), // lets presses through
+            window(4, slack, "Slack", [600.0, 0.0, 400.0, 300.0], 0),
+            window(6, mirror, "scrawl-helper", [700.0, 500.0, 300.0, 500.0], 0),
+            window(5, safari, "Safari", [0.0, 0.0, 1000.0, 1000.0], 0),
+        ];
+        telemetry.passthrough_window_ids.lock().unwrap().push(1);
+        // What the window server answers: the overlay lets a press through to Safari.
+        let pressed = |x: f64, y: f64| {
+            windows
+                .iter()
+                .filter(|w| w.id != 1 && w.id != 3)
+                .find(|w| {
+                    let [wx, wy, ww, wh] = w.bounds;
+                    x >= wx && x <= wx + ww && y >= wy && y <= wy + wh
+                })
+                .map(|w| w.id)
+        };
+        let kept = |x: f64, y: f64| {
+            let asked = std::cell::Cell::new(false);
+            let kept = telemetry.block_press(x, y, draw, || {
+                asked.set(true);
+                telemetry
+                    .window_hit_in(&windows, x, y, |_| false, || pressed(x, y))
+                    .misses_target()
+            });
+            assert!(asked.get(), "a draw-press inside the rectangle asks");
+            assert_eq!(telemetry.release_press(x, y), kept);
+            kept
+        };
+        let (on_safari, on_prompt, on_slack, under_overlay, on_mirror) = (
+            (100.0, 100.0),
+            (500.0, 450.0),
+            (800.0, 100.0),
+            (100.0, 900.0),
+            (800.0, 700.0),
+        );
+
+        // A Screen capture: every window is part of it, a macOS prompt is not.
+        telemetry.set_capture_target(CaptureMode::Display, None);
+        assert!(kept(on_safari.0, on_safari.1));
+        assert!(kept(on_slack.0, on_slack.1));
+        assert!(!kept(on_prompt.0, on_prompt.1), "answering macOS");
+
+        // Safari's window is recorded.
+        telemetry.set_capture_target(CaptureMode::Window, Some(5));
+        assert!(kept(on_safari.0, on_safari.1));
+        assert!(!kept(on_slack.0, on_slack.1), "Slack floats over it");
+        assert!(!kept(on_prompt.0, on_prompt.1));
+        assert!(
+            kept(under_overlay.0, under_overlay.1),
+            "the overlay lets it through"
+        );
+        assert!(!kept(on_mirror.0, on_mirror.1), "another window");
+        // The recorded window is gone (minimized, another Space): its old rectangle is not it.
+        telemetry.set_capture_target(CaptureMode::Window, Some(99));
+        assert!(!kept(on_safari.0, on_safari.1));
+        // A Window capture that never learned its window keeps nothing.
+        telemetry.set_capture_target(CaptureMode::Window, None);
+        assert!(!kept(on_safari.0, on_safari.1));
+
+        // The iPhone mirror is recorded: it is known by its process.
+        telemetry.set_capture_target(CaptureMode::Device, None);
+        assert!(!kept(on_mirror.0, on_mirror.1), "no mirror process yet");
+        telemetry.set_capture_source_pid(mirror as u32);
+        assert!(kept(on_mirror.0, on_mirror.1));
+        assert!(!kept(on_safari.0, on_safari.1), "beside the mirror");
+
+        assert_eq!(pins(&telemetry), vec![1, 2, 3, 4, 5]);
+    }
+
+    /// Review r3-s4-1: what a press lands on was kept for 250 ms and 2 pt, so a ⇧-click got
+    /// the answer of another press. One a point away, on Slack floating over the recorded
+    /// Safari, was kept from Slack. So was one on a prompt that had just opened there, and one
+    /// on a menu that a plain click (asked about by the mouse monitor) had opened under the
+    /// pointer. The key tap reads the windows for each press it judges.
+    #[test]
+    fn each_draw_press_is_judged_by_the_windows_as_they_are_then() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        let window = |id, pid, owner: &str, bounds, layer| crate::windows::RawWindow {
+            id,
+            pid,
+            owner: owner.into(),
+            title: String::new(),
+            bounds,
+            layer,
+            alpha: 1.0,
+        };
+        let own = std::process::id() as i32;
+        let safari = window(5, own + 1, "Safari", [0.0, 0.0, 1000.0, 1000.0], 0);
+        let slack = window(4, own + 2, "Slack", [600.0, 0.0, 400.0, 300.0], 0);
+        let prompt = window(
+            2,
+            own + 3,
+            "SecurityAgent",
+            [400.0, 400.0, 200.0, 100.0],
+            1000,
+        );
+        let menu = window(7, own + 1, "Safari", [100.0, 700.0, 200.0, 200.0], 101);
+        telemetry.set_capture_target(CaptureMode::Window, Some(5));
+        let reads = std::cell::Cell::new(0);
+        let kept = |windows: &[crate::windows::RawWindow], x: f64, y: f64| {
+            // The window server's answer: the frontmost window at the point.
+            let pressed = || {
+                windows
+                    .iter()
+                    .find(|w| {
+                        let [wx, wy, ww, wh] = w.bounds;
+                        x >= wx && x <= wx + ww && y >= wy && y <= wy + wh
+                    })
+                    .map(|w| w.id)
+            };
+            let read = || {
+                reads.set(reads.get() + 1);
+                windows.to_vec()
+            };
+            let kept = telemetry.block_press(x, y, draw, || {
+                telemetry.press_misses_target_in(x, y, read, |_| false, pressed)
+            });
+            assert_eq!(telemetry.release_press(x, y), kept);
+            kept
+        };
+
+        // Slack's left edge is at x = 600.
+        let over_safari = [slack.clone(), safari.clone()];
+        assert!(kept(&over_safari, 599.0, 200.0));
+        assert!(!kept(&over_safari, 601.0, 200.0), "on Slack, 2 pt on");
+        // A prompt opens where the last press went.
+        assert!(kept(std::slice::from_ref(&safari), 500.0, 450.0));
+        assert!(
+            !kept(&[prompt, safari.clone()], 500.0, 450.0),
+            "answering macOS"
+        );
+        // A plain click reaches the mouse monitor and opens a menu under the pointer.
+        assert!(!telemetry.on_scrawl_window_in(150.0, 750.0, || vec![safari.clone()], |_| false));
+        assert!(!kept(&[menu, safari.clone()], 150.0, 750.0), "on the menu");
+
+        assert_eq!(reads.get(), 5, "one read of the windows for each press");
+        assert_eq!(pins(&telemetry), vec![1, 2]);
     }
 
     /// Holding ⇧ and clicking three places drops three pins, and the lines the poller draws on

@@ -476,6 +476,11 @@ pub struct Config {
     /// engine makes the transcript (`live_audio`, default off).
     #[serde(default)]
     pub live_words: Option<bool>,
+    /// A press with the draw modifier inside the capture target stops at Annotator, so the app
+    /// under the pointer never gets the pin's click or the ink's drag (`block_draw_clicks`,
+    /// default on).
+    #[serde(default)]
+    pub block_draw_clicks: Option<bool>,
     /// The Hex model to use when `transcriber` is `"hex"` (default: the first ready one of
     /// `hex::PREFERRED_MODELS`).
     #[serde(default)]
@@ -881,6 +886,12 @@ pub fn live_audio() -> bool {
     config().shows_live_audio()
 }
 
+/// Whether a draw-modifier press inside the capture target is kept from the app under the
+/// pointer (`blockDrawClicks` in `config.json`, default on).
+pub fn block_draw_clicks() -> bool {
+    config().blocks_draw_clicks()
+}
+
 impl Config {
     /// `appState` when set, else an older `experiments.agentContext`, else off: app shots can
     /// store the text of a Safari AutoFill popup, so nobody gets them without asking.
@@ -896,6 +907,10 @@ impl Config {
 
     pub fn shows_live_words(&self) -> bool {
         self.live_words.unwrap_or(false)
+    }
+
+    pub fn blocks_draw_clicks(&self) -> bool {
+        self.block_draw_clicks.unwrap_or(true)
     }
 }
 
@@ -2157,6 +2172,14 @@ mod tests {
         let cfg = load_config_from(&path);
         assert_eq!(cfg.agent_host.as_deref(), Some("pro"));
         assert_eq!(cfg.usb_apps.len(), 1);
+    }
+
+    #[test]
+    fn draw_clicks_are_blocked_unless_the_setting_turns_it_off() {
+        let config = |json: &str| config_from_value(serde_json::from_str(json).unwrap());
+        assert!(config("{}").blocks_draw_clicks());
+        assert!(config(r#"{"blockDrawClicks": true}"#).blocks_draw_clicks());
+        assert!(!config(r#"{"blockDrawClicks": false}"#).blocks_draw_clicks());
     }
 
     #[test]

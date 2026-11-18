@@ -740,6 +740,17 @@ fn row(
     (row, shot)
 }
 
+/// What `--frame n` out of range says, for a capture with `total` keyframes (`scrawl appshot`,
+/// `scrawl measure`).
+pub fn frame_out_of_range(n: usize, total: usize) -> String {
+    let range = match total {
+        0 => "this capture has no keyframes".to_owned(),
+        1 => "this capture has keyframe 1 only".to_owned(),
+        _ => format!("this capture has keyframes 1 to {total}"),
+    };
+    format!("--frame {n} is out of range: {range}\n")
+}
+
 /// `scrawl appshot [BUNDLE] [--frame N] [--json]`: what to print, and the exit code.
 ///
 /// Without `frame` it lists each keyframe's app, window, URL, how far from the keyframe its shot
@@ -839,12 +850,7 @@ pub fn report(
     };
     let total = bundle.keyframes.len();
     let Some(keyframe) = n.checked_sub(1).and_then(|i| bundle.keyframes.get(i)) else {
-        let range = match total {
-            0 => "this capture has no keyframes".to_owned(),
-            1 => "this capture has keyframe 1 only".to_owned(),
-            _ => format!("this capture has keyframes 1 to {total}"),
-        };
-        return (format!("--frame {n} is out of range: {range}\n"), 2);
+        return (frame_out_of_range(n, total), 2);
     };
     let (row, shot) = row(bundle, &shots, keyframe);
     let Some(shot) = shot else {

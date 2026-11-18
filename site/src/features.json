@@ -125,6 +125,20 @@
       "docs": ["README.md#capture-controls"]
     },
     {
+      "id": "draw-clicks-stop",
+      "group": "record",
+      "name": "Draw clicks stay out of the app",
+      "says": "While recording, a ⇧-click or ⇧-drag inside the capture area drops its pin or ink and never reaches the app under the pointer.",
+      "status": "main",
+      "platforms": ["mac"],
+      "added": "2026-11-17",
+      "note": "Needs Accessibility (the key tap). Plain clicks, and ⇧-clicks outside the area or while paused, still reach the app. Windows and Linux pass every click through.",
+      "config": [
+        { "key": "blockDrawClicks", "value": "false", "does": "Let ⇧-clicks and ⇧-drags reach the app as well" }
+      ],
+      "docs": ["docs/capture.md"]
+    },
+    {
       "id": "undo-cancel",
       "group": "record",
       "name": "Undo and cancel",
@@ -786,6 +800,16 @@
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
       "docs": ["skills/scrawl/SKILL.md"]
+    },
+    {
+      "id": "cli-measure",
+      "group": "cli",
+      "name": "scrawl measure",
+      "says": "Exact sizes and gaps from a keyframe: the box under a point, or every box in a region and the gaps between them, in pt and px.",
+      "status": "main",
+      "platforms": ["mac", "windows", "linux"],
+      "added": "2026-11-17",
+      "docs": ["docs/keyframes-and-text.md"]
     },
     {
       "id": "cli-read",
