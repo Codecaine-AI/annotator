@@ -805,7 +805,7 @@
       "id": "cli-measure",
       "group": "cli",
       "name": "scrawl measure",
-      "says": "Exact sizes and gaps from a keyframe: the box under a point and how far its edges are from the next change, or every box in a region and the gaps between them, in pt and px.",
+      "says": "Exact sizes and gaps from a keyframe: the box under a point, or every box in a region and the gaps between them, in pt and px.",
       "status": "main",
       "platforms": ["mac", "windows", "linux"],
       "added": "2026-11-17",
