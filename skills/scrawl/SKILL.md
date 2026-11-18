@@ -91,6 +91,7 @@ Put a point on the component's fill, not on its text. A point is measured with f
 - `the box includes a border, a shadow or a part against its fill`: the box has them, and the note gives the size of the fill alone.
 - `no box: the point is on the page background`: use a region for the parts on it.
 - `box N touches the region edge and may be cut off there`: the size is only what the region holds. Draw a wider region.
+- `the box is a thin strip`: under 6 pt on one side. It can be a stroke of a letter or a slice of the component, not all of it. Check it against the image, or use a region.
 - `the box covers over half the image`: the component's edge was too faint to find, such as a white card on a near-white page. The box is not the component: draw a tight region around it.
 - `points close to this one give other boxes`: the point is at an edge, or on text or a small part. The box is the point's own. Check it against the image, or put the point well inside the fill.
 - `points close to this one give this box, and the point itself gave W×H`: the point was on text, a small part or noise in the recording. The box is the one its neighbors give. Check it against the image, or use a region.
@@ -102,6 +103,7 @@ How to read the output:
 - On a part with a clear edge, a point and a region usually give the same box within 1 to 2 px, with and without the movie. With a border, both give the box with its border when the page has another color. They can differ:
   - On a white card on a near-white page, or one with a faint 1 px border, a point can give the whole window. Then trust a tight region.
   - Neither mode measures a small chip or tag whose fill is close to the page color, such as a code chip in a chat. A region gives its text, and a point can give the whole window. Read its size in the source code, or give the text's size and say so.
+- Text over 20 pt tall, such as a title, is a part of its own: a point on a letter can give that letter with no note. Put the point on the fill round the title, or use a region.
 - A region joins parts up to 1.5 pt apart into one box, so two boxes that close show as one. A point on each gives each box.
 - Rows split by clear dividers: a point in a row gives that row. A region over the rows gives the whole list as one box, because the dividers join them. With faint dividers, a point in a row can give the whole window, and a region gives the parts inside the rows: measure a row's height from the gap between the parts of two rows.
 - A region shows at most 30 boxes and says how many it left out. A shown box next to a left-out one gets no gap, so draw a tighter region.

@@ -1105,6 +1105,8 @@ pub enum Note {
     /// The box is the one the points close to this one give. The point itself gave another, of
     /// this width and height (px), or none.
     Voted(Option<(u32, u32)>),
+    /// The box is a strip: under 6 pt on one side and 4 times as long.
+    Strip,
 }
 
 impl Note {
@@ -1155,6 +1157,10 @@ impl Note {
                            found around it. Put the point on a fill"
                 .into(),
             Note::ImageEdge => "the box touches the image edge: it may run past it".into(),
+            Note::Strip => "the box is a thin strip (under 6 pt on one side): it may be a \
+                            stroke or a slice of the component, not all of it. Check it against \
+                            the image, or use --region"
+                .into(),
             Note::Large => "the box covers over half the image: the component's edge may be \
                             too faint to find (a white card on a near-white page, a faint 1 px \
                             border). Draw a tight --region around the component"
@@ -1386,7 +1392,16 @@ pub fn box_at(frame: &RgbaFrame, x: u32, y: u32, ppp: f64) -> Pointed {
         })
         .map(|(sx, sy)| box_from(frame, (sx as u32, sy as u32), &scale, cap))
         .collect();
-    vote(first, &others)
+    let mut pointed = vote(first, &others);
+    if let Some(b) = pointed.bbox
+        && let (short, long) = (b.width.min(b.height), b.width.max(b.height))
+        && f64::from(short) < 6.0 * ppp
+        && long >= 4 * short
+        && !pointed.notes.contains(&Note::Mark)
+    {
+        pointed.notes.push(Note::Strip);
+    }
+    pointed
 }
 
 /// The answer of a point (`first`) and of the pixels close to it (`others`), as one: see
@@ -2084,15 +2099,21 @@ pub struct Space {
 /// 1.5 pt between the letters of a word), and at 1 px per pt on a 3x frame a point on a label
 /// gave one letter and a region cut a word in two.
 /// - An iPhone's screen is 16:9 or taller and 375 to 440 pt wide: its short side over 400,
-///   to a whole number. That is 2 for a 750 or 828 px frame and 3 for 1080 to 1320 px.
+///   2 for a 750 or 828 px frame and 3 for 1080 to 1320 px.
 /// - A wider shape is an iPad's, 744 to 1032 pt wide: its short side over 834.
 ///
-/// A whole number at least 1, so a saved image fit to 1600 px gets 1 or 2. It sets the limits
-/// only: no size is given in pt from it.
+/// A whole number from 1.75 up, as every iPhone and iPad screen is 2x or 3x. Under that it is
+/// not rounded, and at least 1: a saved iPad image fit to 1600 px is 1.26 to 1.41, and at 1 a
+/// point on a label gave a letter. It sets the limits only: no size is given in pt from it.
 fn estimated_ppp((w, h): (f64, f64)) -> f64 {
     let (short, long) = (w.min(h), w.max(h));
     let pt = if long >= 1.65 * short { 400.0 } else { 834.0 };
-    (short / pt).round().max(1.0)
+    let ppp = short / pt;
+    if ppp >= 1.75 {
+        ppp.round()
+    } else {
+        ppp.max(1.0)
+    }
 }
 
 pub fn space(picture: &Picture, width_pt: Option<f64>) -> Space {
@@ -3819,7 +3840,8 @@ mod tests {
             ((1488.0, 2266.0), 2.0),
             ((1640.0, 2360.0), 2.0),
             ((2064.0, 2752.0), 2.0),
-            ((1200.0, 1600.0), 1.0),
+            ((1200.0, 1600.0), 1200.0 / 834.0),
+            ((700.0, 700.0), 1.0),
         ] {
             assert_eq!(estimated_ppp(size), ppp, "{size:?}");
         }
