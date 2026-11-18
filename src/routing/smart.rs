@@ -1,4 +1,4 @@
-//! Deciding where a capture goes from what was seen around it (`docs/routing.md`).
+//! Deciding where a capture goes from what was seen around it (`docs/10-system-design/50-routing-and-delivery`).
 //!
 //! `look` gathers [`Evidence`]; [`decide`] turns it into a [`Judgement`] without reading the
 //! clock or doing I/O, so the same evidence always gives the same decision.

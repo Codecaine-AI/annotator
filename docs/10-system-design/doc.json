@@ -1,0 +1,486 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-75060c46da71b02bbf7fe56083935323",
+  "title": "System Design",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "sd-open",
+        "sd-path-h",
+        "sd-path-p",
+        "sd-path",
+        "sd-pages-h",
+        "sd-pages-p",
+        "sd-h-rec",
+        "sd-l10",
+        "sd-l60",
+        "sd-l85",
+        "sd-h-build",
+        "sd-l20",
+        "sd-l30",
+        "sd-l35",
+        "sd-l40",
+        "sd-h-del",
+        "sd-l50",
+        "sd-l80",
+        "sd-h-app",
+        "sd-l70",
+        "sd-l90"
+      ]
+    },
+    "sd-open": {
+      "id": "sd-open",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "System Design says what Annotator does, from the press that starts a capture to the paste that an agent reads. The outline below shows that path. The page list after it groups the 11 pages by the phase that each one covers."
+        }
+      ],
+      "children": []
+    },
+    "sd-path-h": {
+      "id": "sd-path-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "The Capture Path"
+        }
+      ],
+      "children": []
+    },
+    "sd-path-p": {
+      "id": "sd-path-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "One capture runs through four phases. A cabled iPhone and ScrawlKit enter at the Build phase with their own recording."
+        }
+      ],
+      "children": []
+    },
+    "sd-path": {
+      "id": "sd-path",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "One Capture",
+            "steps": [
+              {
+                "text": "Record",
+                "steps": [
+                  {
+                    "text": "Press the Record shortcut, or pick a target in the picker"
+                  },
+                  {
+                    "text": "Record the screen video, the microphone, clicks, scrolls and ink"
+                  },
+                  {
+                    "text": "Log the windows on screen"
+                  },
+                  {
+                    "text": "Press the Record shortcut again to finish"
+                  }
+                ]
+              },
+              {
+                "text": "Build",
+                "steps": [
+                  {
+                    "text": "Transcribe `audio.wav`"
+                  },
+                  {
+                    "text": "Cut keyframes on actions, marks and visual changes"
+                  },
+                  {
+                    "text": "Draw `contact-sheet.png` and `frames/`"
+                  },
+                  {
+                    "text": "Write `scrawl.json` and `summary.md`"
+                  }
+                ]
+              },
+              {
+                "text": "Deliver",
+                "steps": [
+                  {
+                    "text": "Copy `summary.md` to the clipboard"
+                  },
+                  {
+                    "text": "When a destination is found, send the capture to its OpenCode session"
+                  }
+                ]
+              },
+              {
+                "text": "Keep",
+                "steps": [
+                  {
+                    "text": "Show the capture in History"
+                  },
+                  {
+                    "text": "Shrink or remove heavy media under the retention limits"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "sd-pages-h": {
+      "id": "sd-pages-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Pages"
+        }
+      ],
+      "children": []
+    },
+    "sd-pages-p": {
+      "id": "sd-pages-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The groups follow the phases of the outline. Onboarding and Settings and Windows cover the whole app, so they come last."
+        }
+      ],
+      "children": []
+    },
+    "sd-h-rec": {
+      "id": "sd-h-rec",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Record"
+        }
+      ],
+      "children": []
+    },
+    "sd-l10": {
+      "id": "sd-l10",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Capture and Recording",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/10-capture"
+            }
+          }
+        },
+        {
+          "insert": ": shortcuts, the picker, ink and pins, pause and resume, and displays."
+        }
+      ],
+      "children": []
+    },
+    "sd-l60": {
+      "id": "sd-l60",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "iPhone and ScrawlKit",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/60-iphone-and-scrawlkit"
+            }
+          }
+        },
+        {
+          "insert": ": cabled iPhone capture, the iOS SDK, ingest, and "
+        },
+        {
+          "insert": "scrawl serve",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "sd-l85": {
+      "id": "sd-l85",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Capsule Motion",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/85-capsule-motion"
+            }
+          }
+        },
+        {
+          "insert": ": the capsule's animation, the pill lab, and tuning."
+        }
+      ],
+      "children": []
+    },
+    "sd-h-build": {
+      "id": "sd-h-build",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Build"
+        }
+      ],
+      "children": []
+    },
+    "sd-l20": {
+      "id": "sd-l20",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Capture Bundle and Paste",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/20-capture-bundle"
+            }
+          }
+        },
+        {
+          "insert": ": the files of a "
+        },
+        {
+          "insert": ".scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " folder, the paste template, and the "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " shape."
+        }
+      ],
+      "children": []
+    },
+    "sd-l30": {
+      "id": "sd-l30",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Keyframes and Images",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/30-keyframes-and-images"
+            }
+          }
+        },
+        {
+          "insert": ": when a keyframe is cut, the contact sheet, auto-crop, and measuring."
+        }
+      ],
+      "children": []
+    },
+    "sd-l35": {
+      "id": "sd-l35",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Transcription",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/35-transcription"
+            }
+          }
+        },
+        {
+          "insert": ": the speech engines, their config, and live words."
+        }
+      ],
+      "children": []
+    },
+    "sd-l40": {
+      "id": "sd-l40",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "App State and Privacy",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/40-app-state-and-privacy"
+            }
+          }
+        },
+        {
+          "insert": ": what clicks and marks land on, app shots, and the privacy policy."
+        }
+      ],
+      "children": []
+    },
+    "sd-h-del": {
+      "id": "sd-h-del",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Deliver and Keep"
+        }
+      ],
+      "children": []
+    },
+    "sd-l50": {
+      "id": "sd-l50",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Routing and Delivery",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/50-routing-and-delivery"
+            }
+          }
+        },
+        {
+          "insert": ": which OpenCode session gets a capture, and the paste shortcut."
+        }
+      ],
+      "children": []
+    },
+    "sd-l80": {
+      "id": "sd-l80",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Export and Retention",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/80-export-and-retention"
+            }
+          }
+        },
+        {
+          "insert": ": video export, History, and the cleanup of old captures."
+        }
+      ],
+      "children": []
+    },
+    "sd-h-app": {
+      "id": "sd-h-app",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "The Whole App"
+        }
+      ],
+      "children": []
+    },
+    "sd-l70": {
+      "id": "sd-l70",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Onboarding and Settings",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/70-onboarding-and-settings"
+            }
+          }
+        },
+        {
+          "insert": ": the welcome tour, permissions, Settings panes, and every config key."
+        }
+      ],
+      "children": []
+    },
+    "sd-l90": {
+      "id": "sd-l90",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Windows",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/90-windows"
+            }
+          }
+        },
+        {
+          "insert": ": the Windows port and how it differs from macOS."
+        }
+      ],
+      "children": []
+    }
+  }
+}

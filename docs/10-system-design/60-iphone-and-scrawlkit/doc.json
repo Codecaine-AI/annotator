@@ -1,0 +1,4199 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-e81517a8242c7ffb103823bc8e0a46a7",
+  "title": "iPhone and ScrawlKit",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "ip-intro",
+        "ip-h-cable",
+        "ip-cable-lead",
+        "ip-cable-1",
+        "ip-cable-2",
+        "ip-cable-3",
+        "ip-cable-4",
+        "ip-cable-5",
+        "ip-cable-cli",
+        "ip-h-helper",
+        "ip-helper-lead",
+        "ip-helper-1",
+        "ip-helper-2",
+        "ip-helper-3",
+        "ip-h-bundle",
+        "ip-bundle-lead",
+        "ip-bundle-1",
+        "ip-bundle-2",
+        "ip-bundle-3",
+        "ip-h-kit",
+        "ip-kit-lead",
+        "ip-h-add",
+        "ip-add-lead",
+        "ip-add-1",
+        "ip-add-2",
+        "ip-add-3",
+        "ip-add-after",
+        "ip-h-method",
+        "ip-method-lead",
+        "ip-method",
+        "ip-method-1",
+        "ip-method-2",
+        "ip-h-strip",
+        "ip-strip-lead",
+        "ip-strip-1",
+        "ip-strip-2",
+        "ip-strip-3",
+        "ip-h-ink",
+        "ip-ink-lead",
+        "ip-ink-1",
+        "ip-ink-2",
+        "ip-ink-3",
+        "ip-ink-4",
+        "ip-ink-5",
+        "ip-ink-6",
+        "ip-h-ctx",
+        "ip-ctx-lead",
+        "ip-ctx-code",
+        "ip-ctx-1",
+        "ip-ctx-2",
+        "ip-ctx-sum",
+        "ip-h-tl",
+        "ip-tl-lead",
+        "ip-tl",
+        "ip-h-pair",
+        "ip-pair-lead",
+        "ip-pair-code",
+        "ip-pair-1",
+        "ip-pair-2",
+        "ip-pair-3",
+        "ip-pair-4",
+        "ip-pair-5",
+        "ip-h-ingest",
+        "ip-ingest-lead",
+        "ip-seq",
+        "ip-ingest-rules",
+        "ip-ingest-1",
+        "ip-ingest-2",
+        "ip-ingest-3",
+        "ip-ingest-4",
+        "ip-ingest-5",
+        "ip-reply-lead",
+        "ip-reply",
+        "ip-reply-after",
+        "ip-h-dest",
+        "ip-dest-lead",
+        "ip-dest-1",
+        "ip-dest-2",
+        "ip-dest-3",
+        "ip-dest-4",
+        "ip-h-https",
+        "ip-https-lead",
+        "ip-https-ex",
+        "ip-https-0",
+        "ip-https-1",
+        "ip-https-2",
+        "ip-https-3",
+        "ip-https-4",
+        "ip-https-5",
+        "ip-cap-lead",
+        "ip-cap",
+        "ip-cap-p1",
+        "ip-cap-p2",
+        "ip-bg-lead",
+        "ip-bg-code",
+        "ip-h-import",
+        "ip-import-lead",
+        "ip-import-code",
+        "ip-import-1",
+        "ip-import-2",
+        "ip-import-3",
+        "ip-import-4",
+        "ip-h-serve",
+        "ip-serve-lead",
+        "ip-serve-code",
+        "ip-serve-1",
+        "ip-serve-2",
+        "ip-serve-ld",
+        "ip-serve-ld1",
+        "ip-serve-ld2",
+        "ip-serve-ld3"
+      ]
+    },
+    "ip-intro": {
+      "id": "ip-intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "An iPhone reaches Annotator in two ways. A cabled iPhone records through a mirror window on the Mac, with the phone's native video. ScrawlKit records inside your own iOS app and uploads to the Mac's ingest server, which builds a bundle and delivers it. "
+        },
+        {
+          "insert": "Routing and Delivery",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/50-routing-and-delivery"
+            }
+          }
+        },
+        {
+          "insert": " owns the retries and the recorded destination rule."
+        }
+      ],
+      "children": []
+    },
+    "ip-h-cable": {
+      "id": "ip-h-cable",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Capture Over a Cable"
+        }
+      ],
+      "children": []
+    },
+    "ip-cable-lead": {
+      "id": "ip-cable-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Plug in an unlocked, trusted iPhone with a cable, and the picker shows "
+        },
+        {
+          "insert": "iPhone",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " next to Area, Window and Screen. Choosing it opens a floating mirror of the phone on the right of the screen and starts recording. "
+        },
+        {
+          "insert": "src/phone.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/phone.rs"
+            }
+          }
+        },
+        {
+          "insert": " runs the capture with the helper."
+        }
+      ],
+      "children": []
+    },
+    "ip-cable-1": {
+      "id": "ip-cable-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The phone's own video is recorded natively into the bundle as "
+        },
+        {
+          "insert": "recording.mov",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", such as 1320×2868 at up to 60 fps on an iPhone Pro Max. The Mac's microphone records the narration."
+        }
+      ],
+      "children": []
+    },
+    "ip-cable-2": {
+      "id": "ip-cable-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Keyframes come from that video, never from a screenshot of the mirror. They are picked on 320 px candidates and decoded again at a 1600 px long edge ("
+        },
+        {
+          "insert": "PHONE_FRAME_EDGE",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": [
+        "ip-cable-2a",
+        "ip-cable-2b"
+      ]
+    },
+    "ip-cable-2a": {
+      "id": "ip-cable-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A 1320×2868 phone gives 736×1600 keyframes."
+        }
+      ],
+      "children": []
+    },
+    "ip-cable-2b": {
+      "id": "ip-cable-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A minute after the capture, the video is re-encoded to HEVC at 1600 px, as "
+        },
+        {
+          "insert": "Export and Retention",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/80-export-and-retention"
+            }
+          }
+        },
+        {
+          "insert": " describes."
+        }
+      ],
+      "children": []
+    },
+    "ip-cable-3": {
+      "id": "ip-cable-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The laser, ink, pins and clicks work over the mirror as over a window. The mirror's on-screen rect is the capture target, so every mark is stored in phone-screen coordinates."
+        }
+      ],
+      "children": [
+        "ip-cable-3a",
+        "ip-cable-3b"
+      ]
+    },
+    "ip-cable-3a": {
+      "id": "ip-cable-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The helper streams the rect in global top-left points. Move or resize the mirror freely, and the mapping follows it."
+        }
+      ],
+      "children": []
+    },
+    "ip-cable-3b": {
+      "id": "ip-cable-3b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "At finish, the inputs move onto the movie's clock, "
+        },
+        {
+          "insert": "recording.startedAt",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-cable-4": {
+      "id": "ip-cable-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Press "
+        },
+        {
+          "insert": "M",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " with the mirror focused to flag a moment. A flag always gets a keyframe and shows as "
+        },
+        {
+          "insert": "⚑",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in the summary."
+        }
+      ],
+      "children": []
+    },
+    "ip-cable-5": {
+      "id": "ip-cable-5",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Finish from the island as usual. Unplugging the phone finishes the capture with what was recorded."
+        }
+      ],
+      "children": []
+    },
+    "ip-cable-cli": {
+      "id": "ip-cable-cli",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "From the terminal, "
+        },
+        {
+          "insert": "scrawl record --iphone --duration 8",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " captures the cabled iPhone for 8 seconds. "
+        },
+        {
+          "insert": "scrawl devices",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " lists the cabled iPhones and iPads that can be captured."
+        }
+      ],
+      "children": []
+    },
+    "ip-h-helper": {
+      "id": "ip-h-helper",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "The Helper's Part"
+        }
+      ],
+      "children": []
+    },
+    "ip-helper-lead": {
+      "id": "ip-helper-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl-helper",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", the Swift helper in "
+        },
+        {
+          "insert": "helper/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", runs the CoreMediaIO and AVFoundation phone capture with the mirror window and decodes movies. "
+        },
+        {
+          "insert": "Mac App and Helper",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "30-implementation/10-mac-app-and-helper"
+            }
+          }
+        },
+        {
+          "insert": " covers how it is built and signed."
+        }
+      ],
+      "children": []
+    },
+    "ip-helper-1": {
+      "id": "ip-helper-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Picker discovery ("
+        },
+        {
+          "insert": "scrawl-helper devices",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") reads only the USB registry. It never touches AVFoundation, so opening the picker cannot raise a camera prompt or hang."
+        }
+      ],
+      "children": []
+    },
+    "ip-helper-2": {
+      "id": "ip-helper-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "If you choose iPhone without the Camera grant, Annotator closes the picker and opens the onboarding window's Camera row. The mirror's own prompt would land under the picker."
+        }
+      ],
+      "children": []
+    },
+    "ip-helper-3": {
+      "id": "ip-helper-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Transcription always uses the movie's audio exported on the asset timeline ("
+        },
+        {
+          "insert": "scrawl-helper audio",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": [
+        "ip-helper-3a"
+      ]
+    },
+    "ip-helper-3a": {
+      "id": "ip-helper-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Do not feed a "
+        },
+        {
+          "insert": ".mov",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to SpeechAnalyzer directly. "
+        },
+        {
+          "insert": "AVAudioFile",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ignores the movie timeline, and its word times drift, about 1.5 s late at 41 s on a phone recording."
+        }
+      ],
+      "children": []
+    },
+    "ip-h-bundle": {
+      "id": "ip-h-bundle",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Phone Bundles"
+        }
+      ],
+      "children": []
+    },
+    "ip-bundle-lead": {
+      "id": "ip-bundle-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A phone bundle is an ordinary bundle, as "
+        },
+        {
+          "insert": "Capture Bundle and Paste",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/20-capture-bundle"
+            }
+          }
+        },
+        {
+          "insert": " describes, with these additions."
+        }
+      ],
+      "children": []
+    },
+    "ip-bundle-1": {
+      "id": "ip-bundle-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " adds "
+        },
+        {
+          "insert": "\"source\": \"iphone\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and a "
+        },
+        {
+          "insert": "device",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " object. It holds the name, the capture ("
+        },
+        {
+          "insert": "mirror",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "scrawlkit",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), the id, model and system, the native size, the screen points and scale, and the app and its versions."
+        }
+      ],
+      "children": []
+    },
+    "ip-bundle-2": {
+      "id": "ip-bundle-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The target's "
+        },
+        {
+          "insert": "mode",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is "
+        },
+        {
+          "insert": "device",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-bundle-3": {
+      "id": "ip-bundle-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "scrawl frames",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "scrawl zoom",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " extract more frames from the video when you need them."
+        }
+      ],
+      "children": []
+    },
+    "ip-h-kit": {
+      "id": "ip-h-kit",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "ScrawlKit"
+        }
+      ],
+      "children": []
+    },
+    "ip-kit-lead": {
+      "id": "ip-kit-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "ScrawlKit",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "Sources/ScrawlKit",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "Sources/ScrawlKit/Scrawl.swift"
+            }
+          }
+        },
+        {
+          "insert": ") is a Swift package for iOS 18 and later. It records inside your own app: video with narration, touches, red strokes, markers and app events, all on one clock."
+        }
+      ],
+      "children": []
+    },
+    "ip-h-add": {
+      "id": "ip-h-add",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Add ScrawlKit to an App"
+        }
+      ],
+      "children": []
+    },
+    "ip-add-lead": {
+      "id": "ip-add-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Three steps make an app record with ScrawlKit."
+        }
+      ],
+      "children": []
+    },
+    "ip-add-1": {
+      "id": "ip-add-1",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Add this repository as a Swift package dependency, product "
+        },
+        {
+          "insert": "ScrawlKit",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-add-2": {
+      "id": "ip-add-2",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Attach "
+        },
+        {
+          "insert": ".scrawl()",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to your root view."
+        }
+      ],
+      "children": [
+        "ip-add-2-code"
+      ]
+    },
+    "ip-add-2-code": {
+      "id": "ip-add-2-code",
+      "type": "code",
+      "props": {
+        "language": "swift"
+      },
+      "text": [
+        {
+          "insert": "import ScrawlKit\n\nWindowGroup { ContentView().scrawl() }   // three-finger long press starts and stops\nScrawl.event(\"Done tapped\")              // optional: what the app did, on the timeline"
+        }
+      ],
+      "children": []
+    },
+    "ip-add-3": {
+      "id": "ip-add-3",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Add "
+        },
+        {
+          "insert": "NSMicrophoneUsageDescription",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to the host app's Info.plist, because both capture methods record narration with the microphone."
+        }
+      ],
+      "children": []
+    },
+    "ip-add-after": {
+      "id": "ip-add-after",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "To record without the microphone, set "
+        },
+        {
+          "insert": "Scrawl.shared.narration = false",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-h-method": {
+      "id": "ip-h-method",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Capture Methods"
+        }
+      ],
+      "children": []
+    },
+    "ip-method-lead": {
+      "id": "ip-method-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Scrawl.shared.captureMethod",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " picks how the video is made, and the timeline records the choice as "
+        },
+        {
+          "insert": "capture",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The rows list the default first."
+        }
+      ],
+      "children": []
+    },
+    "ip-method": {
+      "id": "ip-method",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Method",
+          "Video",
+          "Prompt",
+          "Left Out of the Video"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": ".appFrames",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "The app's own windows as H.264 "
+              },
+              {
+                "insert": ".mp4",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " at 30 fps and 2×, such as 880×1912 on a 440×956-point phone"
+              }
+            ],
+            "The microphone asks once, and iOS remembers the answer",
+            "The strip, ink, system alerts, permission prompts and the system keyboard"
+          ],
+          [
+            [
+              {
+                "insert": ".replayKit",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "ReplayKit's in-app screen recording, the exact pixels on screen",
+            "\"Record screen and microphone?\" unless allowed in the last 8 minutes, and after every reinstall",
+            "Nothing"
+          ]
+        ],
+        "title": "ScrawlKit capture methods"
+      },
+      "children": []
+    },
+    "ip-method-1": {
+      "id": "ip-method-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": ".appFrames",
+          "attributes": {
+            "bold": true,
+            "code": true
+          }
+        }
+      ],
+      "children": [
+        "ip-method-1a",
+        "ip-method-1b",
+        "ip-method-1c",
+        "ip-method-1d"
+      ]
+    },
+    "ip-method-1a": {
+      "id": "ip-method-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "If the microphone is denied, the recording is video only and the timeline says "
+        },
+        {
+          "insert": "\"audio\": false",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-method-1b": {
+      "id": "ip-method-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The Mac draws touches and strokes from the timeline. Some layers, such as video players, camera previews and some Metal or backdrop effects, can be blank or look different."
+        }
+      ],
+      "children": []
+    },
+    "ip-method-1c": {
+      "id": "ip-method-1c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Another process draws the system keyboard, so a plain panel labelled Keyboard stands in for it as it slides. Taps on the keyboard never reach the app, so they are not on the timeline."
+        }
+      ],
+      "children": []
+    },
+    "ip-method-1d": {
+      "id": "ip-method-1d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Sending the app to the background finishes and sends the recording."
+        }
+      ],
+      "children": []
+    },
+    "ip-method-2": {
+      "id": "ip-method-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "With either method, the context records the keyboard: "
+        },
+        {
+          "insert": "keyboard: visible",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " when it was up at the start, then a change to "
+        },
+        {
+          "insert": "visible",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "hidden",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " when it comes and goes."
+        }
+      ],
+      "children": []
+    },
+    "ip-h-strip": {
+      "id": "ip-h-strip",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "The Trigger and the Strip"
+        }
+      ],
+      "children": []
+    },
+    "ip-strip-lead": {
+      "id": "ip-strip-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A three-finger long press starts a recording, and the same press again sends it. ScrawlKit stays inert on a device that is not paired: no gesture recognizers, overlay window, network calls, files or background "
+        },
+        {
+          "insert": "URLSession",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-strip-1": {
+      "id": "ip-strip-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Editing gestures",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-strip-1a",
+        "ip-strip-1b",
+        "ip-strip-1c"
+      ]
+    },
+    "ip-strip-1a": {
+      "id": "ip-strip-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "On a paired device, the trigger turns off iOS's three-finger text-editing gestures in the app. Otherwise the same press opens the Undo · Cut · Copy · Redo bar in a focused text field."
+        }
+      ],
+      "children": []
+    },
+    "ip-strip-1b": {
+      "id": "ip-strip-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "UIKit's "
+        },
+        {
+          "insert": "editingInteractionConfiguration",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " answers "
+        },
+        {
+          "insert": ".none",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for the app's windows, so three-finger undo, redo, cut, copy and paste do not work there."
+        }
+      ],
+      "children": []
+    },
+    "ip-strip-1c": {
+      "id": "ip-strip-1c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "To keep those gestures, set "
+        },
+        {
+          "insert": "Scrawl.shared.suppressesSystemEditingGestures = false",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-strip-2": {
+      "id": "ip-strip-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The strip",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-strip-2a",
+        "ip-strip-2b",
+        "ip-strip-2c"
+      ]
+    },
+    "ip-strip-2a": {
+      "id": "ip-strip-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "While recording, a slim strip sits on the right edge. Drag its dot to move it up, down or to the left edge, and it remembers the place."
+        }
+      ],
+      "children": []
+    },
+    "ip-strip-2b": {
+      "id": "ip-strip-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "From top to bottom it holds the recording dot, Draw, Discard and Send. Hold the dot to see the elapsed time."
+        }
+      ],
+      "children": []
+    },
+    "ip-strip-2c": {
+      "id": "ip-strip-2c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Draw turns red strokes on or off. Discard gives a few seconds to Undo."
+        }
+      ],
+      "children": []
+    },
+    "ip-strip-3": {
+      "id": "ip-strip-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Motion",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-strip-3a",
+        "ip-strip-3b",
+        "ip-strip-3c"
+      ]
+    },
+    "ip-strip-3a": {
+      "id": "ip-strip-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The strip moves like liquid, the Liquid morph variant of "
+        },
+        {
+          "insert": "site/public/prototype/strip",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". It pours into the tapped button to become a status circle."
+        }
+      ],
+      "children": []
+    },
+    "ip-strip-3b": {
+      "id": "ip-strip-3b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It buds a bubble off on a neck, such as \"Sent to …\", \"Discarded · Undo\" or \"Mac didn't answer · Share\"."
+        }
+      ],
+      "children": []
+    },
+    "ip-strip-3c": {
+      "id": "ip-strip-3c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "On iOS 26 the strip is Liquid Glass. Reduce Motion cross-fades instead."
+        }
+      ],
+      "children": []
+    },
+    "ip-h-ink": {
+      "id": "ip-h-ink",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Strokes and Touches"
+        }
+      ],
+      "children": []
+    },
+    "ip-ink-lead": {
+      "id": "ip-ink-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Drawn strokes are smooth and fade on their own. "
+        },
+        {
+          "insert": "Sources/ScrawlKit/Ink.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "Sources/ScrawlKit/Ink.swift"
+            }
+          }
+        },
+        {
+          "insert": " holds the stroke rules."
+        }
+      ],
+      "children": []
+    },
+    "ip-ink-1": {
+      "id": "ip-ink-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Sampling",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-ink-1a",
+        "ip-ink-1b"
+      ]
+    },
+    "ip-ink-1a": {
+      "id": "ip-ink-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Every coalesced touch is a sample at the touch's own timestamp, so a busy main thread does not make strokes jagged."
+        }
+      ],
+      "children": []
+    },
+    "ip-ink-1b": {
+      "id": "ip-ink-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A one-euro filter, with one cutoff from the 2D speed, takes out jitter as samples come in. A centered smoothing takes out the rest behind the tip without lag."
+        }
+      ],
+      "children": []
+    },
+    "ip-ink-2": {
+      "id": "ip-ink-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Look",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-ink-2a",
+        "ip-ink-2b"
+      ]
+    },
+    "ip-ink-2a": {
+      "id": "ip-ink-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The line is a centripetal Catmull-Rom curve with tapered ends."
+        }
+      ],
+      "children": []
+    },
+    "ip-ink-2b": {
+      "id": "ip-ink-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It is 4.6 pt wide when drawn slowly and down to 55% when fast. Width comes from speed, never pressure, like the Mac's ink."
+        }
+      ],
+      "children": []
+    },
+    "ip-ink-3": {
+      "id": "ip-ink-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Drawing",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-ink-3a",
+        "ip-ink-3b"
+      ]
+    },
+    "ip-ink-3a": {
+      "id": "ip-ink-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Finished stretches go into layers that never change, so each touch redraws only the live tip."
+        }
+      ],
+      "children": []
+    },
+    "ip-ink-3b": {
+      "id": "ip-ink-3b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The tip runs ahead through iOS's predicted touches. Predicted points are dropped on the next touch and never recorded."
+        }
+      ],
+      "children": []
+    },
+    "ip-ink-4": {
+      "id": "ip-ink-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Fading",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-ink-4a",
+        "ip-ink-4b"
+      ]
+    },
+    "ip-ink-4a": {
+      "id": "ip-ink-4a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A stroke fades out over 300 ms, eased out, 1.5 s after the pen last lifted."
+        }
+      ],
+      "children": []
+    },
+    "ip-ink-4b": {
+      "id": "ip-ink-4b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A pen that comes down again before then holds every stroke on screen, so a circle and then an arrow fade together."
+        }
+      ],
+      "children": []
+    },
+    "ip-ink-5": {
+      "id": "ip-ink-5",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Timeline",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-ink-5a",
+        "ip-ink-5b"
+      ]
+    },
+    "ip-ink-5a": {
+      "id": "ip-ink-5a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The timeline gets the smoothed, unpredicted points, plus "
+        },
+        {
+          "insert": "fadeAt",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " on each stroke that began to fade during the recording."
+        }
+      ],
+      "children": []
+    },
+    "ip-ink-5b": {
+      "id": "ip-ink-5b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "On keyframes the Mac draws a stroke from when it began until 1.2 s after it ended, or with the rest of its mark."
+        }
+      ],
+      "children": []
+    },
+    "ip-ink-6": {
+      "id": "ip-ink-6",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Touches",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-ink-6a",
+        "ip-ink-6b"
+      ]
+    },
+    "ip-ink-6a": {
+      "id": "ip-ink-6a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Neither capture method draws touches on screen."
+        }
+      ],
+      "children": []
+    },
+    "ip-ink-6b": {
+      "id": "ip-ink-6b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Each touch goes on the timeline with its position, phase and the label of the element under it. The Mac draws taps and swipes from it."
+        }
+      ],
+      "children": []
+    },
+    "ip-h-ctx": {
+      "id": "ip-h-ctx",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "App Context"
+        }
+      ],
+      "children": []
+    },
+    "ip-ctx-lead": {
+      "id": "ip-ctx-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The app can say which screen it is on and add its own keys and values, so the agent does not guess from pixels. ScrawlKit sends only what the app passes in, plus its bundle ID, name, version and build."
+        }
+      ],
+      "children": []
+    },
+    "ip-ctx-code": {
+      "id": "ip-ctx-code",
+      "type": "code",
+      "props": {
+        "language": "swift"
+      },
+      "text": [
+        {
+          "insert": "SettingsView().scrawlScreen(\"Settings › Experimental\")   // while visible; restores the previous on disappear\nSessionView().scrawlContext(\"session\", session.id)       // follows the value; nil leaves it to enclosing views\nScrawl.screen(\"Onboarding\")                              // or set either one directly (nil clears)\nScrawl.context(\"server\", \"studio\")"
+        }
+      ],
+      "children": []
+    },
+    "ip-ctx-1": {
+      "id": "ip-ctx-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The most recently appeared screen that is still visible wins, so pushed screens, sheets and tabs work."
+        }
+      ],
+      "children": []
+    },
+    "ip-ctx-2": {
+      "id": "ip-ctx-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The bundle keeps "
+        },
+        {
+          "insert": "context",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "contextChanges",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "screens",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " spans ("
+        },
+        {
+          "insert": "{t0, t1, name}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and the prompt queued into OpenCode show them."
+        }
+      ],
+      "children": []
+    },
+    "ip-ctx-sum": {
+      "id": "ip-ctx-sum",
+      "type": "code",
+      "props": {
+        "language": "text"
+      },
+      "text": [
+        {
+          "insert": "[scrawl 0:25 · iPhone · OpenCode 1.4 (354) · /…/20261014-101500.scrawl]\nOpen contact-sheet.png and frames/ in that folder before changing anything: the marks and words only make sense on the images, which can show more than the text does.\nScreen: Sessions · server: studio · session: ses_3f…\n- #1 (0:01) “So here.”\n- #3 (0:08) ⟨Settings › Experimental⟩ [tapped “Back”] “Go back.”\n  · 0:09 server → mini"
+        }
+      ],
+      "children": []
+    },
+    "ip-h-tl": {
+      "id": "ip-h-tl",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "The Timeline"
+        }
+      ],
+      "children": []
+    },
+    "ip-tl-lead": {
+      "id": "ip-tl-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "ScrawlKit writes a timeline JSON beside each movie, and the bundle keeps it as "
+        },
+        {
+          "insert": "timeline.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Times are seconds from the start, and points are in the touch window's points. "
+        },
+        {
+          "insert": "phone::Timeline",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads every field below except "
+        },
+        {
+          "insert": "duration",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "capture",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "audio",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-tl": {
+      "id": "ip-tl",
+      "type": "state-shape",
+      "props": {
+        "example": "{\"app\":\"UpDown\",\"bundleId\":\"com.example.UpDown\",\"version\":\"354\",\"shortVersion\":\"1.4\",\"device\":\"iPhone\",\"system\":\"iOS 18.2\",\"screen\":{\"width\":440,\"height\":956,\"scale\":3},\"recordedAt\":\"2026-10-14T10:15:00Z\",\"duration\":25.1,\"session\":\"ses_example01\",\"capture\":\"appFrames\",\"audio\":true,\"markers\":[4.2],\"events\":[{\"t\":12,\"label\":\"Done tapped\"}],\"touches\":[{\"t\":8.1,\"id\":1,\"x\":40,\"y\":80,\"phase\":\"down\",\"label\":\"Back\"}],\"strokes\":[{\"t0\":2,\"t1\":2.6,\"points\":[[100,200,2]],\"fadeAt\":4.1}],\"context\":{\"server\":\"studio\"},\"contextChanges\":[{\"t\":9,\"key\":\"server\",\"value\":\"mini\"}],\"screens\":[{\"t\":0,\"name\":\"Sessions\"}]}",
+        "fields": [
+          {
+            "name": "app",
+            "type": "String",
+            "description": "`CFBundleDisplayName`, else `CFBundleName`, else the bundle ID. Ingest matches it to a session title when `session` is missing."
+          },
+          {
+            "name": "bundleId",
+            "type": "String",
+            "description": "The host app's bundle identifier."
+          },
+          {
+            "name": "version",
+            "type": "String",
+            "description": "The build, from `CFBundleVersion`."
+          },
+          {
+            "name": "shortVersion",
+            "type": "String",
+            "description": "The marketing version, from `CFBundleShortVersionString`."
+          },
+          {
+            "name": "device",
+            "type": "String",
+            "description": "The device's user-visible name."
+          },
+          {
+            "name": "system",
+            "type": "String",
+            "description": "OS name and version, such as `iOS 18.2`."
+          },
+          {
+            "name": "screen",
+            "type": "object",
+            "description": "The touch window's size in points and its display scale.",
+            "fields": [
+              {
+                "name": "width",
+                "type": "f64"
+              },
+              {
+                "name": "height",
+                "type": "f64"
+              },
+              {
+                "name": "scale",
+                "type": "f64",
+                "description": "The Mac reads a missing scale as `1`."
+              }
+            ]
+          },
+          {
+            "name": "recordedAt",
+            "type": "String",
+            "description": "ISO 8601 start time. Ingest uses it as the key that joins copies of one upload."
+          },
+          {
+            "name": "duration",
+            "type": "f64",
+            "description": "Length in seconds. The Mac takes the length from the movie instead."
+          },
+          {
+            "name": "session",
+            "type": "String",
+            "required": false,
+            "description": "The paired destination from the setup link. Omitted when the link named none. It is the recorded destination."
+          },
+          {
+            "name": "capture",
+            "type": "\"appFrames\" | \"replayKit\"",
+            "description": "The capture method."
+          },
+          {
+            "name": "audio",
+            "type": "bool",
+            "description": "`false` when the microphone was denied or narration was off."
+          },
+          {
+            "name": "markers",
+            "type": "[f64]",
+            "description": "Marker times. Each becomes a flag."
+          },
+          {
+            "name": "events",
+            "type": "[{t, label}]",
+            "description": "`Scrawl.event` calls. Each lands in `summary.md` under the keyframe on screen at `t`."
+          },
+          {
+            "name": "touches",
+            "type": "[{t, id, x, y, phase, label?}]",
+            "description": "One entry per touch change. `phase` is `down`, `move`, `up`, `cancel` or `other`, and moves are logged at most 30 times a second."
+          },
+          {
+            "name": "strokes",
+            "type": "[{t0, t1, points, fadeAt?}]",
+            "description": "Smoothed strokes. Each point is `[x, y, t]`, and `fadeAt` is when the stroke began to fade."
+          },
+          {
+            "name": "context",
+            "type": "{key: value}",
+            "description": "App values when the recording started."
+          },
+          {
+            "name": "contextChanges",
+            "type": "[{t, key, value}]",
+            "description": "Later changes. A `null` value means the key was cleared."
+          },
+          {
+            "name": "screens",
+            "type": "[{t, name}]",
+            "description": "Screen changes. The first is at `0` when the app named a screen before recording, and a `null` name means none."
+          }
+        ],
+        "name": "Timeline",
+        "source": {
+          "path": "src/phone.rs",
+          "symbol": "Timeline"
+        }
+      },
+      "children": []
+    },
+    "ip-h-pair": {
+      "id": "ip-h-pair",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Pairing a Phone"
+        }
+      ],
+      "children": []
+    },
+    "ip-pair-lead": {
+      "id": "ip-pair-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl link",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints a setup link and a terminal QR code. Open the link on the phone to pair it with this Mac."
+        }
+      ],
+      "children": []
+    },
+    "ip-pair-code": {
+      "id": "ip-pair-code",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "scrawl link --scheme updown [--session ses_…]\n# updown://scrawl?url=http%3A%2F%2F<tailscale-ip>%3A47777&url=http%3A%2F%2F<lan-ip>%3A47777&token=…"
+        }
+      ],
+      "children": []
+    },
+    "ip-pair-1": {
+      "id": "ip-pair-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The link carries "
+        },
+        {
+          "insert": "ingestToken",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " from "
+        },
+        {
+          "insert": "config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". When it is missing, "
+        },
+        {
+          "insert": "scrawl link",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " makes a 32-byte hex token and writes the file with mode "
+        },
+        {
+          "insert": "0600",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-pair-2": {
+      "id": "ip-pair-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The URLs default to this Mac's Tailscale IPv4 address, then its "
+        },
+        {
+          "insert": "en0",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "en1",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " LAN addresses, on port "
+        },
+        {
+          "insert": "47777",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "47778",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for Annotator Dev)."
+        }
+      ],
+      "children": [
+        "ip-pair-2a"
+      ]
+    },
+    "ip-pair-2a": {
+      "id": "ip-pair-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Pass "
+        },
+        {
+          "insert": "--url",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to name other base URLs, or "
+        },
+        {
+          "insert": "--port",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for another port. Only "
+        },
+        {
+          "insert": "http://",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "https://",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " base URLs work."
+        }
+      ],
+      "children": []
+    },
+    "ip-pair-3": {
+      "id": "ip-pair-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--session ses_…",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " pairs the app with one session. ScrawlKit then writes it as the timeline's top-level "
+        },
+        {
+          "insert": "session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-pair-4": {
+      "id": "ip-pair-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The phone keeps the config in its Keychain under "
+        },
+        {
+          "insert": "dev.kitlangton.scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Open "
+        },
+        {
+          "insert": "<scheme>://scrawl?reset=1",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " on the phone to clear it."
+        }
+      ],
+      "children": []
+    },
+    "ip-pair-5": {
+      "id": "ip-pair-5",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "For a cabled fallback through "
+        },
+        {
+          "insert": "devicectl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", list the apps' bundle IDs under "
+        },
+        {
+          "insert": "\"usbApps\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The Mac then reads recordings from each app's "
+        },
+        {
+          "insert": "Documents/Scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " folder."
+        }
+      ],
+      "children": []
+    },
+    "ip-h-ingest": {
+      "id": "ip-h-ingest",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Ingest on the Mac"
+        }
+      ],
+      "children": []
+    },
+    "ip-ingest-lead": {
+      "id": "ip-ingest-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The ingest server listens on "
+        },
+        {
+          "insert": "0.0.0.0",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " at the ingest port. The app starts it at launch, and "
+        },
+        {
+          "insert": "scrawl serve",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " runs it without the GUI. The sequence follows one HTTP upload from the phone to the session."
+        }
+      ],
+      "children": []
+    },
+    "ip-seq": {
+      "id": "ip-seq",
+      "type": "sequence",
+      "props": {
+        "src": "./assets/sequences/ingest.sequence.json"
+      },
+      "children": []
+    },
+    "ip-ingest-rules": {
+      "id": "ip-ingest-rules",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Five groups of rules in "
+        },
+        {
+          "insert": "phone::ingest_recording",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and its callers shape each upload."
+        }
+      ],
+      "children": []
+    },
+    "ip-ingest-1": {
+      "id": "ip-ingest-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The wire format",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-ingest-1a",
+        "ip-ingest-1b"
+      ]
+    },
+    "ip-ingest-1a": {
+      "id": "ip-ingest-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The phone sends "
+        },
+        {
+          "insert": "POST /ingest",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with a bearer token. The body is a 4-byte big-endian timeline length, the timeline JSON, then the movie."
+        }
+      ],
+      "children": []
+    },
+    "ip-ingest-1b": {
+      "id": "ip-ingest-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The Mac takes bodies up to 250 MB. Any authorized "
+        },
+        {
+          "insert": "GET",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", such as "
+        },
+        {
+          "insert": "/health",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", answers "
+        },
+        {
+          "insert": "{\"ok\": true}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-ingest-2": {
+      "id": "ip-ingest-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The reply",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-ingest-2a",
+        "ip-ingest-2b"
+      ]
+    },
+    "ip-ingest-2a": {
+      "id": "ip-ingest-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The Mac answers after the bundle is built and queued into the session, or when the wait runs out."
+        }
+      ],
+      "children": []
+    },
+    "ip-ingest-2b": {
+      "id": "ip-ingest-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The phone sets the wait in seconds with "
+        },
+        {
+          "insert": "X-Scrawl-Wait",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Without the header the wait is 25 s, and it is never more than 45 s."
+        }
+      ],
+      "children": []
+    },
+    "ip-ingest-3": {
+      "id": "ip-ingest-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Copies and failures",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-ingest-3a",
+        "ip-ingest-3b",
+        "ip-ingest-3c"
+      ]
+    },
+    "ip-ingest-3a": {
+      "id": "ip-ingest-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Copies of one recording, such as over LAN and Tailscale or HTTP and USB, share the key "
+        },
+        {
+          "insert": "recordedAt",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Later copies wait for the first one and get its outcome."
+        }
+      ],
+      "children": []
+    },
+    "ip-ingest-3b": {
+      "id": "ip-ingest-3b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A failed build answers 500 and forgets the recording, so the phone can send it again."
+        }
+      ],
+      "children": []
+    },
+    "ip-ingest-3c": {
+      "id": "ip-ingest-3c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A failed forward is queued: the bundle gets "
+        },
+        {
+          "insert": ".deliver.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and the Mac retries it. The phone never uploads it again."
+        }
+      ],
+      "children": []
+    },
+    "ip-ingest-4": {
+      "id": "ip-ingest-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The session",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-ingest-4a",
+        "ip-ingest-4b",
+        "ip-ingest-4c"
+      ]
+    },
+    "ip-ingest-4a": {
+      "id": "ip-ingest-4a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "handoff::resolve_opencode_session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " takes the timeline's top-level "
+        },
+        {
+          "insert": "session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " first. Without one, it takes a root session whose title matches the app, else "
+        },
+        {
+          "insert": "$OPENCODE_SESSION_ID",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", else the newest root session."
+        }
+      ],
+      "children": []
+    },
+    "ip-ingest-4b": {
+      "id": "ip-ingest-4b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "With "
+        },
+        {
+          "insert": "SCRAWL_NO_OPENCODE",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " set, or with "
+        },
+        {
+          "insert": "scrawl serve --no-opencode",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", nothing is sent and the reply says "
+        },
+        {
+          "insert": "saved",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The "
+        },
+        {
+          "insert": "autoSend",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " setting does not apply to ingest."
+        }
+      ],
+      "children": []
+    },
+    "ip-ingest-4c": {
+      "id": "ip-ingest-4c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The app also copies the bundle to the clipboard and shows it on the island. "
+        },
+        {
+          "insert": "scrawl serve",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " does neither."
+        }
+      ],
+      "children": []
+    },
+    "ip-ingest-5": {
+      "id": "ip-ingest-5",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Over USB",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-ingest-5a",
+        "ip-ingest-5b",
+        "ip-ingest-5c"
+      ]
+    },
+    "ip-ingest-5a": {
+      "id": "ip-ingest-5a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "With an iPhone cabled, the Mac takes each recording marked "
+        },
+        {
+          "insert": ".ready",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that has no "
+        },
+        {
+          "insert": ".sent",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", from "
+        },
+        {
+          "insert": "Documents/Scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or the legacy "
+        },
+        {
+          "insert": "Documents/Tether",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-ingest-5b": {
+      "id": "ip-ingest-5b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It waits up to 15 s, then writes "
+        },
+        {
+          "insert": "<stamp>.delivery",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with the reply JSON before "
+        },
+        {
+          "insert": "<stamp>.sent",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The "
+        },
+        {
+          "insert": ".sent",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " file holds the session name, all that older ScrawlKit builds read."
+        }
+      ],
+      "children": []
+    },
+    "ip-ingest-5c": {
+      "id": "ip-ingest-5c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A cabled recording whose build fails is tried again after 1 min, doubling to 30 min."
+        }
+      ],
+      "children": []
+    },
+    "ip-reply-lead": {
+      "id": "ip-reply-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The reply tells the strip what happened, as the table shows in the order of "
+        },
+        {
+          "insert": "delivery::reply_json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". ScrawlKit's "
+        },
+        {
+          "insert": "IngestReply",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads a reply without "
+        },
+        {
+          "insert": "delivered",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " as sent."
+        }
+      ],
+      "children": []
+    },
+    "ip-reply": {
+      "id": "ip-reply",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "On the Mac",
+          "Reply",
+          "The Strip"
+        ],
+        "rows": [
+          [
+            "Queued into the session",
+            [
+              {
+                "insert": "delivered: true, state: \"sent\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Sent to UP DOWN"
+          ],
+          [
+            "Bundle saved, OpenCode did not take it, retried from the Mac",
+            [
+              {
+                "insert": "delivered: false, state: \"queued\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "On your Mac · Sends to UP DOWN when it can"
+          ],
+          [
+            "Bundle saved, routing off or no session found",
+            [
+              {
+                "insert": "delivered: false, state: \"saved\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Saved on your Mac"
+          ],
+          [
+            "Still building or sending when the wait ran out",
+            [
+              {
+                "insert": "delivered: false, state: \"processing\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "On your Mac · Sending to UP DOWN…"
+          ],
+          [
+            "Bundle could not be built",
+            "HTTP 500",
+            "Mac didn't answer · Share"
+          ]
+        ],
+        "title": "Ingest replies and what the strip says"
+      },
+      "children": []
+    },
+    "ip-reply-after": {
+      "id": "ip-reply-after",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A 2xx body holds "
+        },
+        {
+          "insert": "ok",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "delivered",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "state",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "sessionTitle",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", plus "
+        },
+        {
+          "insert": "error",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " when queued. "
+        },
+        {
+          "insert": "sessionTitle",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is "
+        },
+        {
+          "insert": "Mac",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " when the recording is not routed. Tests swap the outside steps through "
+        },
+        {
+          "insert": "IngestHooks",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and never post to a real session."
+        }
+      ],
+      "children": []
+    },
+    "ip-h-dest": {
+      "id": "ip-h-dest",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Destination and Recovery"
+        }
+      ],
+      "children": []
+    },
+    "ip-dest-lead": {
+      "id": "ip-dest-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The original "
+        },
+        {
+          "insert": "timeline.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " stores the paired destination in its top-level "
+        },
+        {
+          "insert": "session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". A "
+        },
+        {
+          "insert": "context.session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " value from the app only names the session on screen, and never chooses the recipient."
+        }
+      ],
+      "children": []
+    },
+    "ip-dest-1": {
+      "id": "ip-dest-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A recording of OpenCode Settings that shows another project's session still goes to the paired OpenCode iOS coordinator."
+        }
+      ],
+      "children": []
+    },
+    "ip-dest-2": {
+      "id": "ip-dest-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "To recover a failed delivery, read that top-level field and check whether the capture already arrived before you send it again. "
+        },
+        {
+          "insert": "scrawl send --session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " overrides the recipient, so never fill it from "
+        },
+        {
+          "insert": "context.session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-dest-3": {
+      "id": "ip-dest-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "If no destination is recorded and ownership is unclear, ask before you forward it."
+        }
+      ],
+      "children": [
+        "ip-dest-3a"
+      ]
+    },
+    "ip-dest-3a": {
+      "id": "ip-dest-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Keep private-project endpoints and recipients unchanged."
+        }
+      ],
+      "children": []
+    },
+    "ip-dest-4": {
+      "id": "ip-dest-4",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Safety and Recovery",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/30-safety-and-recovery"
+            }
+          }
+        },
+        {
+          "insert": " holds the full recovery procedure."
+        }
+      ],
+      "children": []
+    },
+    "ip-h-https": {
+      "id": "ip-h-https",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Sending to an HTTPS Endpoint"
+        }
+      ],
+      "children": []
+    },
+    "ip-https-lead": {
+      "id": "ip-https-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A setup link can point at a hosted endpoint instead of a Mac, for phones that are not on your LAN or tailnet. The endpoint speaks the Mac's protocol: "
+        },
+        {
+          "insert": "GET {url}/health",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "POST {url}/ingest",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with a bearer token. When any configured URL is "
+        },
+        {
+          "insert": "https",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", recordings go through a durable outbox in "
+        },
+        {
+          "insert": "Sources/ScrawlKit/Outbox.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "Sources/ScrawlKit/Outbox.swift"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-ex": {
+      "id": "ip-https-ex",
+      "type": "code",
+      "props": {
+        "language": "text"
+      },
+      "text": [
+        {
+          "insert": "ledger://scrawl?url=https%3A%2F%2Fexample.com%2Fapi%2Fscrawl%2Fledger&token=…"
+        }
+      ],
+      "children": []
+    },
+    "ip-https-0": {
+      "id": "ip-https-0",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Plain "
+        },
+        {
+          "insert": "http",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " URLs keep the direct POST plus the USB fallback. The outbox works in five ways."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-1": {
+      "id": "ip-https-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Saved before sending",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-https-1a",
+        "ip-https-1b",
+        "ip-https-1c"
+      ]
+    },
+    "ip-https-1a": {
+      "id": "ip-https-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "On Send, the framed payload and a small metadata file go to "
+        },
+        {
+          "insert": "Application Support/ScrawlOutbox",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The metadata holds the target, "
+        },
+        {
+          "insert": "recordedAt",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", the attempts and the last error."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-1b": {
+      "id": "ip-https-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The files are protected until the phone's first unlock, so uploads run while it is locked. They are excluded from backup."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-1c": {
+      "id": "ip-https-1c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The recording is staged in "
+        },
+        {
+          "insert": "tmp",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", never in "
+        },
+        {
+          "insert": "Documents/Scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and is not added to "
+        },
+        {
+          "insert": "Scrawl.shared.recordings",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". An entry is deleted only after a 2xx."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-2": {
+      "id": "ip-https-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Background upload",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-https-2a",
+        "ip-https-2b"
+      ]
+    },
+    "ip-https-2a": {
+      "id": "ip-https-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Uploads are file uploads on a background "
+        },
+        {
+          "insert": "URLSession",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "dev.kitlangton.scrawl.outbox.<bundle ID>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). They survive a suspended or killed app and never load the movie into memory."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-2b": {
+      "id": "ip-https-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The session is made again each time the app is configured, and it picks up uploads still in flight from an earlier launch."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-3": {
+      "id": "ip-https-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Retries",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-https-3a",
+        "ip-https-3b",
+        "ip-https-3c",
+        "ip-https-3d"
+      ]
+    },
+    "ip-https-3a": {
+      "id": "ip-https-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A 401 or 403 (a revoked link), a 413 (too large) and any other 4xx except 408 and 429 are permanent. The entry stays on disk, marked failed, with Share."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-3b": {
+      "id": "ip-https-3b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Anything else, such as no network, a timeout, 408, 429 or a 5xx, is retried after 15 s, doubling to 30 min. A retry also starts when the network comes back, the app comes to the front, or it launches."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-3c": {
+      "id": "ip-https-3c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "An entry never uploads twice at once. The server dedupes on person and "
+        },
+        {
+          "insert": "recordedAt",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", so a resend after a lost reply is safe."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-3d": {
+      "id": "ip-https-3d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Opening a new setup link retries the entries that failed with the old one."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-4": {
+      "id": "ip-https-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Strip",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-https-4a",
+        "ip-https-4b",
+        "ip-https-4c",
+        "ip-https-4d",
+        "ip-https-4e"
+      ]
+    },
+    "ip-https-4a": {
+      "id": "ip-https-4a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "While the upload runs on a working network, the strip stays up as a small status circle with a progress ring and says \"Sending…\". Touches on it reach the app."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-4b": {
+      "id": "ip-https-4b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A working network means "
+        },
+        {
+          "insert": "NWPathMonitor",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reports "
+        },
+        {
+          "insert": ".satisfied",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". After 30 s with no bytes going out, the strip says \"Still sending…\", never \"Queued\"."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-4c": {
+      "id": "ip-https-4c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "When the upload lands, the strip says \"Sent to …\" with a success haptic. If the strip is gone by then, it comes back briefly with \"Sent to …\" as soon as the app is in front."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-4d": {
+      "id": "ip-https-4d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "\"Queued · sends when online\" shows only for no network or a failed try that waits to retry, with a success haptic. It leaves after a few seconds, and a retry that starts while it is up turns it back to \"Sending…\"."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-4e": {
+      "id": "ip-https-4e",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A permanent failure says \"Scrawl link expired · Ask Kit for a new one\", \"Too large to send\" or \"Couldn't send\", with Share. Share shares copies of the recording and leaves the entry queued."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-5": {
+      "id": "ip-https-5",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Revoked links",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ip-https-5a",
+        "ip-https-5b"
+      ]
+    },
+    "ip-https-5a": {
+      "id": "ip-https-5a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The "
+        },
+        {
+          "insert": "/health",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " check at the start of a recording also goes to the HTTPS endpoint. A 401 there shows \"Scrawl link expired\" beside the strip."
+        }
+      ],
+      "children": []
+    },
+    "ip-https-5b": {
+      "id": "ip-https-5b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The recording carries on and stays in the outbox, marked failed, until the link is renewed."
+        }
+      ],
+      "children": []
+    },
+    "ip-cap-lead": {
+      "id": "ip-cap-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The endpoint rejects bodies over 95 MB, so HTTPS recordings are smaller and capped. The rows compare the Mac path with the two HTTPS paths."
+        }
+      ],
+      "children": []
+    },
+    "ip-cap": {
+      "id": "ip-cap",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Capture",
+          "Video",
+          "Audio",
+          "Per Second",
+          "Cap",
+          "At the Cap"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": ".appFrames",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " to a Mac"
+              }
+            ],
+            "6 Mbps",
+            "96 kbps",
+            "about 0.76 MB",
+            "None",
+            "None"
+          ],
+          [
+            [
+              {
+                "insert": ".appFrames",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " to HTTPS"
+              }
+            ],
+            "3 Mbps",
+            "96 kbps",
+            "about 0.39 MB",
+            "3:00",
+            "about 70 MB"
+          ],
+          [
+            [
+              {
+                "insert": ".replayKit",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " to HTTPS"
+              }
+            ],
+            "Not settable, about 8 to 12 Mbps",
+            "Not settable",
+            "about 1 to 1.5 MB",
+            "0:45",
+            "about 45 to 68 MB"
+          ]
+        ],
+        "title": "Recording size by target"
+      },
+      "children": []
+    },
+    "ip-cap-p1": {
+      "id": "ip-cap-p1",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "3 Mbps at 880×1912 and 30 fps is about 0.06 bits per pixel. That is enough for app UI, which is mostly static between scrolls and transitions. The 25 MB of headroom covers an encoder that overshoots its average."
+        }
+      ],
+      "children": []
+    },
+    "ip-cap-p2": {
+      "id": "ip-cap-p2",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Ten seconds before the cap, the strip shows \"Length limit · Sending in 10 s\" with a warning haptic, then sends. A payload still over the limit is never uploaded: it is marked \"Too large to send\" and kept for Share."
+        }
+      ],
+      "children": []
+    },
+    "ip-bg-lead": {
+      "id": "ip-bg-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "An app with an app delegate can forward background session events, so iOS can relaunch a killed app to finish reporting uploads. Without this, finished uploads are picked up at the next launch."
+        }
+      ],
+      "children": []
+    },
+    "ip-bg-code": {
+      "id": "ip-bg-code",
+      "type": "code",
+      "props": {
+        "language": "swift"
+      },
+      "text": [
+        {
+          "insert": "func application(_: UIApplication, handleEventsForBackgroundURLSession identifier: String,\n                 completionHandler: @escaping () -> Void) {\n  Scrawl.handleBackgroundURLSessionEvents(identifier: identifier, completionHandler: completionHandler)\n}"
+        }
+      ],
+      "children": []
+    },
+    "ip-h-import": {
+      "id": "ip-h-import",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Importing a Recording"
+        }
+      ],
+      "children": []
+    },
+    "ip-import-lead": {
+      "id": "ip-import-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "You can AirDrop the "
+        },
+        {
+          "insert": ".mp4",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": ".json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " pair to the Mac and run "
+        },
+        {
+          "insert": "scrawl import",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". With no path it takes the newest pair in "
+        },
+        {
+          "insert": "~/Downloads",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and "
+        },
+        {
+          "insert": "--timeline",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " names a timeline that is not beside the movie."
+        }
+      ],
+      "children": []
+    },
+    "ip-import-code": {
+      "id": "ip-import-code",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "scrawl import ~/Downloads/20261013T164000.mp4 --timeline ~/Downloads/20261013T164000.json"
+        }
+      ],
+      "children": []
+    },
+    "ip-import-1": {
+      "id": "ip-import-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Touches become taps and swipes, drawn on keyframes as ripples and finger trails and listed in the review timeline. Each tap or swipe is a keyframe candidate, like a click."
+        }
+      ],
+      "children": [
+        "ip-import-1a"
+      ]
+    },
+    "ip-import-1a": {
+      "id": "ip-import-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A touch that travels under 12 pt and lifts within 420 ms is a tap."
+        }
+      ],
+      "children": []
+    },
+    "ip-import-2": {
+      "id": "ip-import-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Markers become flags."
+        }
+      ],
+      "children": []
+    },
+    "ip-import-3": {
+      "id": "ip-import-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "App events appear in "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " under the keyframe that was on screen when they happened, such as "
+        },
+        {
+          "insert": "· 0:12 app: Done tapped",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "ip-import-4": {
+      "id": "ip-import-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "scrawl import",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " sends nothing. Pass "
+        },
+        {
+          "insert": "--clipboard",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to copy the summary, "
+        },
+        {
+          "insert": "--out",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to choose the bundle folder, or "
+        },
+        {
+          "insert": "--transcriber",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to pick the transcriber."
+        }
+      ],
+      "children": []
+    },
+    "ip-h-serve": {
+      "id": "ip-h-serve",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Headless Ingest Server"
+        }
+      ],
+      "children": []
+    },
+    "ip-serve-lead": {
+      "id": "ip-serve-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "On an always-on Mac that the phone reaches over Tailscale, "
+        },
+        {
+          "insert": "scrawl serve",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " takes authenticated ScrawlKit uploads without the GUI app. It builds bundles and routes them into local OpenCode sessions with the same auth, dedupe and retries as the app."
+        }
+      ],
+      "children": []
+    },
+    "ip-serve-code": {
+      "id": "ip-serve-code",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "scrawl serve [--port 47777] [--usb] [--no-opencode]"
+        }
+      ],
+      "children": []
+    },
+    "ip-serve-1": {
+      "id": "ip-serve-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--usb",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " also polls cabled iPhones through "
+        },
+        {
+          "insert": "devicectl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for the apps in "
+        },
+        {
+          "insert": "usbApps",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "--no-opencode",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " builds bundles without sending them."
+        }
+      ],
+      "children": []
+    },
+    "ip-serve-2": {
+      "id": "ip-serve-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The port fails to bind when the app already listens on it. Only the process that owns the port retries pending deliveries."
+        }
+      ],
+      "children": []
+    },
+    "ip-serve-ld": {
+      "id": "ip-serve-ld",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "To run "
+        },
+        {
+          "insert": "scrawl serve",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " under "
+        },
+        {
+          "insert": "launchd",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", do these steps."
+        }
+      ],
+      "children": []
+    },
+    "ip-serve-ld1": {
+      "id": "ip-serve-ld1",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Copy "
+        },
+        {
+          "insert": "scripts/scrawl-serve.plist",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "scripts/scrawl-serve.plist"
+            }
+          }
+        },
+        {
+          "insert": " into "
+        },
+        {
+          "insert": "~/Library/LaunchAgents",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": [
+        "ip-serve-ld1c"
+      ]
+    },
+    "ip-serve-ld1c": {
+      "id": "ip-serve-ld1c",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "cp scripts/scrawl-serve.plist ~/Library/LaunchAgents/dev.kitlangton.scrawl.serve.plist"
+        }
+      ],
+      "children": []
+    },
+    "ip-serve-ld2": {
+      "id": "ip-serve-ld2",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Set the first "
+        },
+        {
+          "insert": "ProgramArguments",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " entry to your "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " binary. The file names a binary in another user's home folder."
+        }
+      ],
+      "children": []
+    },
+    "ip-serve-ld3": {
+      "id": "ip-serve-ld3",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Load the agent."
+        }
+      ],
+      "children": [
+        "ip-serve-ld3c"
+      ]
+    },
+    "ip-serve-ld3c": {
+      "id": "ip-serve-ld3c",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.kitlangton.scrawl.serve.plist"
+        }
+      ],
+      "children": []
+    }
+  }
+}

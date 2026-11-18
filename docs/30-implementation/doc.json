@@ -1,0 +1,685 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-496fdebfc61ec3cfb6f03b10263bf2fc",
+  "title": "Implementation",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "im-open",
+        "im-l10",
+        "im-l20",
+        "im-map-h",
+        "im-map-p",
+        "im-map"
+      ]
+    },
+    "im-open": {
+      "id": "im-open",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Implementation maps each System Design page to the code that does it. The Mac app is one Rust and GPUI binary in "
+        },
+        {
+          "insert": "src/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", a Swift helper in "
+        },
+        {
+          "insert": "helper/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and the ScrawlKit iOS package in "
+        },
+        {
+          "insert": "Sources/ScrawlKit/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Read the design page for a subsystem before you change its code."
+        }
+      ],
+      "children": []
+    },
+    "im-l10": {
+      "id": "im-l10",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Mac App and Helper",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "30-implementation/10-mac-app-and-helper"
+            }
+          }
+        },
+        {
+          "insert": ": the roles of the "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " binary, the helper subcommands, and app identity."
+        }
+      ],
+      "children": []
+    },
+    "im-l20": {
+      "id": "im-l20",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Experiments and Feature Map",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "30-implementation/20-experiments-and-feature-map"
+            }
+          }
+        },
+        {
+          "insert": ": how a change ships behind a flag, and "
+        },
+        {
+          "insert": "site/src/features.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "im-map-h": {
+      "id": "im-map-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Subsystem Map"
+        }
+      ],
+      "children": []
+    },
+    "im-map-p": {
+      "id": "im-map-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each row names a System Design page and the source files that do what it describes. The rows follow the order of the System Design pages."
+        }
+      ],
+      "children": []
+    },
+    "im-map": {
+      "id": "im-map",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Design page",
+          "Code"
+        ],
+        "rows": [
+          [
+            "Capture and Recording",
+            [
+              {
+                "insert": "src/shortcut.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/pause.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/capture.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/capture/macos.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/screens.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/ui.rs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Capture Bundle and Paste",
+            [
+              {
+                "insert": "src/model.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/sketch.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/agent_context.rs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Keyframes and Images",
+            [
+              {
+                "insert": "src/keyframes.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/render.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/autocrop.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/measure.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/zoom.rs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Transcription",
+            [
+              {
+                "insert": "src/transcribe.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/deepgram.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/hex.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/command_transcriber.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/speech_model.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/live_transcribe.rs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "App State and Privacy",
+            [
+              {
+                "insert": "src/ax.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/appshot.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/privacy.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/page.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/windows.rs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Routing and Delivery",
+            [
+              {
+                "insert": "src/routing.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/routing/",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/delivery.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/web.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/sdk.js",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/handoff.rs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "iPhone and ScrawlKit",
+            [
+              {
+                "insert": "src/phone.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/ingest_http.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "Sources/ScrawlKit/",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "helper/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Onboarding and Settings",
+            [
+              {
+                "insert": "src/onboarding.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/settings.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/command_line.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "helper/Onboarding.swift",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "helper/PermissionPanel.swift",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "helper/Settings.swift",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Export and Retention",
+            [
+              {
+                "insert": "src/export/",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/retention.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/history.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "helper/Export.swift",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "helper/Media.swift",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Capsule Motion",
+            [
+              {
+                "insert": "src/ui/lab.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/ui/motion.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/native/pill/",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "perf/pill/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Windows",
+            [
+              {
+                "insert": "src/capture/windows.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/ui/windows.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/win/",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/settings_window.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/onboarding_window.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "src/ax_other.rs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ]
+        ],
+        "title": "Subsystem map"
+      },
+      "children": []
+    }
+  }
+}

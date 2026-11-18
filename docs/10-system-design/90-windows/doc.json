@@ -1,0 +1,3037 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-abf6865974cecb2e5b46805c70f61ea8",
+  "title": "Windows",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "intro",
+        "h-one",
+        "p-one",
+        "p-px-lead",
+        "l-px-1",
+        "l-px-2",
+        "l-px-3",
+        "p-files",
+        "ft-win",
+        "h-compare",
+        "p-compare",
+        "t-compare",
+        "h-input",
+        "p-input",
+        "l-hooks",
+        "l-mask",
+        "l-cancel",
+        "p-keys",
+        "l-res-1",
+        "l-res-2",
+        "l-res-3",
+        "h-overlay",
+        "p-overlay",
+        "l-ov",
+        "l-mv",
+        "l-ex",
+        "l-alive",
+        "l-pill",
+        "h-displays",
+        "p-displays",
+        "l-d-1",
+        "l-d-2",
+        "h-speech",
+        "p-speech",
+        "p-model",
+        "l-m-1",
+        "l-m-2",
+        "l-m-3",
+        "p-dl-lead",
+        "l-dl",
+        "l-cpu",
+        "h-helper",
+        "p-helper",
+        "t-helper",
+        "p-helper2",
+        "p-os-lead",
+        "g-perm",
+        "g-login",
+        "g-cli",
+        "h-appstate",
+        "p-appstate",
+        "l-uia-1",
+        "l-uia-2",
+        "l-uia-3",
+        "l-uia-4",
+        "h-clip",
+        "p-clip",
+        "p-clip2",
+        "l-clip-1",
+        "l-clip-2",
+        "l-clip-3",
+        "p-clip3",
+        "h-not",
+        "p-not",
+        "t-not",
+        "h-build",
+        "p-build",
+        "code-build",
+        "p-xwin",
+        "p-ci",
+        "po-release",
+        "p-recover",
+        "l-rec-1",
+        "l-rec-2",
+        "l-rec-3"
+      ]
+    },
+    "intro": {
+      "id": "intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator runs on Windows 10 (2004) and later as the same app, from the same GPUI code: the same capsule, picker, overlay, review window, welcome tour and Settings. Only the parts the operating system owns differ, and they sit behind the "
+        },
+        {
+          "insert": "platform",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " modules. This page covers that split, how each OS part works on Windows, what Windows leaves out, and how the Windows build is made and checked."
+        }
+      ],
+      "children": []
+    },
+    "h-one": {
+      "id": "h-one",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "One App, One UI"
+        }
+      ],
+      "children": []
+    },
+    "p-one": {
+      "id": "p-one",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Every GPUI view is shared, and only the OS shell differs. "
+        },
+        {
+          "insert": "src/capture.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/capture.rs"
+            }
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "src/ui.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/ui.rs"
+            }
+          }
+        },
+        {
+          "insert": " each declare "
+        },
+        {
+          "insert": "mod platform",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with "
+        },
+        {
+          "insert": "#[cfg_attr(target_os = ..., path = ...)]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", so each OS module exposes the same items. Never fork a view per OS, and add a platform function instead."
+        }
+      ],
+      "children": []
+    },
+    "p-px-lead": {
+      "id": "p-px-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Coordinates on Windows work another way than on macOS."
+        }
+      ],
+      "children": []
+    },
+    "l-px-1": {
+      "id": "l-px-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Windows global coordinates are physical pixels, because Annotator is per-monitor DPI aware, with the primary display's top-left as the origin."
+        }
+      ],
+      "children": []
+    },
+    "l-px-2": {
+      "id": "l-px-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "TargetFrame",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds pixels too, so "
+        },
+        {
+          "insert": "MAX_CAPTURE_SCALE",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is 1 and a recording is never upscaled."
+        }
+      ],
+      "children": []
+    },
+    "l-px-3": {
+      "id": "l-px-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Views convert with "
+        },
+        {
+          "insert": "platform::points_per_pixel",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "p-files": {
+      "id": "p-files",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The Windows code lives in these files. Read them, and anything behind a "
+        },
+        {
+          "insert": "platform::",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " call, before you change the Windows build."
+        }
+      ],
+      "children": []
+    },
+    "ft-win": {
+      "id": "ft-win",
+      "type": "file-tree",
+      "props": {
+        "entries": [
+          {
+            "path": "src/capture/windows.rs",
+            "note": "RegisterHotKey shortcuts, low-level hooks, key-state poller, displays, windows, the recorder"
+          },
+          {
+            "path": "src/ui/windows.rs",
+            "note": "Notification area icon and menu, Win32 styles for pill, picker and overlay, keep_alive"
+          },
+          {
+            "path": "src/win/mod.rs",
+            "note": "Monitors, top-level windows, processes, window styles"
+          },
+          {
+            "path": "src/win/media.rs",
+            "note": "Windows.Graphics.Capture, D3D11 crop and scale, H.264 through Media Foundation"
+          },
+          {
+            "path": "src/win/overlay.rs",
+            "note": "The ink overlay window, left out of recordings"
+          },
+          {
+            "path": "src/win/helper.rs",
+            "note": "The scrawl-helper calls, answered in process"
+          },
+          {
+            "path": "src/win/speech.rs",
+            "note": "Parakeet through transcribe.cpp, and the model download"
+          },
+          {
+            "path": "src/win/uia.rs",
+            "note": "What clicks and marks land on, from UI Automation"
+          },
+          {
+            "path": "src/win/clipboard.rs",
+            "note": "Unicode text, and images as PNG and CF_DIBV5"
+          },
+          {
+            "path": "src/win/privacy.rs",
+            "note": "The microphone privacy switch"
+          },
+          {
+            "path": "src/win/login.rs",
+            "note": "Launch at login through the user's Run key"
+          },
+          {
+            "path": "src/win/command_line.rs",
+            "note": "The scrawl.cmd shim on PATH"
+          },
+          {
+            "path": "src/win/shell.rs",
+            "note": "Open, reveal, Recycle Bin, version info, change times"
+          },
+          {
+            "path": "src/win/playback.rs",
+            "note": "No playback ducking on Windows"
+          },
+          {
+            "path": "src/settings_window.rs",
+            "note": "The GPUI Settings window"
+          },
+          {
+            "path": "src/onboarding_window.rs",
+            "note": "The GPUI welcome tour"
+          },
+          {
+            "path": "src/ax_other.rs",
+            "note": "Stub for systems with neither Accessibility nor UI Automation"
+          },
+          {
+            "path": "src/native/pill/other.rs",
+            "note": "A NativePill that never opens"
+          }
+        ]
+      },
+      "children": []
+    },
+    "h-compare": {
+      "id": "h-compare",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Mac and Windows Compared"
+        }
+      ],
+      "children": []
+    },
+    "p-compare": {
+      "id": "p-compare",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The table maps each part the OS owns on macOS to its Windows counterpart."
+        }
+      ],
+      "children": []
+    },
+    "t-compare": {
+      "id": "t-compare",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Part",
+          "macOS",
+          "Windows"
+        ],
+        "rows": [
+          [
+            "Shortcuts",
+            [
+              {
+                "insert": "⌥⇧S",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "⌥⇧V",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Alt+Shift+S",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "Alt+Shift+V",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Menu",
+            "Menu bar item",
+            "Notification area icon, left or right click"
+          ],
+          [
+            "Screen and window capture",
+            "ScreenCaptureKit",
+            "Windows.Graphics.Capture, H.264 through Media Foundation"
+          ],
+          [
+            "Clicks, keys, ink",
+            "Mouse monitor, Accessibility key tap, modifier state",
+            "Low-level hooks and key state"
+          ],
+          [
+            "Ink overlay",
+            "Metal panel",
+            "Click-through GPUI window, left out of recordings"
+          ],
+          [
+            "Transcription",
+            "SpeechAnalyzer, Deepgram or Hex",
+            "Parakeet on device through transcribe.cpp"
+          ],
+          [
+            "Movie decoding",
+            [
+              {
+                "insert": "scrawl-helper",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " (AVFoundation)"
+              }
+            ],
+            "Media Foundation, in process"
+          ],
+          [
+            "Paste",
+            [
+              {
+                "insert": "⌘V",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Ctrl+V",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Settings and welcome tour",
+            "SwiftUI in `scrawl-helper`",
+            "GPUI windows in process, same panes and protocol"
+          ],
+          [
+            "Recording capsule",
+            "Native AppKit and Metal pill, or GPUI",
+            "GPUI capsule"
+          ],
+          [
+            "Launch at login",
+            [
+              {
+                "insert": "SMAppService",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The user's `Run` key (Settings › Apps › Startup)"
+          ],
+          [
+            "Captures",
+            [
+              {
+                "insert": "~/Library/Application Support/scrawl/captures",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "%LOCALAPPDATA%\\scrawl\\captures",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Log",
+            [
+              {
+                "insert": "~/Library/Logs/Scrawl/scrawl.log",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "%LOCALAPPDATA%\\Scrawl\\Logs\\scrawl.log",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ]
+        ],
+        "title": "macOS and Windows parts"
+      },
+      "children": []
+    },
+    "h-input": {
+      "id": "h-input",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Shortcuts and Input"
+        }
+      ],
+      "children": []
+    },
+    "p-input": {
+      "id": "p-input",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/capture/windows.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/capture/windows.rs"
+            }
+          }
+        },
+        {
+          "insert": " registers Record and Paste with "
+        },
+        {
+          "insert": "RegisterHotKey",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Low-level keyboard and mouse hooks ("
+        },
+        {
+          "insert": "WH_KEYBOARD_LL",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "WH_MOUSE_LL",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") and a key-state poller take Undo, the cancel key, Shift ink and clicks. How a capture runs is on "
+        },
+        {
+          "insert": "Capture and Recording",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/10-capture"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "l-hooks": {
+      "id": "l-hooks",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Hooks",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-hooks-1",
+        "l-hooks-2"
+      ]
+    },
+    "l-hooks-1": {
+      "id": "l-hooks-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The hooks skip injected input ("
+        },
+        {
+          "insert": "LLKHF_INJECTED",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "LLMHF_INJECTED",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "l-hooks-2": {
+      "id": "l-hooks-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Every press passes on to the app ("
+        },
+        {
+          "insert": "CallNextHookEx",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), so Windows keeps no draw click from it."
+        }
+      ],
+      "children": []
+    },
+    "l-mask": {
+      "id": "l-mask",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Menu mask",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-mask-1",
+        "l-mask-2"
+      ]
+    },
+    "l-mask-1": {
+      "id": "l-mask-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "After a shortcut with Alt or Win, "
+        },
+        {
+          "insert": "mask_menu_key",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " taps an unassigned key."
+        }
+      ],
+      "children": []
+    },
+    "l-mask-2": {
+      "id": "l-mask-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "So the app in front does not open its menu bar when Alt comes up, and Win does not open the Start menu."
+        }
+      ],
+      "children": []
+    },
+    "l-cancel": {
+      "id": "l-cancel",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Cancel and Undo",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-cancel-1",
+        "l-cancel-2"
+      ]
+    },
+    "l-cancel-1": {
+      "id": "l-cancel-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The cancel key cancels a recording at once, because Windows has no pause and resume."
+        }
+      ],
+      "children": []
+    },
+    "l-cancel-2": {
+      "id": "l-cancel-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Undo defaults to "
+        },
+        {
+          "insert": "Ctrl+Z",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "p-keys": {
+      "id": "p-keys",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Settings › General on Windows records Record, Paste and Undo as combinations of Ctrl, Alt, Win and Shift. It has no Draw or Cancel rows, so those keep their defaults or the config file's values. "
+        },
+        {
+          "insert": "settings::validate",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " turns down three kinds of combination:"
+        }
+      ],
+      "children": []
+    },
+    "l-res-1": {
+      "id": "l-res-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Ctrl with one key, because apps use those, for Record and Paste."
+        }
+      ],
+      "children": []
+    },
+    "l-res-2": {
+      "id": "l-res-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Win with a key, alone or with Shift, because Windows uses those."
+        }
+      ],
+      "children": []
+    },
+    "l-res-3": {
+      "id": "l-res-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Alt+Tab",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "Alt+Shift+Tab",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "Alt+F4",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "Alt+Space",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "Ctrl+Alt+Tab",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "Ctrl+Win+Alt+Space",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-overlay": {
+      "id": "h-overlay",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Overlay and Windows"
+        }
+      ],
+      "children": []
+    },
+    "p-overlay": {
+      "id": "p-overlay",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The ink overlay in "
+        },
+        {
+          "insert": "src/win/overlay.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/win/overlay.rs"
+            }
+          }
+        },
+        {
+          "insert": " is a click-through GPUI window over the recorded display. It paints what "
+        },
+        {
+          "insert": "laser_overlay.metal",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " paints on macOS: the picker's dim and cutout, the target border, the start glow, Shift ink and the Shift tip dot. A pin shows only as a brief pulse."
+        }
+      ],
+      "children": []
+    },
+    "l-ov": {
+      "id": "l-ov",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Layered first",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-ov-1",
+        "l-ov-2"
+      ]
+    },
+    "l-ov-1": {
+      "id": "l-ov-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The build callback makes the window layered and transparent before GPUI's first frame, or DirectComposition never shows it."
+        }
+      ],
+      "children": []
+    },
+    "l-ov-2": {
+      "id": "l-ov-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Clicks fall through only a window that is both layered and transparent, and alpha 255 keeps GPUI's per-pixel alpha."
+        }
+      ],
+      "children": []
+    },
+    "l-mv": {
+      "id": "l-mv",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Moves outside updates",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-mv-1",
+        "l-mv-2"
+      ]
+    },
+    "l-mv-1": {
+      "id": "l-mv-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Inside a GPUI update the resize callback cannot reach the app, so the window keeps its default size."
+        }
+      ],
+      "children": []
+    },
+    "l-mv-2": {
+      "id": "l-mv-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The overlay is resized on the next turn of the event loop. "
+        },
+        {
+          "insert": "InkOverlay::move_to",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " moves it from another thread."
+        }
+      ],
+      "children": []
+    },
+    "l-ex": {
+      "id": "l-ex",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Left out of recordings",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-ex-1",
+        "l-ex-2"
+      ]
+    },
+    "l-ex-1": {
+      "id": "l-ex-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Annotator's popups use "
+        },
+        {
+          "insert": "WDA_EXCLUDEFROMCAPTURE",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "exclude_from_capture",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), which needs Windows 10 2004 or later."
+        }
+      ],
+      "children": []
+    },
+    "l-ex-2": {
+      "id": "l-ex-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "SCRAWL_SHOW_OWN_WINDOWS=1",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " keeps them in, for screenshots of Annotator itself."
+        }
+      ],
+      "children": []
+    },
+    "l-alive": {
+      "id": "l-alive",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Kept alive",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-alive-1"
+      ]
+    },
+    "l-alive-1": {
+      "id": "l-alive-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "GPUI on Windows quits when its last window closes. "
+        },
+        {
+          "insert": "ui::platform::keep_alive",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds a hidden 1 by 1 window off screen."
+        }
+      ],
+      "children": []
+    },
+    "l-pill": {
+      "id": "l-pill",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "GPUI capsule",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-pill-1",
+        "l-pill-2"
+      ]
+    },
+    "l-pill-1": {
+      "id": "l-pill-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The native AppKit and Metal pill is macOS only, and "
+        },
+        {
+          "insert": "handoff::native_pill",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is always off elsewhere."
+        }
+      ],
+      "children": []
+    },
+    "l-pill-2": {
+      "id": "l-pill-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "src/native/pill/other.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/native/pill/other.rs"
+            }
+          }
+        },
+        {
+          "insert": " keeps the shared types with a "
+        },
+        {
+          "insert": "NativePill",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that never opens, so Windows draws the GPUI capsule. Its motion is on "
+        },
+        {
+          "insert": "Capsule Motion",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/85-capsule-motion"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-displays": {
+      "id": "h-displays",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "More Than One Display"
+        }
+      ],
+      "children": []
+    },
+    "p-displays": {
+      "id": "p-displays",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "screens::displays",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "screens::current",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "screens::pointer",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " read "
+        },
+        {
+          "insert": "win::monitors",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and the cursor in global pixels. "
+        },
+        {
+          "insert": "Screen::id",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the monitor's index and "
+        },
+        {
+          "insert": "scale",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is its DPI scale. The picker opens on the pointer's monitor and follows it, as on macOS."
+        }
+      ],
+      "children": []
+    },
+    "l-d-1": {
+      "id": "l-d-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "ui::platform::move_picker_window",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " moves the picker's HWND, and "
+        },
+        {
+          "insert": "InkOverlay::move_to",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " moves the overlay to the monitor that holds the target's centre."
+        }
+      ],
+      "children": []
+    },
+    "l-d-2": {
+      "id": "l-d-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "ui::platform::display_at",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " maps a monitor to GPUI's display whose origin, scaled by the monitor's DPI, matches the monitor's top-left."
+        }
+      ],
+      "children": []
+    },
+    "h-speech": {
+      "id": "h-speech",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Transcription"
+        }
+      ],
+      "children": []
+    },
+    "p-speech": {
+      "id": "p-speech",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "On Windows, "
+        },
+        {
+          "insert": "Engine::Apple",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is Parakeet through "
+        },
+        {
+          "insert": "transcribe.cpp",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/win/speech.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/win/speech.rs"
+            }
+          }
+        },
+        {
+          "insert": ", and it is the default engine there ("
+        },
+        {
+          "insert": "Engine::default",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). Each word keeps the time the model heard it, so spoken cues such as \"look here\" cut keyframes as on macOS. Engines and cues are on "
+        },
+        {
+          "insert": "Transcription",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/35-transcription"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "p-model": {
+      "id": "p-model",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The engine loads the first model it finds, in this order:"
+        }
+      ],
+      "children": []
+    },
+    "l-m-1": {
+      "id": "l-m-1",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "A model Hex installed in "
+        },
+        {
+          "insert": "%APPDATA%\\hex\\models",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "l-m-2": {
+      "id": "l-m-2",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "A model older Hex installed in "
+        },
+        {
+          "insert": "%APPDATA%\\voice-control\\models",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "l-m-3": {
+      "id": "l-m-3",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Annotator's own copy of Hex's Parakeet Unified English in "
+        },
+        {
+          "insert": "%LOCALAPPDATA%\\Scrawl\\models",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "p-dl-lead": {
+      "id": "p-dl-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "When no model is there, the first launch downloads Annotator's own copy in the background."
+        }
+      ],
+      "children": []
+    },
+    "l-dl": {
+      "id": "l-dl",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Download",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-dl-1",
+        "l-dl-2",
+        "l-dl-3"
+      ]
+    },
+    "l-dl-1": {
+      "id": "l-dl-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "win::speech::install",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " runs at launch through "
+        },
+        {
+          "insert": "speech_model::ensure",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", with Windows' own "
+        },
+        {
+          "insert": "curl.exe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and no console window."
+        }
+      ],
+      "children": []
+    },
+    "l-dl-2": {
+      "id": "l-dl-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The file is 731,357,568 bytes from a pinned Hugging Face revision. The model is kept only if its SHA-256 matches, with a "
+        },
+        {
+          "insert": ".verified.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " receipt."
+        }
+      ],
+      "children": []
+    },
+    "l-dl-3": {
+      "id": "l-dl-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Settings › Recording shows the progress. A capture made before the download finishes gets a "
+        },
+        {
+          "insert": ".transcript-pending",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " marker and is transcribed again once the model lands."
+        }
+      ],
+      "children": []
+    },
+    "l-cpu": {
+      "id": "l-cpu",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "CPU tiers",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-cpu-1",
+        "l-cpu-2",
+        "l-cpu-3",
+        "l-cpu-4"
+      ]
+    },
+    "l-cpu-1": {
+      "id": "l-cpu-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "transcribe.cpp is built with "
+        },
+        {
+          "insert": "dynamic-backends",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "transcribe.dll",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "ggml.dll",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "ggml-base.dll",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and one "
+        },
+        {
+          "insert": "ggml-cpu-<tier>.dll",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " per x86 tier sit beside "
+        },
+        {
+          "insert": "scrawl.exe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "l-cpu-2": {
+      "id": "l-cpu-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "ggml loads the best tier the CPU has, from x64 through haswell, alderlake, skylakex and icelake."
+        }
+      ],
+      "children": []
+    },
+    "l-cpu-3": {
+      "id": "l-cpu-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A static build compiles ggml for the build machine's CPU ("
+        },
+        {
+          "insert": "GGML_NATIVE",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). That put AVX-512 into every Windows build and crashed the first transcription on CPUs without it (#58)."
+        }
+      ],
+      "children": []
+    },
+    "l-cpu-4": {
+      "id": "l-cpu-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "scripts/check-windows-cpu-tiers.ps1",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "scripts/check-windows-cpu-tiers.ps1"
+            }
+          }
+        },
+        {
+          "insert": " fails if AVX-512 shows up outside the AVX-512 tiers, or if "
+        },
+        {
+          "insert": "scrawl.exe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " stops importing "
+        },
+        {
+          "insert": "transcribe.dll",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Both workflows run it."
+        }
+      ],
+      "children": []
+    },
+    "h-helper": {
+      "id": "h-helper",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Helper, Settings and Tour"
+        }
+      ],
+      "children": []
+    },
+    "p-helper": {
+      "id": "p-helper",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/win/helper.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/win/helper.rs"
+            }
+          }
+        },
+        {
+          "insert": " answers the same calls as "
+        },
+        {
+          "insert": "src/helper.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/helper.rs"
+            }
+          }
+        },
+        {
+          "insert": " in process, so nothing on Windows runs "
+        },
+        {
+          "insert": "scrawl-helper",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The table lists where each call goes."
+        }
+      ],
+      "children": []
+    },
+    "t-helper": {
+      "id": "t-helper",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Need",
+          "Windows answer"
+        ],
+        "rows": [
+          [
+            "Record and decode movies",
+            [
+              {
+                "insert": "win::media",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ": Windows.Graphics.Capture, a D3D11 video processor, a Media Foundation sink writer and source reader"
+              }
+            ]
+          ],
+          [
+            "Transcribe",
+            [
+              {
+                "insert": "win::speech",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ": Parakeet through transcribe.cpp"
+              }
+            ]
+          ],
+          [
+            "Permissions",
+            [
+              {
+                "insert": "win::privacy",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ": the microphone switch in Settings › Privacy & security"
+              }
+            ]
+          ],
+          [
+            "Play the Review video",
+            [
+              {
+                "insert": "play",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " opens the movie in the default player"
+              }
+            ]
+          ],
+          [
+            "Settings window",
+            [
+              {
+                "insert": "src/settings_window.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " on the same `View` and `Action` protocol as `helper/Settings.swift`"
+              }
+            ]
+          ],
+          [
+            "Welcome tour",
+            [
+              {
+                "insert": "src/onboarding_window.rs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " on the same JSON protocol as `helper/Onboarding.swift`"
+              }
+            ]
+          ]
+        ],
+        "title": "Windows helper calls"
+      },
+      "children": []
+    },
+    "p-helper2": {
+      "id": "p-helper2",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Settings and the tour both run in process through the sessions' "
+        },
+        {
+          "insert": "Transport::InProcess",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The panes and screens are on "
+        },
+        {
+          "insert": "Onboarding and Settings",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/70-onboarding-and-settings"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "p-os-lead": {
+      "id": "p-os-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Three more OS parts change shape on Windows."
+        }
+      ],
+      "children": []
+    },
+    "g-perm": {
+      "id": "g-perm",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Permissions",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "g-perm-1",
+        "g-perm-2"
+      ]
+    },
+    "g-perm-1": {
+      "id": "g-perm-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Screen capture, input hooks and pasting need no grant on Windows."
+        }
+      ],
+      "children": []
+    },
+    "g-perm-2": {
+      "id": "g-perm-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The only permission is the microphone switch, which the tour and Settings › Permissions check."
+        }
+      ],
+      "children": []
+    },
+    "g-login": {
+      "id": "g-login",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Launch at login",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "g-login-1",
+        "g-login-2"
+      ]
+    },
+    "g-login-1": {
+      "id": "g-login-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It is a value under the user's "
+        },
+        {
+          "insert": "Run",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " key ("
+        },
+        {
+          "insert": "src/win/login.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/win/login.rs"
+            }
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "g-login-2": {
+      "id": "g-login-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Settings › Apps › Startup or Task Manager can turn it off without removing it."
+        }
+      ],
+      "children": []
+    },
+    "g-cli": {
+      "id": "g-cli",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Command-line tool",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "g-cli-1",
+        "g-cli-2",
+        "g-cli-3"
+      ]
+    },
+    "g-cli-1": {
+      "id": "g-cli-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Install",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " in Settings › Agents writes a "
+        },
+        {
+          "insert": "scrawl.cmd",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " shim into "
+        },
+        {
+          "insert": "%LOCALAPPDATA%\\Microsoft\\WindowsApps",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which is on every user's PATH."
+        }
+      ],
+      "children": []
+    },
+    "g-cli-2": {
+      "id": "g-cli-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The shim runs this "
+        },
+        {
+          "insert": "scrawl.exe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with every argument, and another program called "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in that folder is left alone."
+        }
+      ],
+      "children": []
+    },
+    "g-cli-3": {
+      "id": "g-cli-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It is a shim, not a link, because a symbolic link needs Developer Mode and a hard link cannot cross drives."
+        }
+      ],
+      "children": []
+    },
+    "h-appstate": {
+      "id": "h-appstate",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "App State"
+        }
+      ],
+      "children": []
+    },
+    "p-appstate": {
+      "id": "p-appstate",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "App state ("
+        },
+        {
+          "insert": "\"appState\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", Settings › Recording › For agents › Save app state) is off by default, as on macOS. On Windows the switch's caption reads \"Saves what is under each click and mark.\" The privacy rules are on "
+        },
+        {
+          "insert": "App State and Privacy",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/40-app-state-and-privacy"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "l-uia-1": {
+      "id": "l-uia-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "With app state on, "
+        },
+        {
+          "insert": "ax::hit_test",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " looks up what clicks and marks land on through UI Automation ("
+        },
+        {
+          "insert": "src/win/uia.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/win/uia.rs"
+            }
+          }
+        },
+        {
+          "insert": "). The rest of "
+        },
+        {
+          "insert": "ax.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", its prober and "
+        },
+        {
+          "insert": "apply",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", is shared."
+        }
+      ],
+      "children": []
+    },
+    "l-uia-2": {
+      "id": "l-uia-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It reads names, localized control types and automation ids, never a control's value, so nothing typed into a field is read. Its strings go through "
+        },
+        {
+          "insert": "privacy::clip",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " like the Mac's."
+        }
+      ],
+      "children": []
+    },
+    "l-uia-3": {
+      "id": "l-uia-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "There are no app shots on Windows: "
+        },
+        {
+          "insert": "appshot::walker()",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is "
+        },
+        {
+          "insert": "None",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and "
+        },
+        {
+          "insert": "scrawl appshot",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " answers "
+        },
+        {
+          "insert": "no app shots in this capture",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "l-uia-4": {
+      "id": "l-uia-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "cargo test win::uia -- --ignored --nocapture",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " names whatever is under the pointer. "
+        },
+        {
+          "insert": "src/ax_other.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/ax_other.rs"
+            }
+          }
+        },
+        {
+          "insert": " stays the stub for systems with neither lookup."
+        }
+      ],
+      "children": []
+    },
+    "h-clip": {
+      "id": "h-clip",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Clipboard and the "
+        },
+        {
+          "insert": "clipboardImage",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " Experiment"
+        }
+      ],
+      "children": []
+    },
+    "p-clip": {
+      "id": "p-clip",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A finished capture, and "
+        },
+        {
+          "insert": "scrawl send",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to the clipboard, copy only "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "'s text on Windows. So a Ctrl+V you press yourself drops the contact sheet, and only the Paste chip and the paste shortcut paste the image first. The paste itself is on "
+        },
+        {
+          "insert": "Capture Bundle and Paste",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/20-capture-bundle"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "p-clip2": {
+      "id": "p-clip2",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The "
+        },
+        {
+          "insert": "clipboardImage",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " experiment is off by default and Windows only. With it on, "
+        },
+        {
+          "insert": "handoff::copy_bundle_to_clipboard",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " puts "
+        },
+        {
+          "insert": "contact-sheet.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and the text on the clipboard together, through "
+        },
+        {
+          "insert": "win::clipboard::set_png_and_text",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "l-clip-1": {
+      "id": "l-clip-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The image goes on as the registered "
+        },
+        {
+          "insert": "PNG",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " format, which browsers, Electron apps and Office read with alpha, and as "
+        },
+        {
+          "insert": "CF_DIBV5",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for everything else."
+        }
+      ],
+      "children": []
+    },
+    "l-clip-2": {
+      "id": "l-clip-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "One Ctrl+V then attaches the image and inserts the text in a browser or Electron composer, checked in the Claude desktop app. A terminal pastes just the text."
+        }
+      ],
+      "children": []
+    },
+    "l-clip-3": {
+      "id": "l-clip-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "If the contact sheet cannot be read or the clipboard write fails, the text is copied alone."
+        }
+      ],
+      "children": []
+    },
+    "p-clip3": {
+      "id": "p-clip3",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Turn it on with "
+        },
+        {
+          "insert": "\"experiments\": {\"clipboardImage\": true}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in the config file. How experiments work is on "
+        },
+        {
+          "insert": "Experiments and Feature Map",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "30-implementation/20-experiments-and-feature-map"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-not": {
+      "id": "h-not",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Not on Windows"
+        }
+      ],
+      "children": []
+    },
+    "p-not": {
+      "id": "p-not",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Four features are missing on Windows, and three work another way."
+        }
+      ],
+      "children": []
+    },
+    "t-not": {
+      "id": "t-not",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Feature",
+          "On Windows"
+        ],
+        "rows": [
+          [
+            "Cabled iPhone",
+            "Missing, because it needs AVFoundation's screen capture devices"
+          ],
+          [
+            "Video export",
+            "Missing"
+          ],
+          [
+            "Dev-site tab URL",
+            "Missing. `sdk.js` page registrations still route"
+          ],
+          [
+            "Pause and resume",
+            "Missing. The cancel key cancels at once"
+          ],
+          [
+            "Updates",
+            "**Check for Updates…** opens upstream's GitHub releases page, with no Sparkle"
+          ],
+          [
+            "Menu",
+            "The notification area menu has no **History…** item"
+          ],
+          [
+            "Review's Video tab",
+            "Opens the movie in the default player"
+          ]
+        ],
+        "title": "Windows differences"
+      },
+      "children": []
+    },
+    "h-build": {
+      "id": "h-build",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Build, Release and Recovery"
+        }
+      ],
+      "children": []
+    },
+    "p-build": {
+      "id": "p-build",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Build with the MSVC toolchain, CMake and the Windows SDK, from Visual Studio Build Tools with the C++ workload. A release build also needs GPUI's shader compiler: set "
+        },
+        {
+          "insert": "GPUI_FXC_PATH",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to the SDK's "
+        },
+        {
+          "insert": "fxc.exe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", such as "
+        },
+        {
+          "insert": "C:\\Program Files (x86)\\Windows Kits\\10\\bin\\10.0.26100.0\\x64\\fxc.exe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "code-build": {
+      "id": "code-build",
+      "type": "code",
+      "props": {
+        "language": "powershell"
+      },
+      "text": [
+        {
+          "insert": "cargo build --release\n.\\target\\release\\scrawl.exe app"
+        }
+      ],
+      "children": []
+    },
+    "p-xwin": {
+      "id": "p-xwin",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "From a Mac, "
+        },
+        {
+          "insert": "cargo xwin check --target x86_64-pc-windows-msvc",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " compiles the Windows build. It needs "
+        },
+        {
+          "insert": "cargo-xwin",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", LLVM's "
+        },
+        {
+          "insert": "clang-cl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "lld-link",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", CMake, Ninja and "
+        },
+        {
+          "insert": "XWIN_ACCEPT_LICENSE=1",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "p-ci": {
+      "id": "p-ci",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": ".github/workflows/check.yml",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": ".github/workflows/check.yml"
+            }
+          }
+        },
+        {
+          "insert": " builds and tests on "
+        },
+        {
+          "insert": "windows-latest",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Upstream's "
+        },
+        {
+          "insert": "v*",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " tag runs "
+        },
+        {
+          "insert": ".github/workflows/release-windows.yml",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": ".github/workflows/release-windows.yml"
+            }
+          }
+        },
+        {
+          "insert": ", and this fork does not publish releases. The outline shows the release job."
+        }
+      ],
+      "children": []
+    },
+    "po-release": {
+      "id": "po-release",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Release the Windows Zip",
+            "steps": [
+              {
+                "text": "Build and Check",
+                "steps": [
+                  {
+                    "text": "Run `cargo build --release`"
+                  },
+                  {
+                    "text": "Run `scrawl --help` headless"
+                  },
+                  {
+                    "text": "Run `scripts/check-windows-cpu-tiers.ps1` on the release folder"
+                  },
+                  {
+                    "text": "Open the welcome window on a fresh profile"
+                  }
+                ]
+              },
+              {
+                "text": "Prove the Speech Model",
+                "steps": [
+                  {
+                    "text": "Copy the Visual C++ runtime DLLs beside `scrawl.exe`"
+                  },
+                  {
+                    "text": "transcribe.cpp's CMake build uses the DLL runtime, so `crt-static` does not link",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "Download and run the model with `cargo test win::speech -- --ignored`"
+                  },
+                  {
+                    "text": "Run the model again under Intel SDE as a Lunar Lake CPU"
+                  },
+                  {
+                    "text": "The runner has AVX-512, and Lunar Lake does not",
+                    "kind": "note"
+                  }
+                ]
+              },
+              {
+                "text": "Package",
+                "steps": [
+                  {
+                    "text": "Zip `Scrawl-<version>-windows-x64.zip`",
+                    "trace": true
+                  },
+                  {
+                    "text": "The zip holds the unsigned `scrawl.exe`, transcribe.cpp's DLLs, the runtime DLLs, README and LICENSE",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "If the run has a tag",
+                    "steps": [
+                      {
+                        "text": "Attach the zip to the tag's GitHub release"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "p-recover": {
+      "id": "p-recover",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Crash recovery came from #58 and runs on both systems ("
+        },
+        {
+          "insert": "src/recover.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/recover.rs"
+            }
+          }
+        },
+        {
+          "insert": "). A Screen capture writes "
+        },
+        {
+          "insert": "unfinished.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (target, ink, clicks, window log) beside its video and audio before the bundle is built, and deletes it after."
+        }
+      ],
+      "children": []
+    },
+    "l-rec-1": {
+      "id": "l-rec-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "If the process dies in between, the next launch runs "
+        },
+        {
+          "insert": "scrawl recover",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in a child process. It builds those bundles in place, once each ("
+        },
+        {
+          "insert": ".recovering",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which you delete to let it try again)."
+        }
+      ],
+      "children": []
+    },
+    "l-rec-2": {
+      "id": "l-rec-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A capture from before 0.3.10 left only "
+        },
+        {
+          "insert": "recording.mp4",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "audio.wav",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". After 10 minutes with no change, the launch pass builds it as a full-frame Screen capture with no ink or clicks."
+        }
+      ],
+      "children": []
+    },
+    "l-rec-3": {
+      "id": "l-rec-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "scrawl recover <bundle>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " builds one bundle now, even if it was tried before. Retention leaves bundles alone until they have been tried."
+        }
+      ],
+      "children": []
+    }
+  }
+}

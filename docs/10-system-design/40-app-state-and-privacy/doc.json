@@ -1,0 +1,4179 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-76de9874d11644aab5fa939bf9c89a9c",
+  "title": "App State and Privacy",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "intro",
+        "h-on",
+        "on-lead",
+        "on-1",
+        "on-2",
+        "on-3",
+        "parts-lead",
+        "parts",
+        "h-ax",
+        "ax-lead",
+        "ax-outline",
+        "ax-run",
+        "ax-fin",
+        "ax-begin",
+        "ax-never",
+        "ax-res-lead",
+        "ax-res",
+        "ax-markon",
+        "h-wlog",
+        "wlog-lead",
+        "wlog-shape",
+        "wlog-1",
+        "wlog-2",
+        "h-shots",
+        "shots-lead",
+        "shots-outline",
+        "shots-paste",
+        "shots-line",
+        "shots-img",
+        "h-take",
+        "take-lead",
+        "take-1",
+        "take-2",
+        "take-3",
+        "take-4",
+        "h-which",
+        "which-lead",
+        "which-1",
+        "which-2",
+        "which-3",
+        "which-4",
+        "h-limits",
+        "lim-lead",
+        "lim-1",
+        "lim-2",
+        "lim-3",
+        "lim-4",
+        "h-electron",
+        "el-lead",
+        "el-1",
+        "el-2",
+        "el-3",
+        "el-4",
+        "h-store",
+        "st-lead",
+        "st-write",
+        "st-end",
+        "shot-lead",
+        "shot-shape",
+        "tl-lead",
+        "h-match",
+        "match-lead",
+        "match-1",
+        "match-2",
+        "match-3",
+        "match-4",
+        "h-read",
+        "read-lead",
+        "read-table",
+        "read-json",
+        "h-page",
+        "page-lead",
+        "pg-what",
+        "pg-field",
+        "pg-keep",
+        "pg-apply-lead",
+        "pg-apply",
+        "pg-after",
+        "h-text",
+        "tx-lead",
+        "tx-items",
+        "tx-words",
+        "tx-place",
+        "tx-scene",
+        "h-marks",
+        "mk-lead",
+        "mk-1",
+        "mk-2",
+        "mk-3",
+        "mk-4",
+        "h-priv",
+        "pv-lead",
+        "pv-table-lead",
+        "pv-table",
+        "pv-input",
+        "pv-url",
+        "pv-pm",
+        "pv-browser",
+        "h-stays",
+        "stays",
+        "stays-2",
+        "stays-3",
+        "h-prove",
+        "prove-lead",
+        "prove-1",
+        "prove-2",
+        "prove-man-lead",
+        "prove-s1",
+        "prove-s2",
+        "prove-s3",
+        "prove-s4",
+        "h-files",
+        "rf-1",
+        "rf-2",
+        "rf-3",
+        "rf-4",
+        "rf-5"
+      ]
+    },
+    "intro": {
+      "id": "intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "App state is what a capture records about the apps on screen, beyond the pixels. It names what each click and mark landed on, outlines each keyframe's window, and keeps what a dev page saw. It is off by default. Every string it stores first passes the policy in "
+        },
+        {
+          "insert": "src/privacy.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/privacy.rs"
+            }
+          }
+        },
+        {
+          "insert": ", which keeps out typed values, URL queries, and password managers."
+        }
+      ],
+      "children": []
+    },
+    "h-on": {
+      "id": "h-on",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Turn App State On"
+        }
+      ],
+      "children": []
+    },
+    "on-lead": {
+      "id": "on-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Settings › Recording › For agents › "
+        },
+        {
+          "insert": "Save app state",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " sets "
+        },
+        {
+          "insert": "\"appState\": true",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". It is off by default because an app shot can store the text of a Safari AutoFill popup."
+        }
+      ],
+      "children": []
+    },
+    "on-1": {
+      "id": "on-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "handoff::app_state",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/handoff.rs",
+              "symbol": "app_state"
+            }
+          }
+        },
+        {
+          "insert": " reads the setting. An older "
+        },
+        {
+          "insert": "\"experiments\": {\"agentContext\": …}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " value still counts while "
+        },
+        {
+          "insert": "appState",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is not set."
+        }
+      ],
+      "children": []
+    },
+    "on-2": {
+      "id": "on-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "--experiment agentContext",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " on "
+        },
+        {
+          "insert": "scrawl reprocess",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "scrawl inspect",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " forces app state on for that run. Tests see it off unless they call "
+        },
+        {
+          "insert": "handoff::enable_experiment",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "on-3": {
+      "id": "on-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Lookups and app shots run only when app state is on as the capture starts, the capture is not the iPhone mirror, and Accessibility is granted ("
+        },
+        {
+          "insert": "Telemetry::probing",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "parts-lead": {
+      "id": "parts-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The table lists the four parts app state turns on, in the order this page describes them."
+        }
+      ],
+      "children": []
+    },
+    "parts": {
+      "id": "parts",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Part",
+          "Comes from",
+          "Lands in"
+        ],
+        "rows": [
+          [
+            "Click and mark lookups",
+            "The Accessibility tree",
+            [
+              {
+                "insert": "Click.role",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "Click.label",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "Drag.label",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "Stroke.on",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "App shots",
+            "The captured window's tree, macOS only",
+            [
+              {
+                "insert": "appshots/",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " and "
+              },
+              {
+                "insert": "Keyframe.appshot",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Dev-page events",
+            [
+              {
+                "insert": "sdk.js",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " on a loopback page"
+              }
+            ],
+            "Click labels, stroke targets, and app events"
+          ],
+          [
+            "Keyframe event text",
+            "All of the above, with the transcript",
+            [
+              {
+                "insert": "summary.md",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " and the clipboard"
+              }
+            ]
+          ]
+        ],
+        "title": "Parts of app state"
+      },
+      "children": []
+    },
+    "h-ax": {
+      "id": "h-ax",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "What Clicks and Marks Land On"
+        }
+      ],
+      "children": []
+    },
+    "ax-lead": {
+      "id": "ax-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/ax.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/ax.rs"
+            }
+          }
+        },
+        {
+          "insert": " looks up the Accessibility element under each click and each ⇧ stroke. A click probes its mouse-down point. A stroke probes the middle of its box, or 8 pt above a flat stroke, because an underline sits under what it marks."
+        }
+      ],
+      "children": []
+    },
+    "ax-outline": {
+      "id": "ax-outline",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Look Up One Point",
+            "steps": [
+              {
+                "text": "Find the Element",
+                "steps": [
+                  {
+                    "text": "Ask the system-wide element for the element at the point",
+                    "trace": true
+                  },
+                  {
+                    "text": "If the element belongs to an Annotator window",
+                    "steps": [
+                      {
+                        "text": "Find the topmost visible window of another app under the point"
+                      },
+                      {
+                        "text": "Ask that app for the element at the point"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "Read the Path",
+                "steps": [
+                  {
+                    "text": "Read the role and subrole of each element up to its window"
+                  },
+                  {
+                    "text": "At most 64 ancestors, and the walk up stops when the 250 ms budget ends.",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "If the app is a password manager or the path does not reach the window",
+                    "steps": [
+                      {
+                        "text": "Keep only the role"
+                      },
+                      {
+                        "text": "Return the hit"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "Choose the Element to Name",
+                "steps": [
+                  {
+                    "text": "If an input is on the path",
+                    "steps": [
+                      {
+                        "text": "Name the input"
+                      },
+                      {
+                        "text": "Text inside an input is the input's value, so it is never read.",
+                        "kind": "note"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "If the element is static text, an image, a group, or unknown",
+                    "steps": [
+                      {
+                        "text": "Name a control within two parents, such as a button"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "Otherwise name the element itself"
+                  }
+                ]
+              },
+              {
+                "text": "Read the Names",
+                "steps": [
+                  {
+                    "text": "Read the title, description, and identifier"
+                  },
+                  {
+                    "text": "Read the value only for static text"
+                  },
+                  {
+                    "text": "If the budget ends during these reads",
+                    "steps": [
+                      {
+                        "text": "Keep only the role"
+                      },
+                      {
+                        "text": "Return the hit"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "Read the Rest",
+                "steps": [
+                  {
+                    "text": "Read the role description as the role"
+                  },
+                  {
+                    "text": "Read the placeholder when no other label exists"
+                  },
+                  {
+                    "text": "Read `AXDOMIdentifier` when there is no `AXIdentifier`"
+                  },
+                  {
+                    "text": "Read the file name of the window's `AXDocument` without its query"
+                  },
+                  {
+                    "text": "Each read here is skipped once the budget ends. Each string is cut to one line of 60 characters.",
+                    "kind": "note"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "ax-run": {
+      "id": "ax-run",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Lookups run one at a time on the "
+        },
+        {
+          "insert": "scrawl-ax",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " thread, with a 0.1 s messaging timeout per Accessibility message. A hung app never holds up input."
+        }
+      ],
+      "children": []
+    },
+    "ax-fin": {
+      "id": "ax-fin",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "finish_session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " waits up to 400 ms for running lookups, then "
+        },
+        {
+          "insert": "ax::apply",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " puts the results on the clicks, drags, and strokes."
+        }
+      ],
+      "children": []
+    },
+    "ax-begin": {
+      "id": "ax-begin",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Prober::begin",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " drops the results of an earlier capture, and lookups still queued for it are skipped."
+        }
+      ],
+      "children": []
+    },
+    "ax-never": {
+      "id": "ax-never",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A lookup never reads a window title. On Windows, UI Automation does the lookup, as "
+        },
+        {
+          "insert": "Windows",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/90-windows"
+            }
+          }
+        },
+        {
+          "insert": " describes."
+        }
+      ],
+      "children": []
+    },
+    "ax-res-lead": {
+      "id": "ax-res-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The table lists where each result lands in "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", in the order "
+        },
+        {
+          "insert": "ax::apply",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " fills them. A role with no label, identifier, or document names nothing, so drags and strokes keep no result then."
+        }
+      ],
+      "children": []
+    },
+    "ax-res": {
+      "id": "ax-res",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Field",
+          "Example",
+          "Set when"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "Click.role",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "button",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Every click with a result"
+          ],
+          [
+            [
+              {
+                "insert": "Click.label",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "“New Tab” #tab-new in main.rs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The hit has a label, identifier, or document"
+          ],
+          [
+            [
+              {
+                "insert": "Drag.label",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "slider “Playback”",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The hit names something"
+          ],
+          [
+            [
+              {
+                "insert": "Stroke.on",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "button “Area”",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The stroke is not laser and has no target yet"
+          ]
+        ],
+        "title": "Where lookup results land"
+      },
+      "children": []
+    },
+    "ax-markon": {
+      "id": "ax-markon",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A mark's "
+        },
+        {
+          "insert": "Mark.on",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and its description pick up "
+        },
+        {
+          "insert": "Stroke.on",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-wlog": {
+      "id": "h-wlog",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "The Window Log"
+        }
+      ],
+      "children": []
+    },
+    "wlog-lead": {
+      "id": "wlog-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Screen and Area captures log the on-screen windows, front to back, in the "
+        },
+        {
+          "insert": "windows",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " field of "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "src/windows.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/windows.rs"
+            }
+          }
+        },
+        {
+          "insert": " keeps a snapshot only when the list changes, at most about twice a second while the cursor moves and every 2 s at rest."
+        }
+      ],
+      "children": []
+    },
+    "wlog-shape": {
+      "id": "wlog-shape",
+      "type": "state-shape",
+      "props": {
+        "example": "{\"t\":4200,\"windows\":[{\"id\":5121,\"app\":\"Safari\",\"bundleId\":\"com.apple.Safari\",\"title\":\"Fixture\",\"bounds\":[0,25,1512,932],\"layer\":0,\"frontmost\":true}]}",
+        "fields": [
+          {
+            "name": "t",
+            "type": "u64",
+            "description": "Capture time in ms."
+          },
+          {
+            "name": "windows",
+            "type": "Vec<WindowEntry>",
+            "description": "Windows that overlap the capture, front to back.",
+            "fields": [
+              {
+                "name": "id",
+                "type": "u32",
+                "description": "The window server's `CGWindowID`."
+              },
+              {
+                "name": "app",
+                "type": "String",
+                "description": "The owning app's name."
+              },
+              {
+                "name": "bundleId",
+                "type": "Option<String>",
+                "required": false,
+                "description": "Left out when the app has none."
+              },
+              {
+                "name": "regular",
+                "type": "bool",
+                "required": false,
+                "description": "`false` for menu-bar utilities and overlays. Left out when `true`."
+              },
+              {
+                "name": "title",
+                "type": "String",
+                "required": false,
+                "description": "Passed through `privacy::window_title`. Empty for a password manager, and left out when empty."
+              },
+              {
+                "name": "bounds",
+                "type": "[i32; 4]",
+                "description": "`[x, y, width, height]` in points from the capture's top-left. Can be negative."
+              },
+              {
+                "name": "layer",
+                "type": "i32",
+                "description": "`0` normal, `20` Dock, `24` menu bar, up to `101` for a regular app's panels."
+              },
+              {
+                "name": "frontmost",
+                "type": "bool",
+                "required": false,
+                "description": "The frontmost app's frontmost normal window. Left out when `false`."
+              }
+            ]
+          }
+        ],
+        "name": "WindowSnapshot",
+        "source": {
+          "path": "src/windows.rs",
+          "symbol": "WindowSnapshot"
+        }
+      },
+      "children": []
+    },
+    "wlog-1": {
+      "id": "wlog-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The log runs whether app state is on or off, because auto-crop reads it. Titles stay in "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and never reach "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or the clipboard."
+        }
+      ],
+      "children": []
+    },
+    "wlog-2": {
+      "id": "wlog-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "App shots use the log's top window to decide which window each keyframe shows. "
+        },
+        {
+          "insert": "Keyframes and Images",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/30-keyframes-and-images"
+            }
+          }
+        },
+        {
+          "insert": " covers auto-crop."
+        }
+      ],
+      "children": []
+    },
+    "h-shots": {
+      "id": "h-shots",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "App Shots"
+        }
+      ],
+      "children": []
+    },
+    "shots-lead": {
+      "id": "shots-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "An app shot is the state of the window a keyframe shows: its app, bundle id, window title, URL, and a text outline of its Accessibility tree. "
+        },
+        {
+          "insert": "src/appshot.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/appshot.rs"
+            }
+          }
+        },
+        {
+          "insert": " takes them on macOS only. The outline has one element per line, indented two spaces per level."
+        }
+      ],
+      "children": []
+    },
+    "shots-outline": {
+      "id": "shots-outline",
+      "type": "code",
+      "props": {
+        "language": "text"
+      },
+      "text": [
+        {
+          "insert": "window \"Fixture\"\n  group\n    heading \"Settings\"\n    static text \"Open the settings to change your keys.\"\n    text field \"Name\"\n    button \"Save\" #save"
+        }
+      ],
+      "children": []
+    },
+    "shots-paste": {
+      "id": "shots-paste",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The pasted text stays short. When any keyframe has a shot, "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and the clipboard get one line near the top, after the line that points the agent at the images. The command is "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or "
+        },
+        {
+          "insert": "scrawl-dev",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in Annotator Dev."
+        }
+      ],
+      "children": []
+    },
+    "shots-line": {
+      "id": "shots-line",
+      "type": "code",
+      "props": {
+        "language": "text"
+      },
+      "text": [
+        {
+          "insert": "App shots: scrawl appshot <capture id> --frame N (N is the keyframe number)"
+        }
+      ],
+      "children": []
+    },
+    "shots-img": {
+      "id": "shots-img",
+      "type": "image",
+      "props": {
+        "alt": "Mockup of a pasted capture with its App shots line, then scrawl appshot listing three keyframes' windows and printing keyframe 1's outline, where the text field shows only its name.",
+        "caption": "Approved design mockup of the paste and of scrawl appshot. The real App shots line ends with --frame N (N is the keyframe number), as in the block above.",
+        "src": "./assets/images/appshot-cli.jpg"
+      },
+      "children": []
+    },
+    "h-take": {
+      "id": "h-take",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Taking Shots"
+        }
+      ],
+      "children": []
+    },
+    "take-lead": {
+      "id": "take-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "One walker thread, "
+        },
+        {
+          "insert": "scrawl-appshot",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "appshot::Walker",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), takes a shot at four moments. Its queue holds one request, and the latest request wins."
+        }
+      ],
+      "children": []
+    },
+    "take-1": {
+      "id": "take-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "It takes one when the capture starts, and when the top window or its title changes in the window log of a Screen or Area capture."
+        }
+      ],
+      "children": []
+    },
+    "take-2": {
+      "id": "take-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "It takes one 300 ms after a click or a mark, so the window can settle."
+        }
+      ],
+      "children": []
+    },
+    "take-3": {
+      "id": "take-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "It takes one when a candidate frame differs from the one before by more than the scene threshold, 0.08, at most once per 2 s ("
+        },
+        {
+          "insert": "keyframes::Thumbnail::is_scene_change",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "take-4": {
+      "id": "take-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A paused recording takes none, and resuming takes one at once. Annotator's own windows are never read."
+        }
+      ],
+      "children": []
+    },
+    "h-which": {
+      "id": "h-which",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Which Window a Shot Reads"
+        }
+      ],
+      "children": []
+    },
+    "which-lead": {
+      "id": "which-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A shot's window id is always the window its tree is of. When no window can prove its id, no shot is taken, and the app's focused window is never read in its place."
+        }
+      ],
+      "children": []
+    },
+    "which-1": {
+      "id": "which-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Screen and Area captures take "
+        },
+        {
+          "insert": "windows::top_raw_window",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of the live window list, the same rule as the window log. A Window capture takes its own window and stops once the window server no longer lists it."
+        }
+      ],
+      "children": []
+    },
+    "which-2": {
+      "id": "which-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "appshot::find_window",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " picks the app's "
+        },
+        {
+          "insert": "AXWindows",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " entry whose "
+        },
+        {
+          "insert": "CGWindowID",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " matches, read with the private "
+        },
+        {
+          "insert": "_AXUIElementGetWindow",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that window managers use."
+        }
+      ],
+      "children": []
+    },
+    "which-3": {
+      "id": "which-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Without an id, the place and title count only for the app's one window. It must sit within 2 pt of the window server's bounds, and its title must match, extend, or be missing."
+        }
+      ],
+      "children": []
+    },
+    "which-4": {
+      "id": "which-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A skipped window logs "
+        },
+        {
+          "insert": "App shot skipped: …",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " once. "
+        },
+        {
+          "insert": "cargo test appshot_live_finds -- --ignored --nocapture",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints, for each window on screen, whether it is found."
+        }
+      ],
+      "children": []
+    },
+    "h-limits": {
+      "id": "h-limits",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Limits"
+        }
+      ],
+      "children": []
+    },
+    "lim-lead": {
+      "id": "lim-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "One walk has 1.5 s, 12 levels, 1,500 nodes, and 64 KB of outline ("
+        },
+        {
+          "insert": "appshot::LIMITS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). Every element gets a 0.25 s messaging timeout before it is asked anything."
+        }
+      ],
+      "children": []
+    },
+    "lim-1": {
+      "id": "lim-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The deadline and the capture's finish, cancel, or pause are checked before every question. Finding the window then takes no shot, and a tree that runs out of time keeps what it read."
+        }
+      ],
+      "children": []
+    },
+    "lim-2": {
+      "id": "lim-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "truncated",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " names what cut a tree: "
+        },
+        {
+          "insert": "depth",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "nodes",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "bytes",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or "
+        },
+        {
+          "insert": "timeout",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "lim-3": {
+      "id": "lim-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Walker::finish",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " waits at most 400 ms for the walk in flight, then drops it. "
+        },
+        {
+          "insert": "Walker::cancel",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " drops it at once."
+        }
+      ],
+      "children": []
+    },
+    "lim-4": {
+      "id": "lim-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A walk that ends late never lands in the next capture. It is checked against the capture's generation under the lock that "
+        },
+        {
+          "insert": "finish",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " takes."
+        }
+      ],
+      "children": []
+    },
+    "h-electron": {
+      "id": "h-electron",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Electron Apps"
+        }
+      ],
+      "children": []
+    },
+    "el-lead": {
+      "id": "el-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "An Electron app, one with "
+        },
+        {
+          "insert": "Electron Framework.framework",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in its bundle, builds no Accessibility tree until asked."
+        }
+      ],
+      "children": []
+    },
+    "el-1": {
+      "id": "el-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "When its "
+        },
+        {
+          "insert": "AXManualAccessibility",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads false, Annotator sets it, skips the first empty tree, and lets the next trigger read the real one. An app whose attribute cannot be read is left alone."
+        }
+      ],
+      "children": []
+    },
+    "el-2": {
+      "id": "el-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator sets the attribute back when the capture finishes or is cancelled, and only for apps where it set it."
+        }
+      ],
+      "children": []
+    },
+    "el-3": {
+      "id": "el-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "If Annotator crashes mid-capture, the app keeps its tree on until it restarts. That costs the app some speed and nothing else."
+        }
+      ],
+      "children": []
+    },
+    "el-4": {
+      "id": "el-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "AXEnhancedUserInterface",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is never set, because it changes how apps lay out and animate."
+        }
+      ],
+      "children": []
+    },
+    "h-store": {
+      "id": "h-store",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Storing Shots"
+        }
+      ],
+      "children": []
+    },
+    "st-lead": {
+      "id": "st-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each new state is written to "
+        },
+        {
+          "insert": "appshots/.spool/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in the bundle folder as soon as it is taken, so no tree is held in memory. A state is new when the hash of its app, bundle id, window id, title, URL, and tree is new."
+        }
+      ],
+      "children": []
+    },
+    "st-write": {
+      "id": "st-write",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "While recording",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "st-1",
+        "st-2"
+      ]
+    },
+    "st-1": {
+      "id": "st-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The walker writes the file outside the capture's lock ("
+        },
+        {
+          "insert": "Shared::land",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). A stalled disk costs "
+        },
+        {
+          "insert": "finish",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " at most its 400 ms and costs "
+        },
+        {
+          "insert": "cancel",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " nothing."
+        }
+      ],
+      "children": []
+    },
+    "st-2": {
+      "id": "st-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Past 32 MB a capture stores no new state, and its timeline says "
+        },
+        {
+          "insert": "capped",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "st-end": {
+      "id": "st-end",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "When the capture ends",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "st-3",
+        "st-4",
+        "st-5"
+      ]
+    },
+    "st-3": {
+      "id": "st-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "At finish, "
+        },
+        {
+          "insert": "Shots::store",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " turns the spool into "
+        },
+        {
+          "insert": "appshots/shot-NN.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "appshots/timeline.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", with pause time cut out ("
+        },
+        {
+          "insert": "Shots::cut",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). A shot whose walk overlapped a pause is dropped."
+        }
+      ],
+      "children": []
+    },
+    "st-4": {
+      "id": "st-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Cancelling deletes the spool with the bundle, and "
+        },
+        {
+          "insert": "scrawl recover",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " deletes one it finds."
+        }
+      ],
+      "children": []
+    },
+    "st-5": {
+      "id": "st-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "At launch, "
+        },
+        {
+          "insert": "appshot::sweep_spools",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " deletes the spool of each capture folder without a "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "shot-lead": {
+      "id": "shot-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each "
+        },
+        {
+          "insert": "shot-NN.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds one window state."
+        }
+      ],
+      "children": []
+    },
+    "shot-shape": {
+      "id": "shot-shape",
+      "type": "state-shape",
+      "props": {
+        "example": "{\"app\":\"Safari\",\"bundleId\":\"com.apple.Safari\",\"windowId\":5121,\"title\":\"Fixture\",\"url\":\"file:///Tests/appshot-secret.html\",\"nodes\":3,\"tree\":[\"window \\\"Fixture\\\"\",\"  text field \\\"Name\\\"\",\"  button \\\"Save\\\"\"]}",
+        "fields": [
+          {
+            "name": "app",
+            "type": "String",
+            "description": "The app's name, through `privacy::text`."
+          },
+          {
+            "name": "bundleId",
+            "type": "Option<String>",
+            "required": false,
+            "description": "Left out when the app has none."
+          },
+          {
+            "name": "windowId",
+            "type": "Option<u32>",
+            "required": false,
+            "description": "The `CGWindowID` the tree was read from."
+          },
+          {
+            "name": "title",
+            "type": "String",
+            "required": false,
+            "description": "Window title through `privacy::window_title`. Left out when empty."
+          },
+          {
+            "name": "url",
+            "type": "Option<String>",
+            "required": false,
+            "description": "The document or web area URL without its query and fragment."
+          },
+          {
+            "name": "nodes",
+            "type": "usize",
+            "description": "Elements in the tree. `0` when the tree is withheld."
+          },
+          {
+            "name": "truncated",
+            "type": "Option<String>",
+            "required": false,
+            "description": "`depth`, `nodes`, `bytes` or `timeout` when a limit cut the walk."
+          },
+          {
+            "name": "withheld",
+            "type": "Option<String>",
+            "required": false,
+            "description": "Why there is no tree: `sensitive app` or `browser page`."
+          },
+          {
+            "name": "tree",
+            "type": "Vec<String>",
+            "required": false,
+            "description": "The outline lines. Left out when empty."
+          }
+        ],
+        "name": "Shot",
+        "source": {
+          "path": "src/appshot.rs",
+          "symbol": "Shot"
+        }
+      },
+      "children": []
+    },
+    "tl-lead": {
+      "id": "tl-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "timeline.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " has one entry per time a shot was seen: "
+        },
+        {
+          "insert": "t",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", the shot's file, window id, pid, bundle id, app, title, frame, and "
+        },
+        {
+          "insert": "tookMs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". It also holds "
+        },
+        {
+          "insert": "scenes",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", the picture-change times, and "
+        },
+        {
+          "insert": "capped",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-match": {
+      "id": "h-match",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Matching Shots to Keyframes"
+        }
+      ],
+      "children": []
+    },
+    "match-lead": {
+      "id": "match-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "appshot::match_keyframes",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/appshot.rs",
+              "symbol": "match_keyframes"
+            }
+          }
+        },
+        {
+          "insert": " gives each keyframe a shot file in "
+        },
+        {
+          "insert": "Keyframe.appshot",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". A keyframe with no fitting shot gets none, never another window's."
+        }
+      ],
+      "children": []
+    },
+    "match-1": {
+      "id": "match-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The expected window is the top window of the last window-log snapshot at or before the keyframe, or the first snapshot for an earlier keyframe. A Window capture expects its own window."
+        }
+      ],
+      "children": []
+    },
+    "match-2": {
+      "id": "match-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Only a shot of that window counts, taken while the capture stayed on it and within 3 s of the keyframe. A shot without a window id matches by bundle id, else by app name."
+        }
+      ],
+      "children": []
+    },
+    "match-3": {
+      "id": "match-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The nearest shot wins, except that a shot from before the last click, mark, or picture change before the keyframe loses to any shot after it."
+        }
+      ],
+      "children": []
+    },
+    "match-4": {
+      "id": "match-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl reprocess",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " takes the old bundle's "
+        },
+        {
+          "insert": "appshots/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " along and matches the new keyframes to it. "
+        },
+        {
+          "insert": "scrawl recover",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " has no shots to pass on."
+        }
+      ],
+      "children": []
+    },
+    "h-read": {
+      "id": "h-read",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Reading Shots"
+        }
+      ],
+      "children": []
+    },
+    "read-lead": {
+      "id": "read-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl appshot [BUNDLE] [--frame N] [--json]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints a bundle's shots ("
+        },
+        {
+          "insert": "appshot::report",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). BUNDLE is a capture id, a path, or "
+        },
+        {
+          "insert": "latest",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", the default. The table lists its outputs in source order."
+        }
+      ],
+      "children": []
+    },
+    "read-table": {
+      "id": "read-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Case",
+          "Prints",
+          "Exit"
+        ],
+        "rows": [
+          [
+            "No shots in the capture",
+            [
+              {
+                "insert": "no app shots in this capture",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "0"
+          ],
+          [
+            [
+              {
+                "insert": "--frame",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " left out"
+              }
+            ],
+            "Each keyframe's number, time, app, window, URL, shot age, and node count, never the tree",
+            "0"
+          ],
+          [
+            [
+              {
+                "insert": "--frame N",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " out of range"
+              }
+            ],
+            "The valid range",
+            "2"
+          ],
+          [
+            [
+              {
+                "insert": "--frame N",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " without a shot"
+              }
+            ],
+            "The window the keyframe expected",
+            "0"
+          ],
+          [
+            [
+              {
+                "insert": "--frame N",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " with a shot"
+              }
+            ],
+            "A header line, then the outline",
+            "0"
+          ]
+        ],
+        "title": "scrawl appshot outputs"
+      },
+      "children": []
+    },
+    "read-json": {
+      "id": "read-json",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "--json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints the same rows as JSON, and the tree only with "
+        },
+        {
+          "insert": "--frame",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "Command-Line Tool",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/20-command-line"
+            }
+          }
+        },
+        {
+          "insert": " lists the other commands."
+        }
+      ],
+      "children": []
+    },
+    "h-page": {
+      "id": "h-page",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Dev-Page Events"
+        }
+      ],
+      "children": []
+    },
+    "page-lead": {
+      "id": "page-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A dev page that loads "
+        },
+        {
+          "insert": "/sdk.js",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " adds what only the page knows ("
+        },
+        {
+          "insert": "src/page.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/page.rs"
+            }
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "src/sdk.js",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/sdk.js"
+            }
+          }
+        },
+        {
+          "insert": "). With app state on, "
+        },
+        {
+          "insert": "/web/register",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " answers "
+        },
+        {
+          "insert": "\"context\": true",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to loopback pages, and the script then hooks in once. "
+        },
+        {
+          "insert": "Routing and Delivery",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/50-routing-and-delivery"
+            }
+          }
+        },
+        {
+          "insert": " covers registration."
+        }
+      ],
+      "children": []
+    },
+    "pg-what": {
+      "id": "pg-what",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "What the page sends",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "pg-what-1",
+        "pg-what-2",
+        "pg-what-3",
+        "pg-what-4"
+      ]
+    },
+    "pg-what-1": {
+      "id": "pg-what-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The element under each "
+        },
+        {
+          "insert": "pointerdown",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and under mouse moves with only the draw modifier held, every 250 ms. "
+        },
+        {
+          "insert": "/web/register",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " names the modifier as "
+        },
+        {
+          "insert": "\"draw\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", so a change reaches an open page within its 30 s heartbeat."
+        }
+      ],
+      "children": []
+    },
+    "pg-what-2": {
+      "id": "pg-what-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "An element is its tag, id, two classes, and a label from "
+        },
+        {
+          "insert": "aria-label",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "title",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "alt",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "data-testid",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or up to 60 characters of text without any field's text."
+        }
+      ],
+      "children": []
+    },
+    "pg-what-3": {
+      "id": "pg-what-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "It also sends the component and "
+        },
+        {
+          "insert": "file:line",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " from React's fiber or a source locator attribute, such as "
+        },
+        {
+          "insert": "data-source-loc",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or Sentry's."
+        }
+      ],
+      "children": []
+    },
+    "pg-what-4": {
+      "id": "pg-what-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "<video>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "<audio>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " seeks, plays, and pauses, console errors and unhandled rejections, and fetch or XHR requests that fail or answer 400 or more."
+        }
+      ],
+      "children": []
+    },
+    "pg-field": {
+      "id": "pg-field",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Fields",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "pg-field-1",
+        "pg-field-2",
+        "pg-field-3",
+        "pg-field-4"
+      ]
+    },
+    "pg-field-1": {
+      "id": "pg-field-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A field is an input, a text area, a select, an editable element, or an element whose "
+        },
+        {
+          "insert": "role",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " list holds "
+        },
+        {
+          "insert": "textbox",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "searchbox",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "combobox",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or "
+        },
+        {
+          "insert": "spinbutton",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in any case."
+        }
+      ],
+      "children": []
+    },
+    "pg-field-2": {
+      "id": "pg-field-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The script looks for a field from the element under the pointer first, before a label or button around it stands in."
+        }
+      ],
+      "children": []
+    },
+    "pg-field-3": {
+      "id": "pg-field-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A field sends its name, never its text or value. The placeholder or "
+        },
+        {
+          "insert": "name",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " attribute is the name only when it is not a password field."
+        }
+      ],
+      "children": []
+    },
+    "pg-field-4": {
+      "id": "pg-field-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "page::sanitize",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " drops any text sent for a field, or for an "
+        },
+        {
+          "insert": "input",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "textarea",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or "
+        },
+        {
+          "insert": "select",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " tag, again in the app."
+        }
+      ],
+      "children": []
+    },
+    "pg-keep": {
+      "id": "pg-keep",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Keeping",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "pg-keep-1",
+        "pg-keep-2",
+        "pg-keep-3"
+      ]
+    },
+    "pg-keep-1": {
+      "id": "pg-keep-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The script batches events to "
+        },
+        {
+          "insert": "POST /web/context",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". It takes up to 64 KB from loopback pages on this Mac only, token or not, and drops the events when app state is off."
+        }
+      ],
+      "children": []
+    },
+    "pg-keep-2": {
+      "id": "pg-keep-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The app keeps 3 minutes per tab, 300 events per tab, and 16 tabs. It cuts every string again with "
+        },
+        {
+          "insert": "privacy::clip",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and a request keeps its method, path without query, status, and duration."
+        }
+      ],
+      "children": []
+    },
+    "pg-keep-3": {
+      "id": "pg-keep-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "No request body, header, or cookie is ever sent."
+        }
+      ],
+      "children": []
+    },
+    "pg-apply-lead": {
+      "id": "pg-apply-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "When a capture other than the iPhone mirror finishes, "
+        },
+        {
+          "insert": "page::apply",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/page.rs",
+              "symbol": "apply"
+            }
+          }
+        },
+        {
+          "insert": " takes the events of tabs that were clicked, marked, or focused during it. The table lists what each kind of event becomes."
+        }
+      ],
+      "children": []
+    },
+    "pg-apply": {
+      "id": "pg-apply",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Page event",
+          "Becomes",
+          "Example"
+        ],
+        "rows": [
+          [
+            "A click within 400 ms of a Mac click or drag",
+            "That click's label",
+            [
+              {
+                "insert": "<button.tab-new> “New tab” in BrowserHeader (src/BrowserHeader.tsx:88)",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Elements under a stroke's ⇧ moves",
+            "The stroke's target, the most common one",
+            [
+              {
+                "insert": "on",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "A console error",
+            "An app event",
+            [
+              {
+                "insert": "console error: …",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "A failed request",
+            "An app event",
+            [
+              {
+                "insert": "GET /api/tabs → 404",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Video seeks and playback",
+            "An app event, seeks folded into the last",
+            [
+              {
+                "insert": "video clips.mp4 scrubbed to 0:04 / 0:11",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ]
+        ],
+        "title": "What page events become"
+      },
+      "children": []
+    },
+    "pg-after": {
+      "id": "pg-after",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The app state summary shows a Mac capture's app events without the "
+        },
+        {
+          "insert": "app:",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prefix."
+        }
+      ],
+      "children": []
+    },
+    "h-text": {
+      "id": "h-text",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Keyframe Text With App State"
+        }
+      ],
+      "children": []
+    },
+    "tx-lead": {
+      "id": "tx-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "With app state on, "
+        },
+        {
+          "insert": "sketch::summary_markdown",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " hands each keyframe to "
+        },
+        {
+          "insert": "agent_context::keyframe_texts",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/agent_context.rs",
+              "symbol": "keyframe_texts"
+            }
+          }
+        },
+        {
+          "insert": ". It breaks the keyframe's words up by what happened while they were said, so the agent reads \"this part\" next to the mark drawn as it was said."
+        }
+      ],
+      "children": []
+    },
+    "tx-items": {
+      "id": "tx-items",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "What breaks the speech",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "tx-items-1",
+        "tx-items-2",
+        "tx-items-3"
+      ]
+    },
+    "tx-items-1": {
+      "id": "tx-items-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Marks, clicks, drags, scrolls, and shortcuts break it. Repeats of one item within 3 s fold into "
+        },
+        {
+          "insert": "×N",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", such as "
+        },
+        {
+          "insert": "pressed ⌘T ×3",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "tx-items-2": {
+      "id": "tx-items-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Ordinary windows opening and closing break it, by app name. More than 4 windows changing at once is one line, "
+        },
+        {
+          "insert": "on-screen windows changed (N opened, N closed)",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "tx-items-3": {
+      "id": "tx-items-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "App switches by app name, ScrawlKit app events, and context changes break it too. Titles never leave "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "tx-words": {
+      "id": "tx-words",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "How items read",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "tx-words-1",
+        "tx-words-2",
+        "tx-words-3",
+        "tx-words-4",
+        "tx-words-5"
+      ]
+    },
+    "tx-words-1": {
+      "id": "tx-words-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The text never gives raw coordinates, because the images show where. A place is written only when something names it."
+        }
+      ],
+      "children": []
+    },
+    "tx-words-2": {
+      "id": "tx-words-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A mark is its shape, then its target, then its stroke count when more than 1, such as "
+        },
+        {
+          "insert": "✎② 0:19 circled button “Window” (2 strokes)",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "tx-words-3": {
+      "id": "tx-words-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A click is "
+        },
+        {
+          "insert": "clicked",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " plus its role and label when known. A point shows only with a label."
+        }
+      ],
+      "children": []
+    },
+    "tx-words-4": {
+      "id": "tx-words-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "An unnamed drag shorter than 0.15 of the screen is left out, and a longer one is its direction. A named drag on a slider, scroll bar, scrubber, timeline, or progress bar reads "
+        },
+        {
+          "insert": "scrubbed",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "tx-words-5": {
+      "id": "tx-words-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Drags of one thing less than 3 s apart are one line. A drag the dev page already reported as a video scrub is left to that report."
+        }
+      ],
+      "children": []
+    },
+    "tx-place": {
+      "id": "tx-place",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Where items go",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "tx-place-1",
+        "tx-place-2",
+        "tx-place-3",
+        "tx-place-4"
+      ]
+    },
+    "tx-place-1": {
+      "id": "tx-place-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Speech before the first item stays on the bullet line. Each mark, or run of events with no speech between, starts an indented line followed by the words until the next one."
+        }
+      ],
+      "children": []
+    },
+    "tx-place-2": {
+      "id": "tx-place-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "An item moves back to the start of its clause when that began within 3 s. Otherwise it moves forward past the clause's last word when that ends within 1.2 s."
+        }
+      ],
+      "children": []
+    },
+    "tx-place-3": {
+      "id": "tx-place-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Events belong to the keyframe whose stretch they fall in. A stretch starts at the keyframe's first word, first mark, own moment, or its click up to 1.5 s before."
+        }
+      ],
+      "children": []
+    },
+    "tx-place-4": {
+      "id": "tx-place-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Marks always belong to their own keyframe. Without word times, the speech stays whole and the items follow it."
+        }
+      ],
+      "children": []
+    },
+    "tx-scene": {
+      "id": "tx-scene",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Scene changes",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "tx-scene-1",
+        "tx-scene-2"
+      ]
+    },
+    "tx-scene-1": {
+      "id": "tx-scene-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A scene-change keyframe says "
+        },
+        {
+          "insert": "[changed: the whole screen]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " when its merged "
+        },
+        {
+          "insert": "autocrop.changes",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " boxes include one covering 90%. Smaller regions are left to the image."
+        }
+      ],
+      "children": []
+    },
+    "tx-scene-2": {
+      "id": "tx-scene-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A keyframe with no speech or items falls back to its own description without positions, such as "
+        },
+        {
+          "insert": "scene changed",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-marks": {
+      "id": "h-marks",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Numbered Marks"
+        }
+      ],
+      "children": []
+    },
+    "mk-lead": {
+      "id": "mk-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A keyframe with 2 or more marks numbers them ①②③ in drawing order ("
+        },
+        {
+          "insert": "sketch::marks_on",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") in the text and "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The numbers never go on an image, which shows only the red ink."
+        }
+      ],
+      "children": []
+    },
+    "mk-1": {
+      "id": "mk-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Pins are the one exception. A pin is a red disc with its own white number on frames, contact sheets, exports, and live, as "
+        },
+        {
+          "insert": "Keyframes and Images",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/30-keyframes-and-images"
+            }
+          }
+        },
+        {
+          "insert": " describes."
+        }
+      ],
+      "children": []
+    },
+    "mk-2": {
+      "id": "mk-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A pin's number is its "
+        },
+        {
+          "insert": "pin",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and its "
+        },
+        {
+          "insert": "pin N",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Pins count 1, 2, 3 in drop order across the whole recording."
+        }
+      ],
+      "children": []
+    },
+    "mk-3": {
+      "id": "mk-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl inspect --marks [--json]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " lists each mark's keyframe, number, time, shape, target, and id, such as "
+        },
+        {
+          "insert": "#2 ✎② 0:09 marked (2 strokes) · m2",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "mk-4": {
+      "id": "mk-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl zoom --mark 2 [--frame 2]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or "
+        },
+        {
+          "insert": "--mark m2",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", zooms on that mark over its time span plus half a second each side. A number on several keyframes needs "
+        },
+        {
+          "insert": "--frame",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and circled numbers win over single marks."
+        }
+      ],
+      "children": []
+    },
+    "h-priv": {
+      "id": "h-priv",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "What App State Never Keeps"
+        }
+      ],
+      "children": []
+    },
+    "pv-lead": {
+      "id": "pv-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/privacy.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/privacy.rs"
+            }
+          }
+        },
+        {
+          "insert": " is the one policy for every collector: click and mark lookups, window-log titles, the capture's "
+        },
+        {
+          "insert": "target.windowTitle",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", dev-page events, and app shots. So it holds for "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", the clipboard, "
+        },
+        {
+          "insert": "appshots/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and "
+        },
+        {
+          "insert": "scrawl appshot",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " output."
+        }
+      ],
+      "children": []
+    },
+    "pv-table-lead": {
+      "id": "pv-table-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The table lists the four rules in the order the module states them, with the function that enforces each."
+        }
+      ],
+      "children": []
+    },
+    "pv-table": {
+      "id": "pv-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Rule",
+          "Enforced by",
+          "Result"
+        ],
+        "rows": [
+          [
+            "No typed value",
+            [
+              {
+                "insert": "privacy::read",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "privacy::is_input",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Only static text gives a value. An input keeps its role and names, and nothing under it is read."
+          ],
+          [
+            "No URL secrets",
+            [
+              {
+                "insert": "privacy::clip",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "privacy::url",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A URL loses its query, fragment, and login. Strings are one line of at most 200 characters."
+          ],
+          [
+            "Nothing from a password manager",
+            [
+              {
+                "insert": "privacy::is_sensitive_app",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The app name only, and the app is never sent an Accessibility message."
+          ],
+          [
+            "No tree from a browser's own pages",
+            [
+              {
+                "insert": "privacy::is_internal_url",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The shot says withheld, browser page."
+          ]
+        ],
+        "title": "Privacy rules"
+      },
+      "children": []
+    },
+    "pv-input": {
+      "id": "pv-input",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Inputs and values",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "pv-input-1",
+        "pv-input-2"
+      ]
+    },
+    "pv-input-1": {
+      "id": "pv-input-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "An input is a text field, text area, combo box, search field, or secure field. "
+        },
+        {
+          "insert": "privacy::read",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the only place that asks for "
+        },
+        {
+          "insert": "AXValue",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "pv-input-2": {
+      "id": "pv-input-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Text an app shows as static text is kept on purpose, such as a code in a message. It is on the keyframe image too."
+        }
+      ],
+      "children": []
+    },
+    "pv-url": {
+      "id": "pv-url",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "URLs",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "pv-url-1",
+        "pv-url-2",
+        "pv-url-3",
+        "pv-url-4"
+      ]
+    },
+    "pv-url-1": {
+      "id": "pv-url-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A URL loses its secrets with a scheme or without one, such as "
+        },
+        {
+          "insert": "reset.html?…",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "a.dev/callback#…",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". A click or mark label is cut at 60 characters."
+        }
+      ],
+      "children": []
+    },
+    "pv-url-2": {
+      "id": "pv-url-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Prose keeps its question marks and hash signs, such as "
+        },
+        {
+          "insert": "why?",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "#42",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and "
+        },
+        {
+          "insert": "C#",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "pv-url-3": {
+      "id": "pv-url-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "CleanUrl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is a URL type that is cleaned on every way in, JSON included. Routing holds a whole URL only as "
+        },
+        {
+          "insert": "WholeUrl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which cannot be serialized and prints its clean form."
+        }
+      ],
+      "children": []
+    },
+    "pv-url-4": {
+      "id": "pv-url-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "UrlKey",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " tells two pages apart by a SipHash of the whole URL behind the ingest token, so it cannot be worked back to the URL."
+        }
+      ],
+      "children": []
+    },
+    "pv-pm": {
+      "id": "pv-pm",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "privacy::SENSITIVE_APPS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds exact bundle ids for 1Password, Bitwarden, Keychain Access, Passwords, and LastPass. They give no title, URL, tree, label, identifier, or document."
+        }
+      ],
+      "children": []
+    },
+    "pv-browser": {
+      "id": "pv-browser",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A browser's own pages start with "
+        },
+        {
+          "insert": "chrome://",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "edge://",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "about:",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or "
+        },
+        {
+          "insert": "safari-resource:",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-stays": {
+      "id": "h-stays",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "What Stays With a Capture"
+        }
+      ],
+      "children": []
+    },
+    "stays": {
+      "id": "stays",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "appshots/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is small text, so retention leaves it with the capture after the video and audio are cleaned, like "
+        },
+        {
+          "insert": "frames/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". It also travels with the bundle when a capture syncs to another Mac. "
+        },
+        {
+          "insert": "Export and Retention",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/80-export-and-retention"
+            }
+          }
+        },
+        {
+          "insert": " lists what goes ("
+        },
+        {
+          "insert": "handoff::HEAVY_MEDIA",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "stays-2": {
+      "id": "stays-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Turn "
+        },
+        {
+          "insert": "Save app state",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " off to stop saving it."
+        }
+      ],
+      "children": []
+    },
+    "stays-3": {
+      "id": "stays-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Delete a capture to remove what it saved."
+        }
+      ],
+      "children": []
+    },
+    "h-prove": {
+      "id": "h-prove",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Prove the Policy"
+        }
+      ],
+      "children": []
+    },
+    "prove-lead": {
+      "id": "prove-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The tests run the lookups and the walker over "
+        },
+        {
+          "insert": "privacy::fake::FakeTree",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which records every attribute asked for. It holds a marker in a typed value, a password, a URL query, a window title, and each dev-page string."
+        }
+      ],
+      "children": []
+    },
+    "prove-1": {
+      "id": "prove-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "cargo test privacy",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "cargo test appshot",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " check the lookups and the walker."
+        }
+      ],
+      "children": []
+    },
+    "prove-2": {
+      "id": "prove-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "cargo test sdk_page -- --ignored",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " runs the real "
+        },
+        {
+          "insert": "sdk.js",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " over "
+        },
+        {
+          "insert": "Tests/fixtures/appshot-secret.html",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in headless Google Chrome, with markers in every field."
+        }
+      ],
+      "children": []
+    },
+    "prove-man-lead": {
+      "id": "prove-man-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "To check a real capture, follow these steps."
+        }
+      ],
+      "children": []
+    },
+    "prove-s1": {
+      "id": "prove-s1",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Open "
+        },
+        {
+          "insert": "Tests/fixtures/appshot-secret.html?token=SECRET-MARKER-URL",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in a browser."
+        }
+      ],
+      "children": []
+    },
+    "prove-s2": {
+      "id": "prove-s2",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Type "
+        },
+        {
+          "insert": "SECRET-MARKER-INPUT",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " into Name."
+        }
+      ],
+      "children": []
+    },
+    "prove-s3": {
+      "id": "prove-s3",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Record a capture that clicks Save."
+        }
+      ],
+      "children": []
+    },
+    "prove-s4": {
+      "id": "prove-s4",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Run "
+        },
+        {
+          "insert": "grep -r SECRET-MARKER",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " over the capture's folder. It must find nothing."
+        }
+      ],
+      "children": []
+    },
+    "h-files": {
+      "id": "h-files",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Related Files"
+        }
+      ],
+      "children": []
+    },
+    "rf-1": {
+      "id": "rf-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/ax.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/ax.rs"
+            }
+          }
+        },
+        {
+          "insert": " looks up clicks and marks."
+        }
+      ],
+      "children": []
+    },
+    "rf-2": {
+      "id": "rf-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/appshot.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/appshot.rs"
+            }
+          }
+        },
+        {
+          "insert": " takes, stores, matches, and prints app shots."
+        }
+      ],
+      "children": []
+    },
+    "rf-3": {
+      "id": "rf-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/page.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/page.rs"
+            }
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "src/sdk.js",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/sdk.js"
+            }
+          }
+        },
+        {
+          "insert": " collect dev-page events."
+        }
+      ],
+      "children": []
+    },
+    "rf-4": {
+      "id": "rf-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/agent_context.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/agent_context.rs"
+            }
+          }
+        },
+        {
+          "insert": " writes the keyframe event text."
+        }
+      ],
+      "children": []
+    },
+    "rf-5": {
+      "id": "rf-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/privacy.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/privacy.rs"
+            }
+          }
+        },
+        {
+          "insert": " holds the policy."
+        }
+      ],
+      "children": []
+    }
+  }
+}

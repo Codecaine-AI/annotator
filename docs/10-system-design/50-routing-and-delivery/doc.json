@@ -1,0 +1,4928 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-5774c02b2d1d80a8c0de693fafd484a2",
+  "title": "Routing and Delivery",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "rd-intro",
+        "rd-h-glossary",
+        "rd-glossary-lead",
+        "rd-glossary",
+        "rd-h-path",
+        "rd-path-lead",
+        "rd-path",
+        "rd-path-after",
+        "rd-path-off",
+        "rd-h-tab",
+        "rd-tab-lead",
+        "rd-tab-1",
+        "rd-tab-2",
+        "rd-tab-3",
+        "rd-tab-4",
+        "rd-h-ladder",
+        "rd-ladder-lead",
+        "rd-ladder-1",
+        "rd-ladder-2",
+        "rd-ladder-3",
+        "rd-ladder-rules",
+        "rd-ladder-r1",
+        "rd-ladder-r2",
+        "rd-ladder-r3",
+        "rd-ladder-r4",
+        "rd-ladder-r5",
+        "rd-h-sdk",
+        "rd-sdk-lead",
+        "rd-sdk-code",
+        "rd-sdk-1",
+        "rd-sdk-2",
+        "rd-sdk-3",
+        "rd-sdk-4",
+        "rd-sdk-5",
+        "rd-sdk-vite",
+        "rd-sdk-vite-code",
+        "rd-sdk-context",
+        "rd-h-smart",
+        "rd-smart-lead",
+        "rd-smart-1",
+        "rd-smart-2",
+        "rd-smart-3",
+        "rd-smart-4",
+        "rd-h-sources",
+        "rd-sources-lead",
+        "rd-sources",
+        "rd-sources-via",
+        "rd-h-served",
+        "rd-served-lead",
+        "rd-served-1",
+        "rd-served-2",
+        "rd-served-3",
+        "rd-served-pub",
+        "rd-served-p1",
+        "rd-served-p2",
+        "rd-served-p3",
+        "rd-h-checkout",
+        "rd-checkout-lead",
+        "rd-checkout-1",
+        "rd-checkout-2",
+        "rd-checkout-3",
+        "rd-h-opencode",
+        "rd-opencode-lead",
+        "rd-opencode",
+        "rd-opencode-after",
+        "rd-h-scoring",
+        "rd-scoring-lead",
+        "rd-scoring-1",
+        "rd-scoring-2",
+        "rd-scoring-3",
+        "rd-h-deciding",
+        "rd-deciding-lead",
+        "rd-deciding-1",
+        "rd-deciding-2",
+        "rd-deciding-3",
+        "rd-deciding-alt",
+        "rd-h-undo",
+        "rd-undo-lead",
+        "rd-undo-1",
+        "rd-undo-2",
+        "rd-undo-3",
+        "rd-pill",
+        "rd-h-laws",
+        "rd-laws-lead",
+        "rd-laws-1",
+        "rd-laws-2",
+        "rd-laws-3",
+        "rd-laws-4",
+        "rd-laws-5",
+        "rd-h-recorded",
+        "rd-recorded-lead",
+        "rd-recorded-1",
+        "rd-recorded-2",
+        "rd-recorded-mid",
+        "rd-dest-shape",
+        "rd-recorded-r1",
+        "rd-recorded-r2",
+        "rd-recorded-r3",
+        "rd-recorded-r4",
+        "rd-h-deliver",
+        "rd-deliver-lead",
+        "rd-deliver-1",
+        "rd-deliver-2",
+        "rd-deliver-3",
+        "rd-deliver-4",
+        "rd-deliver-5",
+        "rd-h-paste",
+        "rd-paste-lead",
+        "rd-paste-1",
+        "rd-paste-2",
+        "rd-paste-3",
+        "rd-h-inspect",
+        "rd-inspect-lead",
+        "rd-inspect",
+        "rd-inspect-1",
+        "rd-inspect-2"
+      ]
+    },
+    "rd-intro": {
+      "id": "rd-intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "In the app, every finished capture goes to the clipboard. A Mac capture of a browser tab can also go to a destination, an OpenCode session on this Mac or on the agent host. This page covers how Annotator picks that session, how a send is retried, and how Paste hands a capture to the app in front. A cabled iPhone and ScrawlKit recordings use the same delivery, as "
+        },
+        {
+          "insert": "iPhone and ScrawlKit",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/60-iphone-and-scrawlkit"
+            }
+          }
+        },
+        {
+          "insert": " describes."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-glossary": {
+      "id": "rd-h-glossary",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Routing Glossary"
+        }
+      ],
+      "children": []
+    },
+    "rd-glossary-lead": {
+      "id": "rd-glossary-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The routing code and this page give each of these terms one meaning. The rows follow the order of "
+        },
+        {
+          "insert": "CONTEXT.md",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "CONTEXT.md"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rd-glossary": {
+      "id": "rd-glossary",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Term",
+          "Meaning"
+        ],
+        "rows": [
+          [
+            "Capture",
+            [
+              {
+                "insert": "One recording, built into a "
+              },
+              {
+                "insert": ".scrawl",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " bundle."
+              }
+            ]
+          ],
+          [
+            "Destination",
+            "Where a capture is delivered: an OpenCode session on this Mac or the agent host. The clipboard always gets the capture too, so no destination means clipboard only. Do not call it a target, which is what was recorded."
+          ],
+          [
+            "Address",
+            "A destination someone stated outright: the user's choice or the recording's recorded destination. Routing obeys an address and never weighs it."
+          ],
+          [
+            "Choice",
+            [
+              {
+                "insert": "A session the user picked for this capture, with "
+              },
+              {
+                "insert": "scrawl send --session",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or a chip on the capsule."
+              }
+            ]
+          ],
+          [
+            "Recorded destination",
+            [
+              {
+                "insert": "The session a recording carries: a ScrawlKit timeline's top-level "
+              },
+              {
+                "insert": "session",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", or the destination an earlier routing wrote into "
+              },
+              {
+                "insert": "scrawl.json",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": "."
+              }
+            ]
+          ],
+          [
+            "Clue",
+            "An observed fact about a capture's surroundings that points at sessions, such as a page registration or a terminal's folder. Do not call it a signal or a hint."
+          ],
+          [
+            "Source",
+            "Where a clue came from: page, port, publisher, terminal, document, viewed, app, title or speech. Each source counts once per candidate."
+          ],
+          [
+            "Publisher",
+            "The session that put a page's file where a file server serves it from: the session the page names, else the root session whose tool call wrote the file."
+          ],
+          [
+            "Candidate",
+            "An open root session that a clue can point at."
+          ],
+          [
+            "Evidence",
+            "The address, clues and candidates for one capture, with the time it ended. A decision depends on nothing else."
+          ],
+          [
+            "Decision",
+            "Send, offer or keep. A send goes out by itself, an offer asks on the Completed island, and a keep leaves the capture on the clipboard only."
+          ],
+          [
+            "Runner-up",
+            "A session that a send or an offer keeps one click away: close behind the best, or resting on a different clue than the best."
+          ],
+          [
+            "Ladder",
+            "The routing that runs with smart routing off: the page's registration, else the loopback port's folder and the newest session there."
+          ],
+          [
+            "Undo window",
+            "The 3 s after a send is decided and before it leaves the Mac. ✕ or Paste cancels the send, and a runner-up's chip sends it there instead."
+          ]
+        ],
+        "title": "Routing terms"
+      },
+      "children": []
+    },
+    "rd-h-path": {
+      "id": "rd-h-path",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Where a Capture Goes"
+        }
+      ],
+      "children": []
+    },
+    "rd-path-lead": {
+      "id": "rd-path-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A Mac recording in Area, Window or Screen mode is routed while its bundle is built. A cabled iPhone capture is not routed this way. The outline follows "
+        },
+        {
+          "insert": "src/ui.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/ui.rs"
+            }
+          }
+        },
+        {
+          "insert": " from the end of the recording to the send, for both routing modes."
+        }
+      ],
+      "children": []
+    },
+    "rd-path": {
+      "id": "rd-path",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Route a Finished Mac Capture",
+            "steps": [
+              {
+                "text": "Start Routing",
+                "steps": [
+                  {
+                    "text": "Both paths run on a thread while the bundle is built",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "If `autoSend` is `false` or `SCRAWL_NO_OPENCODE` is set",
+                    "steps": [
+                      {
+                        "text": "Leave the capture for the clipboard only"
+                      },
+                      {
+                        "text": "Stop routing"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "If the `smartRouting` experiment is off",
+                    "steps": [
+                      {
+                        "text": "Run the ladder with `routing::route_capture`",
+                        "trace": true
+                      }
+                    ]
+                  },
+                  {
+                    "text": "If the `smartRouting` experiment is on",
+                    "steps": [
+                      {
+                        "text": "Gather live clues with `look::look_live`",
+                        "trace": true
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "Copy the Capture",
+                "steps": [
+                  {
+                    "text": "Routing never delays this phase",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "Build the bundle"
+                  },
+                  {
+                    "text": "Copy the bundle to the clipboard"
+                  },
+                  {
+                    "text": "Show Completed on the island"
+                  }
+                ]
+              },
+              {
+                "text": "Judge the Smart Route",
+                "steps": [
+                  {
+                    "text": "If the `smartRouting` experiment is on",
+                    "steps": [
+                      {
+                        "text": "Add the bundle's clues with `look::bundle_clues`"
+                      },
+                      {
+                        "text": "Decide with `smart::decide(&evidence, Policy::Weigh)`",
+                        "trace": true
+                      },
+                      {
+                        "text": "Write `routing.json` into the bundle"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "Act When the Route Arrives",
+                "steps": [
+                  {
+                    "text": "`route_arrived` and `act_on_route` in `ScrawlCoordinator` run this phase",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "If ✕ or Paste kept the capture first",
+                    "steps": [
+                      {
+                        "text": "Log that the capture stayed on the clipboard"
+                      },
+                      {
+                        "text": "Stop routing"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "When the ladder found a session",
+                    "steps": [
+                      {
+                        "text": "Send at once with `send_completed`"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "When the decision is send",
+                    "steps": [
+                      {
+                        "text": "Show `Sending to …` for `SMART_SEND_UNDO`"
+                      },
+                      {
+                        "text": "`SMART_SEND_UNDO` is 3 s",
+                        "kind": "note"
+                      },
+                      {
+                        "text": "Show the first runner-up as a chip beside Paste"
+                      },
+                      {
+                        "text": "Send with `send_completed` unless ✕ or Paste cancels"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "When the decision is offer",
+                    "steps": [
+                      {
+                        "text": "Show the suggestion and one runner-up as chips beside Paste"
+                      },
+                      {
+                        "text": "Send only when a chip is clicked",
+                        "trace": true
+                      }
+                    ]
+                  },
+                  {
+                    "text": "When the decision is keep or no route came back",
+                    "steps": [
+                      {
+                        "text": "Leave the capture on the clipboard"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "Send",
+                "steps": [
+                  {
+                    "text": "Write the destination into `scrawl.json` and `summary.md`"
+                  },
+                  {
+                    "text": "Queue the bundle into the session with `delivery::deliver`",
+                    "trace": true
+                  },
+                  {
+                    "text": "If the queue call fails",
+                    "steps": [
+                      {
+                        "text": "Write `.deliver.json` for the retry loop"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "rd-path-after": {
+      "id": "rd-path-after",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The log line "
+        },
+        {
+          "insert": "finish: copied at … · routed at …",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " shows when the capture was copied and when its route arrived."
+        }
+      ],
+      "children": []
+    },
+    "rd-path-off": {
+      "id": "rd-path-off",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Turn routing off with "
+        },
+        {
+          "insert": "Send dev-site captures to OpenCode",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " in Settings › General, or with "
+        },
+        {
+          "insert": "\"autoSend\": false",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The environment variable "
+        },
+        {
+          "insert": "SCRAWL_NO_OPENCODE=1",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " also turns it off."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-tab": {
+      "id": "rd-h-tab",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Reading the Tab"
+        }
+      ],
+      "children": []
+    },
+    "rd-tab-lead": {
+      "id": "rd-tab-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Both routing modes start from the browser tab's URL. "
+        },
+        {
+          "insert": "routing::browser_tab_url",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads it with "
+        },
+        {
+          "insert": "osascript",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and waits at most 6 s, which covers the one-time Automation prompt."
+        }
+      ],
+      "children": []
+    },
+    "rd-tab-1": {
+      "id": "rd-tab-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "An Area or Screen capture reads the browser in front when the recording ends, else the captured window's browser. A Window capture reads only the captured window's app."
+        }
+      ],
+      "children": []
+    },
+    "rd-tab-2": {
+      "id": "rd-tab-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Chrome, Brave, Arc, Edge, Vivaldi and Chromium work, with their beta, dev, nightly and canary channels. Safari and Safari Technology Preview work too."
+        }
+      ],
+      "children": []
+    },
+    "rd-tab-3": {
+      "id": "rd-tab-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "macOS asks once whether Annotator can control the browser. If you decline, captures stay on the clipboard."
+        }
+      ],
+      "children": []
+    },
+    "rd-tab-4": {
+      "id": "rd-tab-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "routing::capture_url",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " returns the URL as a "
+        },
+        {
+          "insert": "privacy::WholeUrl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", held in memory only. Its whole form looks up the registration and finds a served page's file."
+        }
+      ],
+      "children": [
+        "rd-tab-4a",
+        "rd-tab-4b"
+      ]
+    },
+    "rd-tab-4a": {
+      "id": "rd-tab-4a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Its clean form, with no query, fragment or login, is all that is kept or printed. "
+        },
+        {
+          "insert": "privacy::CleanUrl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the only type that a destination, the routing evidence, a registration or a log line holds a URL in."
+        }
+      ],
+      "children": []
+    },
+    "rd-tab-4b": {
+      "id": "rd-tab-4b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Old files are cleaned when they are read."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-ladder": {
+      "id": "rd-h-ladder",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "The Ladder"
+        }
+      ],
+      "children": []
+    },
+    "rd-ladder-lead": {
+      "id": "rd-ladder-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "With smart routing off, "
+        },
+        {
+          "insert": "routing::route_tab",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/routing.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/routing.rs"
+            }
+          }
+        },
+        {
+          "insert": " tries two rungs in this order. The "
+        },
+        {
+          "insert": "via",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " field of the destination names the rung that matched."
+        }
+      ],
+      "children": []
+    },
+    "rd-ladder-1": {
+      "id": "rd-ladder-1",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "The page registered itself through "
+        },
+        {
+          "insert": "/sdk.js",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for the tab's whole URL ("
+        },
+        {
+          "insert": "via: \"sdk\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": [
+        "rd-ladder-1a",
+        "rd-ladder-1b"
+      ]
+    },
+    "rd-ladder-1a": {
+      "id": "rd-ladder-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A "
+        },
+        {
+          "insert": "data-session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " registration goes to that session."
+        }
+      ],
+      "children": []
+    },
+    "rd-ladder-1b": {
+      "id": "rd-ladder-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A "
+        },
+        {
+          "insert": "data-directory",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " registration goes to the newest open root session of that folder's project."
+        }
+      ],
+      "children": []
+    },
+    "rd-ladder-2": {
+      "id": "rd-ladder-2",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "The tab is on a loopback host ("
+        },
+        {
+          "insert": "via: \"localhost\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": [
+        "rd-ladder-2a",
+        "rd-ladder-2b"
+      ]
+    },
+    "rd-ladder-2a": {
+      "id": "rd-ladder-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "lsof",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " finds the process that listens on the port, then its working directory and that directory's git root."
+        }
+      ],
+      "children": []
+    },
+    "rd-ladder-2b": {
+      "id": "rd-ladder-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The capture goes to the newest open root session in that project."
+        }
+      ],
+      "children": []
+    },
+    "rd-ladder-3": {
+      "id": "rd-ladder-3",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Otherwise the capture stays on the clipboard, and the log line gives the reason."
+        }
+      ],
+      "children": []
+    },
+    "rd-ladder-rules": {
+      "id": "rd-ladder-rules",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The rungs share these rules for projects and session reads."
+        }
+      ],
+      "children": []
+    },
+    "rd-ladder-r1": {
+      "id": "rd-ladder-r1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Inside a git repository, a session in any folder of it counts."
+        }
+      ],
+      "children": [
+        "rd-ladder-r1a",
+        "rd-ladder-r1b"
+      ]
+    },
+    "rd-ladder-r1a": {
+      "id": "rd-ladder-r1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Outside a repository, only a session in that exact folder counts."
+        }
+      ],
+      "children": []
+    },
+    "rd-ladder-r1b": {
+      "id": "rd-ladder-r1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The home folder and "
+        },
+        {
+          "insert": "/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " are never a project."
+        }
+      ],
+      "children": []
+    },
+    "rd-ladder-r2": {
+      "id": "rd-ladder-r2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "session_for_directory",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " asks the API for the exact "
+        },
+        {
+          "insert": "directory",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " first. A newest-first "
+        },
+        {
+          "insert": "handoff::find_root_session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " scan then looks for a newer session in a subfolder, and stops at the exact match's age or after "
+        },
+        {
+          "insert": "ROOT_SEARCH_PAGES",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (5) pages."
+        }
+      ],
+      "children": []
+    },
+    "rd-ladder-r3": {
+      "id": "rd-ladder-r3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A session ID that is already known costs one "
+        },
+        {
+          "insert": "GET /api/session/{id}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "handoff::get_session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") for its title."
+        }
+      ],
+      "children": []
+    },
+    "rd-ladder-r4": {
+      "id": "rd-ladder-r4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "All session reads of one capture share "
+        },
+        {
+          "insert": "SESSIONS_BUDGET",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (3 s), counted from the first request. "
+        },
+        {
+          "insert": "handoff::api_get_within",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " talks HTTP to the local OpenCode V2 server, with a 400 ms connect limit ("
+        },
+        {
+          "insert": "SERVER_CONNECT_TIMEOUT",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": [
+        "rd-ladder-r4a"
+      ]
+    },
+    "rd-ladder-r4a": {
+      "id": "rd-ladder-r4a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The server address comes from "
+        },
+        {
+          "insert": "service.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "$XDG_STATE_HOME/opencode",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "~/.local/state/opencode",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", else in "
+        },
+        {
+          "insert": "$OPENCODE_CONFIG_DIR",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "$XDG_CONFIG_HOME/opencode",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "~/.config/opencode",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rd-ladder-r5": {
+      "id": "rd-ladder-r5",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "look::tests::the_ladder_policy_reproduces_route",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " checks that "
+        },
+        {
+          "insert": "Policy::Ladder",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " decides what "
+        },
+        {
+          "insert": "routing::route",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " does on a table of cases. A change to the ladder must keep that test passing."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-sdk": {
+      "id": "rd-h-sdk",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Registering a Dev Page With "
+        },
+        {
+          "insert": "sdk.js",
+          "attributes": {
+            "code": true
+          }
+        }
+      ],
+      "children": []
+    },
+    "rd-sdk-lead": {
+      "id": "rd-sdk-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A dev page can name its session with one dev-only script tag. Annotator serves "
+        },
+        {
+          "insert": "src/sdk.js",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/sdk.js"
+            }
+          }
+        },
+        {
+          "insert": " itself on its ingest port, "
+        },
+        {
+          "insert": "47777",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for Annotator and "
+        },
+        {
+          "insert": "47778",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for Annotator Dev."
+        }
+      ],
+      "children": []
+    },
+    "rd-sdk-code": {
+      "id": "rd-sdk-code",
+      "type": "code",
+      "props": {
+        "language": "html"
+      },
+      "text": [
+        {
+          "insert": "<script src=\"http://127.0.0.1:47777/sdk.js\" data-session=\"ses_…\"></script>"
+        }
+      ],
+      "children": []
+    },
+    "rd-sdk-1": {
+      "id": "rd-sdk-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "data-session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " names the session. "
+        },
+        {
+          "insert": "data-directory=\"/abs/path/to/project\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " names a project, and its most recently active open root session gets the capture."
+        }
+      ],
+      "children": []
+    },
+    "rd-sdk-2": {
+      "id": "rd-sdk-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The script registers the tab and sends a heartbeat every 30 s while the tab is visible."
+        }
+      ],
+      "children": [
+        "rd-sdk-2a",
+        "rd-sdk-2b"
+      ]
+    },
+    "rd-sdk-2a": {
+      "id": "rd-sdk-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It unregisters the tab when the tab closes."
+        }
+      ],
+      "children": []
+    },
+    "rd-sdk-2b": {
+      "id": "rd-sdk-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A registration lasts "
+        },
+        {
+          "insert": "TTL_MS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (2 minutes) after its last heartbeat."
+        }
+      ],
+      "children": []
+    },
+    "rd-sdk-3": {
+      "id": "rd-sdk-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The script does nothing unless the page is on "
+        },
+        {
+          "insert": "localhost",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "*.localhost",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "127.x",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "[::1]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or the tag sets "
+        },
+        {
+          "insert": "data-token",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rd-sdk-4": {
+      "id": "rd-sdk-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "web::may_register",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " accepts a registration without the ingest token only from a loopback "
+        },
+        {
+          "insert": "Origin",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that calls from this Mac, and only for that origin."
+        }
+      ],
+      "children": [
+        "rd-sdk-4a",
+        "rd-sdk-4b"
+      ]
+    },
+    "rd-sdk-4a": {
+      "id": "rd-sdk-4a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A page anywhere else, such as a "
+        },
+        {
+          "insert": "*.ts.net",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " dev host, must set "
+        },
+        {
+          "insert": "data-token",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to "
+        },
+        {
+          "insert": "ingestToken",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " from "
+        },
+        {
+          "insert": "config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rd-sdk-4b": {
+      "id": "rd-sdk-4b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "GET /web/registrations",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " lists the live registrations and needs the token. "
+        },
+        {
+          "insert": "GET /sdk.js",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " needs nothing."
+        }
+      ],
+      "children": []
+    },
+    "rd-sdk-5": {
+      "id": "rd-sdk-5",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "web::registration_from",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " keeps the clean URL and a "
+        },
+        {
+          "insert": "privacy::UrlKey",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", a SipHash of the whole address behind the ingest token. The key tells two tabs on one page apart, such as "
+        },
+        {
+          "insert": "/?thread=A",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "/?thread=B",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and shows nothing of the address."
+        }
+      ],
+      "children": []
+    },
+    "rd-sdk-vite": {
+      "id": "rd-sdk-vite",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "With Vite, inject the tag only in dev:"
+        }
+      ],
+      "children": []
+    },
+    "rd-sdk-vite-code": {
+      "id": "rd-sdk-vite-code",
+      "type": "code",
+      "props": {
+        "language": "ts"
+      },
+      "text": [
+        {
+          "insert": "// vite.config.ts\nplugins: [{\n  name: \"scrawl\",\n  apply: \"serve\",\n  transformIndexHtml: () => [{\n    tag: \"script\",\n    attrs: { src: \"http://127.0.0.1:47777/sdk.js\", \"data-directory\": process.cwd() },\n    injectTo: \"head\",\n  }],\n}]"
+        }
+      ],
+      "children": []
+    },
+    "rd-sdk-context": {
+      "id": "rd-sdk-context",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "With the "
+        },
+        {
+          "insert": "agentContext",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " experiment on, a loopback page also posts what is under clicks and marks to "
+        },
+        {
+          "insert": "/web/context",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "App State and Privacy",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/40-app-state-and-privacy"
+            }
+          }
+        },
+        {
+          "insert": " owns that flow."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-smart": {
+      "id": "rd-h-smart",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Smart Routing"
+        }
+      ],
+      "children": []
+    },
+    "rd-smart-lead": {
+      "id": "rd-smart-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Smart routing weighs every clue it finds and sends only when one session is clearly ahead. It is the "
+        },
+        {
+          "insert": "smartRouting",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " experiment, off by default, read through "
+        },
+        {
+          "insert": "handoff::experiment",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "Experiments and Feature Map",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "30-implementation/20-experiments-and-feature-map"
+            }
+          }
+        },
+        {
+          "insert": " says how to turn an experiment on. With it on, a Mac capture is routed in four steps."
+        }
+      ],
+      "children": []
+    },
+    "rd-smart-1": {
+      "id": "rd-smart-1",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "look::look_live",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/routing/look.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/routing/look.rs"
+            }
+          }
+        },
+        {
+          "insert": " runs while the bundle is built. It reads the browser tab, Ghostty's focused pane, and the open root sessions."
+        }
+      ],
+      "children": [
+        "rd-smart-1a",
+        "rd-smart-1b",
+        "rd-smart-1c",
+        "rd-smart-1d"
+      ]
+    },
+    "rd-smart-1a": {
+      "id": "rd-smart-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The tab gives the page's "
+        },
+        {
+          "insert": "/sdk.js",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " registration. When the tab is on this Mac, it also gives the folder of the process that serves its port."
+        }
+      ],
+      "children": []
+    },
+    "rd-smart-1b": {
+      "id": "rd-smart-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "On this Mac means a loopback host or one of this Mac's own names: "
+        },
+        {
+          "insert": "hostname",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", its "
+        },
+        {
+          "insert": ".local",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " name or its Tailscale name. "
+        },
+        {
+          "insert": "tailscale serve status --json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " maps a served port to the local port."
+        }
+      ],
+      "children": []
+    },
+    "rd-smart-1c": {
+      "id": "rd-smart-1c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Ghostty's pane gives its folder and title, when Ghostty is captured or in front."
+        }
+      ],
+      "children": []
+    },
+    "rd-smart-1d": {
+      "id": "rd-smart-1d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The sessions read are the newest "
+        },
+        {
+          "insert": "SESSION_PAGES",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (2) pages, the newest page in each folder a clue names, and each session a clue names."
+        }
+      ],
+      "children": []
+    },
+    "rd-smart-2": {
+      "id": "rd-smart-2",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "look::bundle_clues",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " adds clues from the finished bundle. The bundle's recorded destination becomes the address."
+        }
+      ],
+      "children": [
+        "rd-smart-2a",
+        "rd-smart-2b"
+      ]
+    },
+    "rd-smart-2a": {
+      "id": "rd-smart-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The clues are the window title without the app's own name, the captured app's name, the checkout the app is built from, and the transcript."
+        }
+      ],
+      "children": []
+    },
+    "rd-smart-2b": {
+      "id": "rd-smart-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The app's name counts only when the app is not a browser, a terminal, an editor or a system app. For OpenCode Desktop, the session it showed last is a clue too."
+        }
+      ],
+      "children": []
+    },
+    "rd-smart-3": {
+      "id": "rd-smart-3",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "smart::decide(&evidence, Policy::Weigh)",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/routing/smart.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/routing/smart.rs"
+            }
+          }
+        },
+        {
+          "insert": " returns a judgement. "
+        },
+        {
+          "insert": "routing::judge_capture",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " writes the evidence and the decision to "
+        },
+        {
+          "insert": "routing.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in the bundle and logs one line."
+        }
+      ],
+      "children": []
+    },
+    "rd-smart-4": {
+      "id": "rd-smart-4",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "ScrawlCoordinator::act_on_route",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " acts on the judgement when it arrives, after the capture is copied and shown as Completed. "
+        },
+        {
+          "insert": "Runners-Up and the Undo Window",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " below gives what each decision shows."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-sources": {
+      "id": "rd-h-sources",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Clue Sources"
+        }
+      ],
+      "children": []
+    },
+    "rd-sources-lead": {
+      "id": "rd-sources-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each clue comes from one source, and a clue's full points come from "
+        },
+        {
+          "insert": "Source::points",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or from the clue's own "
+        },
+        {
+          "insert": "points",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The rows follow the order of "
+        },
+        {
+          "insert": "Source",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The last column says whether one clue of that source can reach "
+        },
+        {
+          "insert": "SEND_AT",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (95) by itself."
+        }
+      ],
+      "children": []
+    },
+    "rd-sources": {
+      "id": "rd-sources",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Source",
+          "What It Reads",
+          "Full Points",
+          "Sends Alone"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "page",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "The tab's "
+              },
+              {
+                "insert": "/sdk.js",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " registration"
+              }
+            ],
+            [
+              {
+                "insert": "100 for "
+              },
+              {
+                "insert": "data-session",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", 95 for "
+              },
+              {
+                "insert": "data-directory",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Yes"
+          ],
+          [
+            [
+              {
+                "insert": "port",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The folder of the process that serves the tab's port",
+            "95, 15 for a page from elsewhere, 0 for a server in a content folder",
+            "At 95 only"
+          ],
+          [
+            [
+              {
+                "insert": "publisher",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The session that published a served file",
+            "100 named, 95 wrote the file, 60 named its folder",
+            "At 95 or 100"
+          ],
+          [
+            [
+              {
+                "insert": "terminal",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Ghostty's focused pane folder",
+            "70",
+            "No"
+          ],
+          [
+            [
+              {
+                "insert": "document",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The words of a served file's path",
+            "40",
+            "No"
+          ],
+          [
+            [
+              {
+                "insert": "viewed",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The session OpenCode Desktop showed last",
+            "60, or 15 to 60 by what the capture is about",
+            "No"
+          ],
+          [
+            [
+              {
+                "insert": "app",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The captured app's name, or the checkout it is built from",
+            "50 for the name, 70 for the checkout",
+            "No"
+          ],
+          [
+            [
+              {
+                "insert": "title",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Words in the window or tab title",
+            "40",
+            "No"
+          ],
+          [
+            [
+              {
+                "insert": "speech",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Words that were said",
+            "25",
+            "No"
+          ]
+        ],
+        "title": "Clue sources and their points"
+      },
+      "children": []
+    },
+    "rd-sources-via": {
+      "id": "rd-sources-via",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A send records the source of its best reason as "
+        },
+        {
+          "insert": "via",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The page and port sources keep the ladder's names, "
+        },
+        {
+          "insert": "sdk",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "localhost",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". An address records "
+        },
+        {
+          "insert": "chosen",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "recorded",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and a send that rests on recency alone records "
+        },
+        {
+          "insert": "weighed",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-served": {
+      "id": "rd-h-served",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Pages From a File Server"
+        }
+      ],
+      "children": []
+    },
+    "rd-served-lead": {
+      "id": "rd-served-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A file server can serve files that are not its project's, such as a gallery that serves "
+        },
+        {
+          "insert": "/raw/<path>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " from a shared artifacts folder that any session publishes into. Its working directory says nothing about who made such a page. After the sessions are read, "
+        },
+        {
+          "insert": "look::look_at_page",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " finds the page's file with "
+        },
+        {
+          "insert": "served::locate",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/routing/served.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/routing/served.rs"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-1": {
+      "id": "rd-served-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "\"routing\": {\"servers\": {\"<URL prefix>\": \"<folder>\"}}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " maps a prefix to a folder outright. The longest prefix wins."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-2": {
+      "id": "rd-served-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Otherwise, when the URL's path names a file, "
+        },
+        {
+          "insert": "served::locate",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " looks for the longest tail of it, at least the file and its folder. A path names a file when it has an extension, and a trailing "
+        },
+        {
+          "insert": "/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads as "
+        },
+        {
+          "insert": "index.html",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": [
+        "rd-served-2a",
+        "rd-served-2b",
+        "rd-served-2c"
+      ]
+    },
+    "rd-served-2a": {
+      "id": "rd-served-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It looks in the server's project and its immediate subfolders first. Then it looks in the folders and repositories that open sessions work in, and their immediate subfolders."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-2b": {
+      "id": "rd-served-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Found in the project, the port clue stands. Found once elsewhere, the page is that file."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-2c": {
+      "id": "rd-served-2c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Found nowhere, or twice at the same length, nothing changes."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-3": {
+      "id": "rd-served-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A server can also run inside a folder that sessions publish into. "
+        },
+        {
+          "insert": "served::content_root",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " then finds the publishing folder inside the server's project."
+        }
+      ],
+      "children": [
+        "rd-served-3a",
+        "rd-served-3b",
+        "rd-served-3c"
+      ]
+    },
+    "rd-served-3a": {
+      "id": "rd-served-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The publishing folder is a "
+        },
+        {
+          "insert": "routing.servers",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " folder or a folder named "
+        },
+        {
+          "insert": "artifacts",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " above the server's folder. Else it is the folder above the nearest one that holds an "
+        },
+        {
+          "insert": ".opencode-session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " file."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-3b": {
+      "id": "rd-served-3b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "If no open session works in the server's folder itself, the port clue is worth "
+        },
+        {
+          "insert": "served::SERVER_IN_CONTENT",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (0)."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-3c": {
+      "id": "rd-served-3c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "served::changes",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " takes up to 5 of the folder's newest entries, changed within 2 hours of the newest, with "
+        },
+        {
+          "insert": "node_modules",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and hidden entries left out. The session that wrote the most of them gets 95, each on a tie, and one that wrote fewer gets 60."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-pub": {
+      "id": "rd-served-pub",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "For a page from elsewhere the port clue is worth "
+        },
+        {
+          "insert": "served::SERVER_ONLY",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (15), so the server's session is at most a runner-up. The file gives three kinds of clue."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-p1": {
+      "id": "rd-served-p1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Publisher, named (100)",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "rd-served-p1a",
+        "rd-served-p1b"
+      ]
+    },
+    "rd-served-p1a": {
+      "id": "rd-served-p1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "An HTML page names its session with "
+        },
+        {
+          "insert": "<meta name=\"opencode-session\" content=\"ses_…\">",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Otherwise an "
+        },
+        {
+          "insert": ".opencode-session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " file that holds the session ID, in the page's folder or one above it below the served folder, names it."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-p1b": {
+      "id": "rd-served-p1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A subagent's session is followed to its root through the API. An agent that publishes can write the marker from "
+        },
+        {
+          "insert": "$OPENCODE_SESSION_ID",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-p2": {
+      "id": "rd-served-p2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Publisher, from history (95 or 60)",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "rd-served-p2a",
+        "rd-served-p2b",
+        "rd-served-p2c",
+        "rd-served-p2d"
+      ]
+    },
+    "rd-served-p2a": {
+      "id": "rd-served-p2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "served::opencode_writes",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads the local OpenCode server's database read-only, with "
+        },
+        {
+          "insert": "/usr/bin/sqlite3 -readonly",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and a 3 s limit. It finds the database through the pid that "
+        },
+        {
+          "insert": "/api/info",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reports and "
+        },
+        {
+          "insert": "lsof",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-p2b": {
+      "id": "rd-served-p2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It looks for tool calls whose input names the page's folder below the served folder, in messages from 30 minutes before the first change to 1 minute after the last."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-p2c": {
+      "id": "rd-served-p2c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A root session whose call was running when the file last changed gets 95. One whose calls only named the folder gets 60."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-p2d": {
+      "id": "rd-served-p2d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The query depends on the "
+        },
+        {
+          "insert": "session_message",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "session_v2",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " tables, because the OpenCode API has no search across sessions. Any failure gives no clue, and "
+        },
+        {
+          "insert": "agentHost",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " turns this read off."
+        }
+      ],
+      "children": []
+    },
+    "rd-served-p3": {
+      "id": "rd-served-p3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Document (40)",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " gives the words of the file's path below the served folder."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-checkout": {
+      "id": "rd-h-checkout",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "The Captured App's Checkout"
+        }
+      ],
+      "children": []
+    },
+    "rd-checkout-lead": {
+      "id": "rd-checkout-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "When the captured app is software built from a checkout on this Mac, that checkout is an "
+        },
+        {
+          "insert": "app",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " clue worth 70, like a terminal's folder. "
+        },
+        {
+          "insert": "look::app_checkout",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " finds it."
+        }
+      ],
+      "children": []
+    },
+    "rd-checkout-1": {
+      "id": "rd-checkout-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "\"routing\": {\"apps\": {\"<bundle ID or prefix>\": \"<folder>\"}}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " names the checkout for an app whose folder has another name. The longest matching prefix wins."
+        }
+      ],
+      "children": []
+    },
+    "rd-checkout-2": {
+      "id": "rd-checkout-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Otherwise it is the one open session repository, or folder outside a repository, named like the app. The match uses the app's name run together, one of its words or a bundle ID part, with generic words dropped."
+        }
+      ],
+      "children": [
+        "rd-checkout-2a",
+        "rd-checkout-2b"
+      ]
+    },
+    "rd-checkout-2a": {
+      "id": "rd-checkout-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "OpenCode Beta ("
+        },
+        {
+          "insert": "ai.opencode.desktop.beta",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") matches a "
+        },
+        {
+          "insert": "…/opencode",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " checkout, and Hex matches "
+        },
+        {
+          "insert": "…/hex",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rd-checkout-2b": {
+      "id": "rd-checkout-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Two checkouts named alike give nothing. Browsers, terminals, editors and system apps give nothing, except OpenCode."
+        }
+      ],
+      "children": []
+    },
+    "rd-checkout-3": {
+      "id": "rd-checkout-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "There are no built-in paths. The defaults for OpenCode and Scrawl come from checkouts named "
+        },
+        {
+          "insert": "opencode",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", so they work on any Mac where a session is open in them."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-opencode": {
+      "id": "rd-h-opencode",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "OpenCode Desktop, Session or App"
+        }
+      ],
+      "children": []
+    },
+    "rd-opencode-lead": {
+      "id": "rd-opencode-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Most captures of OpenCode Desktop are about OpenCode itself, such as the composer, a picker or the sidebar, not about the session it shows. "
+        },
+        {
+          "insert": "look::about",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads what was said, the Accessibility roles of what was clicked, and what marks were drawn on. The table gives the points for the app's checkout and the viewed session."
+        }
+      ],
+      "children": []
+    },
+    "rd-opencode": {
+      "id": "rd-opencode",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "About",
+          "When",
+          "Checkout",
+          "Viewed Session"
+        ],
+        "rows": [
+          [
+            "Interface",
+            "Two or more interface words or clicks on controls, and no talk about the session's work",
+            "70",
+            "15"
+          ],
+          [
+            "Session",
+            "Phrases about the agent's work, such as \"you said\" or \"this diff\", at least as many as interface words",
+            "30",
+            "60"
+          ],
+          [
+            "Unclear",
+            "Anything else",
+            "60",
+            "30"
+          ]
+        ],
+        "title": "What an OpenCode Desktop capture is about"
+      },
+      "children": []
+    },
+    "rd-opencode-after": {
+      "id": "rd-opencode-after",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "When the topic is unclear, the viewed session never beats the app's own repository, and neither one sends by itself."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-scoring": {
+      "id": "rd-h-scoring",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Scoring"
+        }
+      ],
+      "children": []
+    },
+    "rd-scoring-lead": {
+      "id": "rd-scoring-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A candidate's clue score is the sum, over sources, of the best points that any one clue of that source gives it. Recency is added to that score when it is above zero."
+        }
+      ],
+      "children": []
+    },
+    "rd-scoring-1": {
+      "id": "rd-scoring-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Folder clues",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "rd-scoring-1a",
+        "rd-scoring-1b",
+        "rd-scoring-1c"
+      ]
+    },
+    "rd-scoring-1a": {
+      "id": "rd-scoring-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A folder clue gives full points to the sessions closest to its folder, on the line from the project root to the folder or inside it."
+        }
+      ],
+      "children": []
+    },
+    "rd-scoring-1b": {
+      "id": "rd-scoring-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A session further along that line loses 15 points for each extra folder, down to half points."
+        }
+      ],
+      "children": []
+    },
+    "rd-scoring-1c": {
+      "id": "rd-scoring-1c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A session elsewhere in the project, or in another checkout of the same repository, gets half points. "
+        },
+        {
+          "insert": "look::repo_of",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " follows a worktree's "
+        },
+        {
+          "insert": "commondir",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to find the repository."
+        }
+      ],
+      "children": []
+    },
+    "rd-scoring-2": {
+      "id": "rd-scoring-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Word clues",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "rd-scoring-2a",
+        "rd-scoring-2b",
+        "rd-scoring-2c",
+        "rd-scoring-2d"
+      ]
+    },
+    "rd-scoring-2a": {
+      "id": "rd-scoring-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A word clue's points are divided by the number of candidates that the word names."
+        }
+      ],
+      "children": []
+    },
+    "rd-scoring-2b": {
+      "id": "rd-scoring-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A word names a session through its whole title or its folder's or repository's whole name. It also names a session through a word of a longer title or a piece of its folder's name."
+        }
+      ],
+      "children": []
+    },
+    "rd-scoring-2c": {
+      "id": "rd-scoring-2c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Ordinary words in "
+        },
+        {
+          "insert": "smart::COMMON",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", such as "
+        },
+        {
+          "insert": "loading",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "search",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "button",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", count only as a whole name."
+        }
+      ],
+      "children": []
+    },
+    "rd-scoring-2d": {
+      "id": "rd-scoring-2d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A piece of a worktree's name counts half. OpenCode's made-up worktree names, such as "
+        },
+        {
+          "insert": "…/worktree/<hash>/lucky-rocket",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", name nothing."
+        }
+      ],
+      "children": []
+    },
+    "rd-scoring-3": {
+      "id": "rd-scoring-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Recency gives 20 points within 10 minutes of the capture's end, 12 within an hour, and 5 within a day. It counts the session's update or view times up to a minute after the end."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-deciding": {
+      "id": "rd-h-deciding",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Deciding"
+        }
+      ],
+      "children": []
+    },
+    "rd-deciding-lead": {
+      "id": "rd-deciding-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Candidates rank by their clue score, and recency only breaks ties. An address skips the ranking: "
+        },
+        {
+          "insert": "decide",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " sends to it at once. Without an address, "
+        },
+        {
+          "insert": "decide",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " returns one of three decisions."
+        }
+      ],
+      "children": []
+    },
+    "rd-deciding-1": {
+      "id": "rd-deciding-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Send",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " when the best candidate has at least "
+        },
+        {
+          "insert": "SEND_AT",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (95) from clues alone and leads every other by "
+        },
+        {
+          "insert": "LEAD",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (15), recency included. Recency can separate two sessions that a port names equally, but it never lifts a session to "
+        },
+        {
+          "insert": "SEND_AT",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rd-deciding-2": {
+      "id": "rd-deciding-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Offer",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " when the best scores at least "
+        },
+        {
+          "insert": "OFFER_AT",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (40) but cannot send."
+        }
+      ],
+      "children": []
+    },
+    "rd-deciding-3": {
+      "id": "rd-deciding-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Keep",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " below that, with the reason."
+        }
+      ],
+      "children": []
+    },
+    "rd-deciding-alt": {
+      "id": "rd-deciding-alt",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A send and an offer both carry at most two runners-up ("
+        },
+        {
+          "insert": "smart::alternatives",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). A runner-up is within "
+        },
+        {
+          "insert": "LEAD",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of the best with at least "
+        },
+        {
+          "insert": "OFFER_AT",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or rests on a different source than the best with at least "
+        },
+        {
+          "insert": "ALT_AT",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (15) from clues, one per source. It is the session that a misread clue would have meant, such as the viewed session when the app's checkout leads."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-undo": {
+      "id": "rd-h-undo",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Runners-Up and the Undo Window"
+        }
+      ],
+      "children": []
+    },
+    "rd-undo-lead": {
+      "id": "rd-undo-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The Completed island shows a decision as chips beside "
+        },
+        {
+          "insert": "Paste",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": ", at most two of them. Session names show in capitals, such as DESKTOP."
+        }
+      ],
+      "children": []
+    },
+    "rd-undo-1": {
+      "id": "rd-undo-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A send",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "rd-undo-1a",
+        "rd-undo-1b",
+        "rd-undo-1c",
+        "rd-undo-4"
+      ]
+    },
+    "rd-undo-1a": {
+      "id": "rd-undo-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The island shows "
+        },
+        {
+          "insert": "Sending to DESKTOP…",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for "
+        },
+        {
+          "insert": "SMART_SEND_UNDO",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (3 s)."
+        }
+      ],
+      "children": []
+    },
+    "rd-undo-1b": {
+      "id": "rd-undo-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The first runner-up shows as a "
+        },
+        {
+          "insert": "Send to OPENCODE IOS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " chip."
+        }
+      ],
+      "children": []
+    },
+    "rd-undo-1c": {
+      "id": "rd-undo-1c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "✕ or Paste cancels the send, and the chip sends there instead, at once."
+        }
+      ],
+      "children": []
+    },
+    "rd-undo-4": {
+      "id": "rd-undo-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "After the undo window, the destination is written to "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and sent through "
+        },
+        {
+          "insert": "delivery::deliver",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", with its retries."
+        }
+      ],
+      "children": []
+    },
+    "rd-undo-2": {
+      "id": "rd-undo-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "An offer",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "rd-undo-2a",
+        "rd-undo-2b",
+        "rd-undo-2c"
+      ]
+    },
+    "rd-undo-2a": {
+      "id": "rd-undo-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The island keeps "
+        },
+        {
+          "insert": "Copied",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and adds "
+        },
+        {
+          "insert": "Send to DESKTOP",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and the runner-up's name, such as "
+        },
+        {
+          "insert": "OPENCODE IOS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rd-undo-2b": {
+      "id": "rd-undo-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Paste stays the default, and nothing is sent until a chip is clicked."
+        }
+      ],
+      "children": []
+    },
+    "rd-undo-2c": {
+      "id": "rd-undo-2c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The review window's status names the suggestions too."
+        }
+      ],
+      "children": []
+    },
+    "rd-undo-3": {
+      "id": "rd-undo-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A chip click",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "rd-undo-3a",
+        "rd-undo-3b"
+      ]
+    },
+    "rd-undo-3a": {
+      "id": "rd-undo-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The capture goes to that session at once."
+        }
+      ],
+      "children": []
+    },
+    "rd-undo-3b": {
+      "id": "rd-undo-3b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The click is the user's choice, recorded as "
+        },
+        {
+          "insert": "via: \"chosen\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rd-pill": {
+      "id": "rd-pill",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The Metal capsule in "
+        },
+        {
+          "insert": "src/native/pill",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " draws the chips as "
+        },
+        {
+          "insert": "ElemId::Route0",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "ElemId::Route1",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and reports a click as "
+        },
+        {
+          "insert": "PillAction::Route(i)",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "Capsule Motion",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/85-capsule-motion"
+            }
+          }
+        },
+        {
+          "insert": " owns how the chips draw and move."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-laws": {
+      "id": "rd-h-laws",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Laws and Fixtures"
+        }
+      ],
+      "children": []
+    },
+    "rd-laws-lead": {
+      "id": "rd-laws-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The tests in "
+        },
+        {
+          "insert": "smart.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "look.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " check each of these laws. Tests swap the outside steps through "
+        },
+        {
+          "insert": "look::Senses",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which holds "
+        },
+        {
+          "insert": "routing::Hooks",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and never post to a session."
+        }
+      ],
+      "children": []
+    },
+    "rd-laws-1": {
+      "id": "rd-laws-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "An address always wins, and a choice beats a recorded destination."
+        }
+      ],
+      "children": []
+    },
+    "rd-laws-2": {
+      "id": "rd-laws-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "decide",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is pure. The same evidence gives the same decision, in any order and with clues repeated."
+        }
+      ],
+      "children": []
+    },
+    "rd-laws-3": {
+      "id": "rd-laws-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Recency never puts a session forward on its own, and adding support for the leader never demotes it."
+        }
+      ],
+      "children": []
+    },
+    "rd-laws-4": {
+      "id": "rd-laws-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "One medium clue, such as the viewed session, a terminal folder, or the app's checkout or name, cannot send without a second clue that agrees."
+        }
+      ],
+      "children": []
+    },
+    "rd-laws-5": {
+      "id": "rd-laws-5",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Real captures replay as fixtures in "
+        },
+        {
+          "insert": "src/routing/fixtures/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", with sessions trimmed. They cover an OpenCode interface capture, a dev site, two Device Hub captures, three gallery pages and a server inside a publishing folder."
+        }
+      ],
+      "children": [
+        "rd-laws-5a"
+      ]
+    },
+    "rd-laws-5a": {
+      "id": "rd-laws-5a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The gallery fixtures ("
+        },
+        {
+          "insert": "artifact-*.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") hold the file's path and time and the tool-call history."
+        }
+      ],
+      "children": [
+        "rd-laws-5b",
+        "rd-laws-5c"
+      ]
+    },
+    "rd-laws-5b": {
+      "id": "rd-laws-5b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "With the history, each page goes to the session that wrote it."
+        }
+      ],
+      "children": []
+    },
+    "rd-laws-5c": {
+      "id": "rd-laws-5c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Without the history, the decision drops to an offer or a keep."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-recorded": {
+      "id": "rd-h-recorded",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "The Recorded Destination"
+        }
+      ],
+      "children": []
+    },
+    "rd-recorded-lead": {
+      "id": "rd-recorded-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A recorded destination is an address, so routing obeys it. "
+        },
+        {
+          "insert": "handoff::recorded_destination",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/handoff.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/handoff.rs"
+            }
+          }
+        },
+        {
+          "insert": " reads it from a bundle in this order."
+        }
+      ],
+      "children": []
+    },
+    "rd-recorded-1": {
+      "id": "rd-recorded-1",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "The top-level "
+        },
+        {
+          "insert": "session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of the bundle's ScrawlKit "
+        },
+        {
+          "insert": "timeline.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rd-recorded-2": {
+      "id": "rd-recorded-2",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "destination.session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which an earlier routing wrote."
+        }
+      ],
+      "children": []
+    },
+    "rd-recorded-mid": {
+      "id": "rd-recorded-mid",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A routed capture keeps its destination in "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and on the second line of "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", such as "
+        },
+        {
+          "insert": "For session: SCRAWL (ses_…) · page http://localhost:5173/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "routing::record_destination",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " writes both."
+        }
+      ],
+      "children": []
+    },
+    "rd-dest-shape": {
+      "id": "rd-dest-shape",
+      "type": "state-shape",
+      "props": {
+        "example": "{\"session\":\"ses_example01\",\"title\":\"SCRAWL\",\"via\":\"localhost\",\"url\":\"http://localhost:5173/\",\"directory\":\"/Users/you/code/scrawl\"}",
+        "fields": [
+          {
+            "name": "session",
+            "type": "String",
+            "description": "OpenCode session ID, starting with `ses`."
+          },
+          {
+            "name": "title",
+            "type": "String",
+            "description": "The session's label when it was chosen. `summary.md` shows the session ID when it is empty."
+          },
+          {
+            "name": "via",
+            "type": "String",
+            "description": "How the session was found: `sdk` or `localhost` from the ladder, or a smart source such as `terminal`, `chosen`, `recorded` or `weighed`."
+          },
+          {
+            "name": "url",
+            "type": "Option<CleanUrl>",
+            "required": false,
+            "description": "The captured tab without its query, fragment and login. Omitted when there was no tab."
+          },
+          {
+            "name": "directory",
+            "type": "Option<String>",
+            "required": false,
+            "description": "The project folder the session was chosen by. Omitted when no folder clue chose it."
+          }
+        ],
+        "name": "Destination",
+        "source": {
+          "path": "src/model.rs",
+          "symbol": "Destination"
+        }
+      },
+      "children": []
+    },
+    "rd-recorded-r1": {
+      "id": "rd-recorded-r1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "context.session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and OpenCode Desktop's viewed session only say what was on screen. They are clues and never choose a destination."
+        }
+      ],
+      "children": []
+    },
+    "rd-recorded-r2": {
+      "id": "rd-recorded-r2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "scrawl send",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " without "
+        },
+        {
+          "insert": "--session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " sends to the recorded destination. Without one, "
+        },
+        {
+          "insert": "handoff::resolve_opencode_session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " picks a root session whose title matches the app, else "
+        },
+        {
+          "insert": "$OPENCODE_SESSION_ID",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", else the newest root session."
+        }
+      ],
+      "children": []
+    },
+    "rd-recorded-r3": {
+      "id": "rd-recorded-r3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "scrawl send --session <id>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " refuses an ID that differs from the recorded destination, and the error names the recorded session. Pass "
+        },
+        {
+          "insert": "--reroute",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to send it to the new ID."
+        }
+      ],
+      "children": []
+    },
+    "rd-recorded-r4": {
+      "id": "rd-recorded-r4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Safety and Recovery",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/30-safety-and-recovery"
+            }
+          }
+        },
+        {
+          "insert": " gives the steps to recover a failed delivery without sending it to the wrong session."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-deliver": {
+      "id": "rd-h-deliver",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Delivery and Retries"
+        }
+      ],
+      "children": []
+    },
+    "rd-deliver-lead": {
+      "id": "rd-deliver-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "delivery::deliver",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/delivery.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/delivery.rs"
+            }
+          }
+        },
+        {
+          "insert": " queues a bundle into its session with "
+        },
+        {
+          "insert": "handoff::send_bundle_to_session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". That call posts the summary to "
+        },
+        {
+          "insert": "/api/session/{id}/prompt",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", with "
+        },
+        {
+          "insert": "contact-sheet.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " attached and a "
+        },
+        {
+          "insert": "scrawl zoom",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " hint."
+        }
+      ],
+      "children": []
+    },
+    "rd-deliver-1": {
+      "id": "rd-deliver-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "With "
+        },
+        {
+          "insert": "agentHost",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " set, the bundle is copied to the agent host first, at the same path."
+        }
+      ],
+      "children": []
+    },
+    "rd-deliver-2": {
+      "id": "rd-deliver-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "If the send fails, "
+        },
+        {
+          "insert": "deliver",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " writes "
+        },
+        {
+          "insert": ".deliver.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " into the bundle and reports the capture as queued. The island says \"Copied · couldn't reach SCRAWL\"."
+        }
+      ],
+      "children": []
+    },
+    "rd-deliver-3": {
+      "id": "rd-deliver-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The process that owns the ingest port checks every 15 s and retries each pending bundle that is due. The wait starts at 15 s and doubles up to 30 min ("
+        },
+        {
+          "insert": "delivery::backoff_ms",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "rd-deliver-4": {
+      "id": "rd-deliver-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "After a day of failed tries, the marker is renamed "
+        },
+        {
+          "insert": ".deliver-failed.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Each try is logged to "
+        },
+        {
+          "insert": "scrawl.log",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rd-deliver-5": {
+      "id": "rd-deliver-5",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Retention leaves a bundle with a pending delivery alone."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-paste": {
+      "id": "rd-h-paste",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Paste Chip and Paste Shortcut"
+        }
+      ],
+      "children": []
+    },
+    "rd-paste-lead": {
+      "id": "rd-paste-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Paste hands a capture to the app in front as two pastes: the contact sheet, then the "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " text. Both post ⌘V, so both need Accessibility."
+        }
+      ],
+      "children": []
+    },
+    "rd-paste-1": {
+      "id": "rd-paste-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The paste shortcut",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "rd-paste-1a",
+        "rd-paste-1b",
+        "rd-paste-1c"
+      ]
+    },
+    "rd-paste-1a": {
+      "id": "rd-paste-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The shortcut is "
+        },
+        {
+          "insert": "⌥⇧V",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in Annotator and "
+        },
+        {
+          "insert": "⌃⌥V",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in Annotator Dev."
+        }
+      ],
+      "children": []
+    },
+    "rd-paste-1b": {
+      "id": "rd-paste-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It pastes the bundle on the Completed island when one is there."
+        }
+      ],
+      "children": []
+    },
+    "rd-paste-1c": {
+      "id": "rd-paste-1c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Otherwise it pastes the newest unhandled iPhone capture, unless this Mac captured something since, else the latest bundle."
+        }
+      ],
+      "children": []
+    },
+    "rd-paste-2": {
+      "id": "rd-paste-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The Paste chip",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "rd-paste-2a",
+        "rd-paste-2b"
+      ]
+    },
+    "rd-paste-2a": {
+      "id": "rd-paste-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Click "
+        },
+        {
+          "insert": "Paste",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " on the Completed island to paste that bundle."
+        }
+      ],
+      "children": []
+    },
+    "rd-paste-2b": {
+      "id": "rd-paste-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Drag the chip onto a window or a field to click there first, which focuses it ("
+        },
+        {
+          "insert": "handoff::paste_bundle_at_target",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "rd-paste-3": {
+      "id": "rd-paste-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Both ways",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "rd-paste-3a",
+        "rd-paste-4",
+        "rd-paste-5"
+      ]
+    },
+    "rd-paste-3a": {
+      "id": "rd-paste-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "In a terminal the first paste is the contact sheet's path, which the terminal attaches as an image. In a GUI app the first paste is the PNG."
+        }
+      ],
+      "children": []
+    },
+    "rd-paste-4": {
+      "id": "rd-paste-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Paste, "
+        },
+        {
+          "insert": "⌥⇧V",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and ✕ each cancel a pending automatic send, during the undo window or while the route is still worked out."
+        }
+      ],
+      "children": []
+    },
+    "rd-paste-5": {
+      "id": "rd-paste-5",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Without Accessibility, Annotator opens the permissions window at the Accessibility row instead of pasting. "
+        },
+        {
+          "insert": "Onboarding and Settings",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/70-onboarding-and-settings"
+            }
+          }
+        },
+        {
+          "insert": " covers the grant and how to change or turn off the paste shortcut."
+        }
+      ],
+      "children": []
+    },
+    "rd-h-inspect": {
+      "id": "rd-h-inspect",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Inspect a Route"
+        }
+      ],
+      "children": []
+    },
+    "rd-inspect-lead": {
+      "id": "rd-inspect-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl route",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints where a capture goes and sends nothing. The rows follow the order of the command's flags. "
+        },
+        {
+          "insert": "Command-Line Tool",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/20-command-line"
+            }
+          }
+        },
+        {
+          "insert": " lists the other commands."
+        }
+      ],
+      "children": []
+    },
+    "rd-inspect": {
+      "id": "rd-inspect",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Command",
+          "Prints"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "scrawl route --url <url>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The ladder's destination as JSON, or clipboard only with the reason"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl route --browser <bundle-id>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The same for the front tab of that browser"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl route --explain <bundle|latest>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Smart routing's evidence, the weighed sessions, the decision, the runners-up and the ladder's result"
+          ]
+        ],
+        "title": "scrawl route forms"
+      },
+      "children": []
+    },
+    "rd-inspect-1": {
+      "id": "rd-inspect-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--explain",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " replays "
+        },
+        {
+          "insert": "routing.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " when the bundle has one. It keeps the sessions and what was seen live, and reads the bundle's own clues again with the current rules."
+        }
+      ],
+      "children": []
+    },
+    "rd-inspect-2": {
+      "id": "rd-inspect-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Without "
+        },
+        {
+          "insert": "routing.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "--explain",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " gathers what it can now, so recency and the viewed session are approximate. "
+        },
+        {
+          "insert": "--url",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " stands in for the tab, and a served page's file and history are read as they are now."
+        }
+      ],
+      "children": []
+    }
+  }
+}

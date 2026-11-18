@@ -1,0 +1,73 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-7291be39ca779ec039d20c9e6d421e66",
+  "title": "Foundation",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "f-open",
+        "f-l1",
+        "f-l2"
+      ]
+    },
+    "f-open": {
+      "id": "f-open",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator records what a person sees, says, points at and draws on screen, and turns it into a bundle that a coding agent can act on. Foundation states why the app exists, the principles that every change keeps, and how this fork relates to upstream Scrawl. Read it before System Design, which says how each part behaves."
+        }
+      ],
+      "children": []
+    },
+    "f-l1": {
+      "id": "f-l1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Product Intent",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "00-foundation/10-product-intent"
+            }
+          }
+        },
+        {
+          "insert": ": the feedback loop, the three capture entry points, and the five principles."
+        }
+      ],
+      "children": []
+    },
+    "f-l2": {
+      "id": "f-l2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Annotator and Scrawl",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "00-foundation/20-annotator-and-scrawl"
+            }
+          }
+        },
+        {
+          "insert": ": the fork, the names kept from Scrawl, and the live app beside Annotator Dev.app."
+        }
+      ],
+      "children": []
+    }
+  }
+}

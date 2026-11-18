@@ -1,0 +1,3911 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-cda77f9520698712feef608ed2629566",
+  "title": "Transcription",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "intro",
+        "h-engines",
+        "engines-lead",
+        "engines-table",
+        "eng-default",
+        "eng-win",
+        "eng-none",
+        "h-choose",
+        "choose-lead",
+        "choose-1",
+        "choose-2",
+        "choose-3",
+        "choose-4",
+        "h-path",
+        "path-lead",
+        "path-outline",
+        "h-data",
+        "data-lead",
+        "data-shape",
+        "h-deepgram",
+        "dg-lead",
+        "dg-key",
+        "dg-req",
+        "dg-map",
+        "dg-fail-lead",
+        "dg-fail",
+        "dg-after-1",
+        "dg-after-2",
+        "dg-after-3",
+        "h-apple",
+        "ap-lead",
+        "ap-1",
+        "ap-2",
+        "ap-3",
+        "ap-lang",
+        "h-model",
+        "md-lead",
+        "md-1",
+        "md-2",
+        "md-3",
+        "md-4",
+        "md-5",
+        "md-st-lead",
+        "md-states",
+        "h-mac15",
+        "mac15-lead",
+        "m15-perm",
+        "m15-check",
+        "h-missing",
+        "ms-lead",
+        "ms-table",
+        "ms-1",
+        "ms-2",
+        "ms-3",
+        "h-hex",
+        "hx-lead",
+        "hx-conn",
+        "hx-cfg",
+        "hx-run",
+        "hx-fail",
+        "hx-status",
+        "h-cmd",
+        "cmd-lead",
+        "cmd-1",
+        "cmd-2",
+        "cmd-3",
+        "h-cmd-cfg",
+        "cmdcfg-lead",
+        "cmdcfg-code",
+        "cmdcfg-1",
+        "cmdcfg-2",
+        "cmdcfg-3",
+        "cmdcfg-4",
+        "cmdcfg-5",
+        "h-cmd-run",
+        "cmdrun-lead",
+        "cmdrun-1",
+        "cmdrun-2",
+        "cmdrun-3",
+        "h-cmd-out",
+        "cmdout-lead",
+        "cmdout-shape",
+        "cmdout-1",
+        "cmdout-2",
+        "cmdout-3",
+        "cmdout-fail",
+        "h-live",
+        "lv-lead",
+        "lv-code",
+        "lv-1",
+        "lv-2",
+        "lv-3",
+        "lv-5",
+        "lv-other",
+        "h-files",
+        "rf-1",
+        "rf-2",
+        "rf-3",
+        "rf-4",
+        "rf-5"
+      ]
+    },
+    "intro": {
+      "id": "intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator turns a recording's narration in "
+        },
+        {
+          "insert": "audio.wav",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " into a transcript with a start and end time for each word, and stores it in "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". One of four engines makes it, and Apple Speech takes over a recording when another engine fails. The word times give each keyframe its words and let spoken cues cut keyframes, as "
+        },
+        {
+          "insert": "Keyframes and Images",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/30-keyframes-and-images"
+            }
+          }
+        },
+        {
+          "insert": " describes."
+        }
+      ],
+      "children": []
+    },
+    "h-engines": {
+      "id": "h-engines",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Engines"
+        }
+      ],
+      "children": []
+    },
+    "engines-lead": {
+      "id": "engines-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The table lists the four engines in the order Settings shows them. The "
+        },
+        {
+          "insert": "transcriber",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " column is the config value, and "
+        },
+        {
+          "insert": "source",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is what the transcript records."
+        }
+      ],
+      "children": []
+    },
+    "engines-table": {
+      "id": "engines-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Engine",
+          "transcriber",
+          "Runs where",
+          "Word times",
+          "source",
+          "Language from"
+        ],
+        "rows": [
+          [
+            "Deepgram nova-3",
+            [
+              {
+                "insert": "\"deepgram\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Deepgram's API, over HTTPS",
+            "Measured",
+            [
+              {
+                "insert": "deepgram:nova-3",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "hexLanguage",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Apple Speech",
+            [
+              {
+                "insert": "\"apple\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "On the Mac, in scrawl-helper",
+            "Measured",
+            [
+              {
+                "insert": "speech-analyzer",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "sf-speech-recognizer",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "appleLocale",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Hex",
+            [
+              {
+                "insert": "\"hex\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The local Hex app",
+            "Estimated",
+            [
+              {
+                "insert": "hex:<model>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "hexLanguage",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Command",
+            [
+              {
+                "insert": "\"command\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Your own program, macOS only",
+            "Measured or estimated",
+            [
+              {
+                "insert": "command:<name>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The program's own arguments"
+          ]
+        ],
+        "title": "Transcription engines"
+      },
+      "children": []
+    },
+    "eng-default": {
+      "id": "eng-default",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Deepgram is the default on macOS. Every other system defaults to its on-device engine ("
+        },
+        {
+          "insert": "transcribe::Engine",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/transcribe.rs",
+              "symbol": "Engine"
+            }
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "eng-win": {
+      "id": "eng-win",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "On Windows, "
+        },
+        {
+          "insert": "\"apple\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " means Parakeet through "
+        },
+        {
+          "insert": "transcribe.cpp",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and menus call it \"Parakeet (on this PC)\". "
+        },
+        {
+          "insert": "Windows",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/90-windows"
+            }
+          }
+        },
+        {
+          "insert": " holds that engine."
+        }
+      ],
+      "children": []
+    },
+    "eng-none": {
+      "id": "eng-none",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A recording with no audio samples gets a transcript with "
+        },
+        {
+          "insert": "source",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " "
+        },
+        {
+          "insert": "none",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and no engine is asked."
+        }
+      ],
+      "children": []
+    },
+    "h-choose": {
+      "id": "h-choose",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Choose an Engine"
+        }
+      ],
+      "children": []
+    },
+    "choose-lead": {
+      "id": "choose-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each recording asks "
+        },
+        {
+          "insert": "Engine::preferred",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/transcribe.rs",
+              "symbol": "Engine::preferred"
+            }
+          }
+        },
+        {
+          "insert": " which engine to use. A command-line override wins over the config file."
+        }
+      ],
+      "children": []
+    },
+    "choose-1": {
+      "id": "choose-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Settings › Recording › "
+        },
+        {
+          "insert": "Engine",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " offers Deepgram nova-3, Apple Speech, Hex, and Command. Command shows with its program name, and only while "
+        },
+        {
+          "insert": "transcribeCommand",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is usable."
+        }
+      ],
+      "children": []
+    },
+    "choose-2": {
+      "id": "choose-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The config key is "
+        },
+        {
+          "insert": "transcriber",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "~/.config/scrawl/config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". A missing or unknown value means the default engine."
+        }
+      ],
+      "children": []
+    },
+    "choose-3": {
+      "id": "choose-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "--transcriber deepgram|hex|apple|command",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " on "
+        },
+        {
+          "insert": "scrawl reprocess",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "scrawl import",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " pins the engine for that run ("
+        },
+        {
+          "insert": "transcribe::set_override",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "choose-4": {
+      "id": "choose-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A saved Hex choice stays saved while Hex is away. The Hex entry then reads \"Hex (not running)\" or \"Hex (no model ready)\" and is disabled."
+        }
+      ],
+      "children": []
+    },
+    "h-path": {
+      "id": "h-path",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "How a Recording Is Transcribed"
+        }
+      ],
+      "children": []
+    },
+    "path-lead": {
+      "id": "path-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "transcribe::transcribe",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/transcribe.rs",
+              "symbol": "transcribe"
+            }
+          }
+        },
+        {
+          "insert": " never stops a bundle from being saved. Each engine other than Apple Speech falls back to Apple Speech for that one recording."
+        }
+      ],
+      "children": []
+    },
+    "path-outline": {
+      "id": "path-outline",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Transcribe One Recording",
+            "steps": [
+              {
+                "text": "Check the Audio",
+                "steps": [
+                  {
+                    "text": "If the recording has no WAV or no samples",
+                    "steps": [
+                      {
+                        "text": "Return a transcript with `source` `none`"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "Ask Another Engine",
+                "steps": [
+                  {
+                    "text": "When the preferred engine is Deepgram, Hex, or Command",
+                    "steps": [
+                      {
+                        "text": "Ask the preferred engine",
+                        "trace": true
+                      },
+                      {
+                        "text": "If the engine returns a transcript",
+                        "steps": [
+                          {
+                            "text": "Clear the saved Deepgram fallback reason"
+                          },
+                          {
+                            "text": "Return the engine's transcript"
+                          }
+                        ]
+                      },
+                      {
+                        "text": "If the engine is not available",
+                        "steps": [
+                          {
+                            "text": "Hex is not connected, Hex has no ready model, or `transcribeCommand` is unusable.",
+                            "kind": "note"
+                          },
+                          {
+                            "text": "Log the reason once per app run"
+                          },
+                          {
+                            "text": "Go to Transcribe With Apple Speech"
+                          }
+                        ]
+                      },
+                      {
+                        "text": "If the engine fails",
+                        "steps": [
+                          {
+                            "text": "Log `<engine> transcription failed, using Apple Speech: <reason>`",
+                            "trace": true
+                          },
+                          {
+                            "text": "Save the reason for Settings when the engine is Deepgram"
+                          },
+                          {
+                            "text": "Go to Transcribe With Apple Speech"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "Transcribe With Apple Speech",
+                "steps": [
+                  {
+                    "text": "If the `liveTranscribe` stream ran",
+                    "steps": [
+                      {
+                        "text": "Finish the live stream"
+                      },
+                      {
+                        "text": "If the stream fails",
+                        "steps": [
+                          {
+                            "text": "Log `Live transcription failed, transcribing the recording: <error>`"
+                          },
+                          {
+                            "text": "Run `scrawl-helper transcribe` on `audio.wav`"
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "text": "Otherwise run `scrawl-helper transcribe` on `audio.wav`",
+                    "trace": true
+                  },
+                  {
+                    "text": "If the helper reports no speech model",
+                    "steps": [
+                      {
+                        "text": "Store the `missing` reason"
+                      },
+                      {
+                        "text": "Start the speech model check when the reason can pass"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "Move Times to the Capture Clock",
+                "steps": [
+                  {
+                    "text": "Shift every word and segment time by `audio.offset_ms`"
+                  },
+                  {
+                    "text": "Engines time words from the first sample they get, which the microphone heard `offset_ms` into the capture.",
+                    "kind": "note"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "h-data": {
+      "id": "h-data",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "The Transcript in the Bundle"
+        }
+      ],
+      "children": []
+    },
+    "data-lead": {
+      "id": "data-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The transcript is the "
+        },
+        {
+          "insert": "transcript",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " field of "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Every time is in milliseconds on the capture clock. "
+        },
+        {
+          "insert": "Capture Bundle and Paste",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/20-capture-bundle"
+            }
+          }
+        },
+        {
+          "insert": " describes the rest of the file."
+        }
+      ],
+      "children": []
+    },
+    "data-shape": {
+      "id": "data-shape",
+      "type": "state-shape",
+      "props": {
+        "example": "{\"source\":\"deepgram:nova-3\",\"model\":\"nova-3\",\"text\":\"Click here.\",\"segments\":[{\"t0\":1300,\"t1\":1980,\"text\":\"Click here.\"}],\"words\":[{\"t0\":1300,\"t1\":1610,\"text\":\"Click\"},{\"t0\":1640,\"t1\":1980,\"text\":\"here.\"}]}",
+        "fields": [
+          {
+            "name": "source",
+            "type": "String",
+            "description": "The engine: `deepgram:nova-3`, `speech-analyzer`, `sf-speech-recognizer`, `hex:<model>` or `command:<name>`. `offline` means Apple Speech gave no transcript, and `none` means there was no audio."
+          },
+          {
+            "name": "model",
+            "type": "Option<String>",
+            "required": false,
+            "description": "`nova-3` for Deepgram, the engine and locale for Apple Speech (`SpeechTranscriber en_US`), the Hex model id, or the command's own `model`."
+          },
+          {
+            "name": "text",
+            "type": "String",
+            "description": "The whole transcript as one string. Empty when nobody spoke."
+          },
+          {
+            "name": "segments",
+            "type": "Vec<TranscriptSegment>",
+            "description": "Phrases in time order. Deepgram gives one per utterance.",
+            "fields": [
+              {
+                "name": "t0",
+                "type": "u64",
+                "description": "Start, in ms."
+              },
+              {
+                "name": "t1",
+                "type": "u64",
+                "description": "End, in ms."
+              },
+              {
+                "name": "text",
+                "type": "String",
+                "description": "The phrase as spoken."
+              }
+            ]
+          },
+          {
+            "name": "words",
+            "type": "Vec<WordTiming>",
+            "required": false,
+            "description": "One entry per word, with punctuation attached. Left out of the file when empty.",
+            "fields": [
+              {
+                "name": "t0",
+                "type": "u64",
+                "description": "Start, in ms."
+              },
+              {
+                "name": "t1",
+                "type": "u64",
+                "description": "End, in ms."
+              },
+              {
+                "name": "text",
+                "type": "String",
+                "description": "The word, as `punctuated_word` for Deepgram."
+              }
+            ]
+          },
+          {
+            "name": "estimated",
+            "type": "bool",
+            "required": false,
+            "description": "`true` when word times were spread over speech, not measured. Spoken cues never cut keyframes from such words. Left out when `false`."
+          },
+          {
+            "name": "missing",
+            "type": "Option<MissingTranscript>",
+            "required": false,
+            "description": "Why there is no transcript although there was audio. Set only by Apple Speech.",
+            "fields": [
+              {
+                "name": "reason",
+                "type": "String",
+                "description": "One plain sentence that `summary.md` prints after `No transcript:`."
+              },
+              {
+                "name": "retry",
+                "type": "bool",
+                "required": false,
+                "description": "`true` when Annotator transcribes the bundle again once the speech model is ready. Left out when `false`."
+              }
+            ]
+          }
+        ],
+        "name": "TranscriptData",
+        "source": {
+          "path": "src/model.rs",
+          "symbol": "TranscriptData"
+        }
+      },
+      "children": []
+    },
+    "h-deepgram": {
+      "id": "h-deepgram",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Deepgram "
+        },
+        {
+          "insert": "nova-3",
+          "attributes": {
+            "code": true
+          }
+        }
+      ],
+      "children": []
+    },
+    "dg-lead": {
+      "id": "dg-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/deepgram.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/deepgram.rs"
+            }
+          }
+        },
+        {
+          "insert": " sends the whole "
+        },
+        {
+          "insert": "audio.wav",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to Deepgram's pre-recorded API and reads back measured word times and punctuation."
+        }
+      ],
+      "children": []
+    },
+    "dg-key": {
+      "id": "dg-key",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The key",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "dg-key-1",
+        "dg-key-2"
+      ]
+    },
+    "dg-key-1": {
+      "id": "dg-key-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The key is "
+        },
+        {
+          "insert": "DEEPGRAM_API_KEY",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " from the environment, else from "
+        },
+        {
+          "insert": "~/.config/codecaine/env",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "KEY=value",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " lines, an "
+        },
+        {
+          "insert": "export ",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prefix and quotes allowed)."
+        }
+      ],
+      "children": []
+    },
+    "dg-key-2": {
+      "id": "dg-key-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The key reaches "
+        },
+        {
+          "insert": "/usr/bin/curl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " only on stdin through "
+        },
+        {
+          "insert": "--config -",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". It never goes in arguments, a log, or an error."
+        }
+      ],
+      "children": []
+    },
+    "dg-req": {
+      "id": "dg-req",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The request",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "dg-req-1",
+        "dg-req-2",
+        "dg-req-3"
+      ]
+    },
+    "dg-req-1": {
+      "id": "dg-req-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The query is "
+        },
+        {
+          "insert": "model=nova-3&smart_format=true&punctuate=true&utterances=true",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " plus "
+        },
+        {
+          "insert": "language=<hexLanguage>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "dg-req-2": {
+      "id": "dg-req-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "auto",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " sends "
+        },
+        {
+          "insert": "detect_language=true",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". A code that fails the language syntax check sends "
+        },
+        {
+          "insert": "language=en",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "dg-req-3": {
+      "id": "dg-req-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Settings › Recording shows "
+        },
+        {
+          "insert": "hexLanguage",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " as "
+        },
+        {
+          "insert": "Language",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " while Deepgram is the engine."
+        }
+      ],
+      "children": []
+    },
+    "dg-map": {
+      "id": "dg-map",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The answer",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "dg-map-1",
+        "dg-map-2",
+        "dg-map-3"
+      ]
+    },
+    "dg-map-1": {
+      "id": "dg-map-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "alternatives[0].transcript",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the text. Each "
+        },
+        {
+          "insert": "punctuated_word",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with its "
+        },
+        {
+          "insert": "start",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "end",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " seconds is one word in ms."
+        }
+      ],
+      "children": []
+    },
+    "dg-map-2": {
+      "id": "dg-map-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each utterance is a segment. Without utterances, the whole text is one segment."
+        }
+      ],
+      "children": []
+    },
+    "dg-map-3": {
+      "id": "dg-map-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "curl writes the HTTP code after the body, so the code is read apart from the body."
+        }
+      ],
+      "children": []
+    },
+    "dg-fail-lead": {
+      "id": "dg-fail-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each failure is a fixed reason ("
+        },
+        {
+          "insert": "deepgram::Failure",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/deepgram.rs",
+              "symbol": "Failure"
+            }
+          }
+        },
+        {
+          "insert": "), never Deepgram's reply. The table lists them in source order, and each one sends that recording to Apple Speech."
+        }
+      ],
+      "children": []
+    },
+    "dg-fail": {
+      "id": "dg-fail",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Failure",
+          "Reason text"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "NoKey",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "no DEEPGRAM_API_KEY",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "Timeout",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "no answer within 120 s",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "Status",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Deepgram answered HTTP <code>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "Empty",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Deepgram heard no words",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "Curl",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "curl failed (exit <n>)",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "curl could not run",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "BadReply",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Deepgram's answer could not be read",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ]
+        ],
+        "title": "Deepgram failure reasons"
+      },
+      "children": []
+    },
+    "dg-after-1": {
+      "id": "dg-after-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "transcribe::deepgram_fallback",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " keeps the last reason. Settings › Recording shows it until the next Deepgram success."
+        }
+      ],
+      "children": []
+    },
+    "dg-after-2": {
+      "id": "dg-after-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator still checks the Apple Speech model for Deepgram users, because the fallback needs it."
+        }
+      ],
+      "children": []
+    },
+    "dg-after-3": {
+      "id": "dg-after-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "To try Deepgram on an old bundle, run "
+        },
+        {
+          "insert": "scrawl reprocess <bundle> --out <dir> --transcriber deepgram",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-apple": {
+      "id": "h-apple",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Apple Speech"
+        }
+      ],
+      "children": []
+    },
+    "ap-lead": {
+      "id": "ap-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Apple Speech runs on the Mac through "
+        },
+        {
+          "insert": "scrawl-helper transcribe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and never uses Apple's servers. "
+        },
+        {
+          "insert": "helper/Media.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "helper/Media.swift"
+            }
+          }
+        },
+        {
+          "insert": " picks the model."
+        }
+      ],
+      "children": []
+    },
+    "ap-1": {
+      "id": "ap-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "On macOS 26 it uses SpeechTranscriber where the Mac supports it, else DictationTranscriber. Virtual machines are one case without SpeechTranscriber."
+        }
+      ],
+      "children": []
+    },
+    "ap-2": {
+      "id": "ap-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "On macOS 15 it uses the on-device Dictation model of "
+        },
+        {
+          "insert": "SFSpeechRecognizer",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "Recognizer",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "ap-3": {
+      "id": "ap-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The helper splits a WAV longer than 22 s at silences of 300 ms or more and transcribes the pieces in parallel."
+        }
+      ],
+      "children": []
+    },
+    "ap-lang": {
+      "id": "ap-lang",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Language",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ap-lang-1",
+        "ap-lang-2",
+        "ap-lang-3",
+        "ap-lang-4",
+        "ap-lang-5"
+      ]
+    },
+    "ap-lang-1": {
+      "id": "ap-lang-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "appleLocale",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is Settings › Recording › "
+        },
+        {
+          "insert": "Language",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": ", such as "
+        },
+        {
+          "insert": "\"zh-TW\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Missing or "
+        },
+        {
+          "insert": "auto",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is Automatic: the user's locale, the nearest supported one, or en-US."
+        }
+      ],
+      "children": []
+    },
+    "ap-lang-2": {
+      "id": "ap-lang-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Rust passes "
+        },
+        {
+          "insert": "--locale <id>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to the helper's "
+        },
+        {
+          "insert": "transcribe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "transcribe-stream",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and "
+        },
+        {
+          "insert": "speech-model",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "speech_model::locale_args",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "ap-lang-3": {
+      "id": "ap-lang-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The helper matches by "
+        },
+        {
+          "insert": "Locale.language.maximalIdentifier",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "zh_TW",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "zh-TW",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and "
+        },
+        {
+          "insert": "zh-Hant-TW",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " match each other, and "
+        },
+        {
+          "insert": "zh-Hans-TW",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " does not."
+        }
+      ],
+      "children": []
+    },
+    "ap-lang-4": {
+      "id": "ap-lang-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "An unsupported language gets the Automatic pick. The menu marks it \"(not available)\" and names the language it uses."
+        }
+      ],
+      "children": []
+    },
+    "ap-lang-5": {
+      "id": "ap-lang-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "appleLocale",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " applies only to Apple Speech. Hex and Deepgram read "
+        },
+        {
+          "insert": "hexLanguage",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-model": {
+      "id": "h-model",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "The Apple Speech Model"
+        }
+      ],
+      "children": []
+    },
+    "md-lead": {
+      "id": "md-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A fresh Mac does not have the speech model, so "
+        },
+        {
+          "insert": "src/speech_model.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/speech_model.rs"
+            }
+          }
+        },
+        {
+          "insert": " checks and installs it in the background at launch. It runs "
+        },
+        {
+          "insert": "scrawl-helper speech-model --install",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and skips the check when the configured engine is Hex."
+        }
+      ],
+      "children": []
+    },
+    "md-1": {
+      "id": "md-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each app reserves the model through "
+        },
+        {
+          "insert": "AssetInventory",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " under its helper's bundle id, "
+        },
+        {
+          "insert": "ai.codecaine.annotator.helper",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "ai.codecaine.annotator.dev.helper",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "md-2": {
+      "id": "md-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each language takes one reservation slot. At the limit, the helper releases languages Annotator no longer uses."
+        }
+      ],
+      "children": []
+    },
+    "md-3": {
+      "id": "md-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A failed install is tried again after 60 s, 5 min, and 30 min. After that, the next launch tries again."
+        }
+      ],
+      "children": []
+    },
+    "md-4": {
+      "id": "md-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A language change calls "
+        },
+        {
+          "insert": "speech_model::restart",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". It kills the old helper, ignores its late lines, and checks the new language."
+        }
+      ],
+      "children": []
+    },
+    "md-5": {
+      "id": "md-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Onboarding's Microphone row, Try it, and Settings › Recording show the download ("
+        },
+        {
+          "insert": "Onboarding and Settings",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/70-onboarding-and-settings"
+            }
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "md-st-lead": {
+      "id": "md-st-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The check reports one state from "
+        },
+        {
+          "insert": "speech_model::State",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/speech_model.rs",
+              "symbol": "State"
+            }
+          }
+        },
+        {
+          "insert": ". The table lists them in source order with the helper status that sets each one."
+        }
+      ],
+      "children": []
+    },
+    "md-states": {
+      "id": "md-states",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "State",
+          "Helper status",
+          "Meaning"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "Unknown",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "None",
+            "Not checked yet, or the engine is Hex"
+          ],
+          [
+            [
+              {
+                "insert": "Checking",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "None",
+            "A check runs now"
+          ],
+          [
+            [
+              {
+                "insert": "Downloading",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Any other status",
+            "The model downloads, with progress from 0 to 1"
+          ],
+          [
+            [
+              {
+                "insert": "Ready",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "installed",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Transcription can run"
+          ],
+          [
+            [
+              {
+                "insert": "Unavailable",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "unsupported",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "No Apple model for this Mac and language"
+          ],
+          [
+            [
+              {
+                "insert": "NeedsPermission",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "permission",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "macOS 15 only, Speech Recognition is off"
+          ],
+          [
+            [
+              {
+                "insert": "Failed",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "failed",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The install or check failed, with an error"
+          ]
+        ],
+        "title": "Speech model states"
+      },
+      "children": []
+    },
+    "h-mac15": {
+      "id": "h-mac15",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "The Model on Older Macs"
+        }
+      ],
+      "children": []
+    },
+    "mac15-lead": {
+      "id": "mac15-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "macOS 15 has no SpeechAnalyzer and no "
+        },
+        {
+          "insert": "AssetInventory",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The check there proves that the Dictation model is on the Mac, and nothing is downloaded."
+        }
+      ],
+      "children": []
+    },
+    "m15-perm": {
+      "id": "m15-perm",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The permission",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "md-15-1",
+        "md-15-2",
+        "md-15-3"
+      ]
+    },
+    "md-15-1": {
+      "id": "md-15-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The check needs the Speech Recognition permission, which onboarding asks for in an optional fourth row ("
+        },
+        {
+          "insert": "Permission::SpeechRecognition",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "md-15-2": {
+      "id": "md-15-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "That row shows only when "
+        },
+        {
+          "insert": "scrawl-helper permissions",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reports the permission, which is before macOS 26. Settings › Permissions shows it too."
+        }
+      ],
+      "children": []
+    },
+    "md-15-3": {
+      "id": "md-15-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "speech-model",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " never prompts. Without the permission the state is "
+        },
+        {
+          "insert": "NeedsPermission",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with no retries, and a new grant starts the check again ("
+        },
+        {
+          "insert": "speech_model::note_grants",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "m15-check": {
+      "id": "m15-check",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The model check",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "md-15-4",
+        "md-15-5",
+        "md-15-6"
+      ]
+    },
+    "md-15-4": {
+      "id": "md-15-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "With the permission, the helper recognizes half a second of silence to prove the Dictation model is there."
+        }
+      ],
+      "children": []
+    },
+    "md-15-5": {
+      "id": "md-15-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A failed check is "
+        },
+        {
+          "insert": "Failed",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with an error that tells the user to turn on Dictation."
+        }
+      ],
+      "children": []
+    },
+    "md-15-6": {
+      "id": "md-15-6",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Recognition runs on the Mac only, never on Apple's servers."
+        }
+      ],
+      "children": []
+    },
+    "h-missing": {
+      "id": "h-missing",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Captures Without a Model"
+        }
+      ],
+      "children": []
+    },
+    "ms-lead": {
+      "id": "ms-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl-helper transcribe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " never waits for a download and never prompts. Without a model it returns a "
+        },
+        {
+          "insert": "missing",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reason, and "
+        },
+        {
+          "insert": "speech_model::missing",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/speech_model.rs",
+              "symbol": "missing"
+            }
+          }
+        },
+        {
+          "insert": " turns it into the sentence that "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints."
+        }
+      ],
+      "children": []
+    },
+    "ms-table": {
+      "id": "ms-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Helper reason",
+          "Cause",
+          "Retry"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "downloading",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The model is still downloading",
+            "Yes"
+          ],
+          [
+            [
+              {
+                "insert": "permission",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "macOS 15, Speech Recognition is off",
+            "Yes"
+          ],
+          [
+            [
+              {
+                "insert": "dictation",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "macOS 15, no Dictation model on the Mac",
+            "Yes"
+          ],
+          [
+            [
+              {
+                "insert": "unsupported",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "No Apple model for the language",
+            "No"
+          ],
+          [
+            [
+              {
+                "insert": "failed",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The model could not be installed",
+            "Yes"
+          ]
+        ],
+        "title": "Missing transcript reasons"
+      },
+      "children": []
+    },
+    "ms-1": {
+      "id": "ms-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A bundle whose reason can retry gets a "
+        },
+        {
+          "insert": ".transcript-pending",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " marker."
+        }
+      ],
+      "children": []
+    },
+    "ms-2": {
+      "id": "ms-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "When the model becomes ready, the app transcribes each pending bundle in place. It rewrites "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", then removes the marker."
+        }
+      ],
+      "children": []
+    },
+    "ms-3": {
+      "id": "ms-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl retranscribe <bundle>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " does the same by hand. Both paths always use Apple Speech ("
+        },
+        {
+          "insert": "speech_model::transcribe_again",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), whatever engine is configured."
+        }
+      ],
+      "children": []
+    },
+    "h-hex": {
+      "id": "h-hex",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Hex"
+        }
+      ],
+      "children": []
+    },
+    "hx-lead": {
+      "id": "hx-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/hex.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/hex.rs"
+            }
+          }
+        },
+        {
+          "insert": " uses the local API v2 of Hex, the dictation app, when Hex is running and has a ready model. Annotator never downloads or prepares a Hex model."
+        }
+      ],
+      "children": []
+    },
+    "hx-conn": {
+      "id": "hx-conn",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Connecting",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "hx-conn-1",
+        "hx-conn-2",
+        "hx-conn-3",
+        "hx-conn-4"
+      ]
+    },
+    "hx-conn-1": {
+      "id": "hx-conn-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator reads "
+        },
+        {
+          "insert": "local-api.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " from the "
+        },
+        {
+          "insert": "hex",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " data folder, then from the older "
+        },
+        {
+          "insert": "voice-control",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " folder. "
+        },
+        {
+          "insert": "HEX_APPLICATION_SUPPORT_DIR",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", when set, is the only folder tried."
+        }
+      ],
+      "children": []
+    },
+    "hx-conn-2": {
+      "id": "hx-conn-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The first file whose Hex answers "
+        },
+        {
+          "insert": "GET /health",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " wins. The file must give API version 2, a port, and a bearer token, and the token is never logged."
+        }
+      ],
+      "children": []
+    },
+    "hx-conn-3": {
+      "id": "hx-conn-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A model is ready when "
+        },
+        {
+          "insert": "GET /models",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " says it is "
+        },
+        {
+          "insert": "installed",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "verified",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "hx-conn-4": {
+      "id": "hx-conn-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Settings reads "
+        },
+        {
+          "insert": "hex::cached_status",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which a background thread refreshes every 10 s. Settings itself never touches the network."
+        }
+      ],
+      "children": []
+    },
+    "hx-cfg": {
+      "id": "hx-cfg",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Configuring",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "hx-cfg-0",
+        "hx-cfg-1",
+        "hx-cfg-2",
+        "hx-cfg-3",
+        "hx-cfg-3b",
+        "hx-cfg-4"
+      ]
+    },
+    "hx-cfg-0": {
+      "id": "hx-cfg-0",
+      "type": "code",
+      "props": {
+        "language": "json"
+      },
+      "text": [
+        {
+          "insert": "{ \"transcriber\": \"hex\", \"hexModel\": \"whisper_large_v3_turbo\", \"hexLanguage\": \"nl\" }"
+        }
+      ],
+      "children": []
+    },
+    "hx-cfg-1": {
+      "id": "hx-cfg-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "hexModel",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is Settings › Recording › "
+        },
+        {
+          "insert": "Hex model",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": ". A configured model that is not ready falls back to the first ready one of "
+        },
+        {
+          "insert": "parakeet_unified_en",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "parakeet_v3",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "parakeet_v2",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and "
+        },
+        {
+          "insert": "whisper_large_v3_turbo",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "hx-cfg-2": {
+      "id": "hx-cfg-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "hexLanguage",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is Settings › Recording › "
+        },
+        {
+          "insert": "Hex language",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": ", default "
+        },
+        {
+          "insert": "en",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Return or Apply saves it, and a blank field resets it to "
+        },
+        {
+          "insert": "en",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "hx-cfg-3": {
+      "id": "hx-cfg-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "hex::language_code",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " checks only the syntax of a code. A valid code has up to 35 letters, digits, or hyphens, starts with a letter, and is lowercased."
+        }
+      ],
+      "children": []
+    },
+    "hx-cfg-3b": {
+      "id": "hx-cfg-3b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "auto",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " asks the model to detect the language."
+        }
+      ],
+      "children": []
+    },
+    "hx-cfg-4": {
+      "id": "hx-cfg-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Hex decides which languages a model supports. Some models ignore the hint, such as Parakeet v3, and the setting never follows Hex's own dictation language."
+        }
+      ],
+      "children": []
+    },
+    "hx-run": {
+      "id": "hx-run",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Transcribing",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "hx-run-1",
+        "hx-run-2",
+        "hx-run-3",
+        "hx-run-4"
+      ]
+    },
+    "hx-run-1": {
+      "id": "hx-run-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Hex returns text with no word times. Annotator cuts the recording into speech islands ("
+        },
+        {
+          "insert": "audio::speech_islands",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") and sends each clip with "
+        },
+        {
+          "insert": "POST /transcriptions",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "hx-run-2": {
+      "id": "hx-run-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "hex::plan_clips",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " drops islands under 120 ms, joins gaps under 700 ms up to 30 s, and keeps at most 24 clips. Each clip gets 200 ms of padding on each side."
+        }
+      ],
+      "children": []
+    },
+    "hx-run-3": {
+      "id": "hx-run-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A recording too quiet to find speech, and at least 480 ms long, goes to Hex whole."
+        }
+      ],
+      "children": []
+    },
+    "hx-run-4": {
+      "id": "hx-run-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each clip's words are spread over the clip by length ("
+        },
+        {
+          "insert": "hex::spread_words",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), so the transcript says "
+        },
+        {
+          "insert": "estimated: true",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Marks, clicks, laser, and scene changes still cut keyframes."
+        }
+      ],
+      "children": []
+    },
+    "hx-fail": {
+      "id": "hx-fail",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Failures",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "hx-fail-1",
+        "hx-fail-2",
+        "hx-fail-3"
+      ]
+    },
+    "hx-fail-1": {
+      "id": "hx-fail-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A busy answer (HTTP 429) is tried again 5 times, with a wait that starts at 200 ms and doubles."
+        }
+      ],
+      "children": []
+    },
+    "hx-fail-2": {
+      "id": "hx-fail-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A clip Hex refuses with HTTP 400, 408, 411, 413, or 415 is skipped. An invalid language code refuses every clip."
+        }
+      ],
+      "children": []
+    },
+    "hx-fail-3": {
+      "id": "hx-fail-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Every clip refused, any other error, or more than 180 s in total sends the recording to Apple Speech. The log is "
+        },
+        {
+          "insert": "~/Library/Logs/Scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "hx-status": {
+      "id": "hx-status",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl hex status",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints whether Hex is connected, its ready models, and the model the next recording uses."
+        }
+      ],
+      "children": []
+    },
+    "h-cmd": {
+      "id": "h-cmd",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Your Own Model (Command)"
+        }
+      ],
+      "children": []
+    },
+    "cmd-lead": {
+      "id": "cmd-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/command_transcriber.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/command_transcriber.rs"
+            }
+          }
+        },
+        {
+          "insert": " runs a program you name on "
+        },
+        {
+          "insert": "audio.wav",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and reads one JSON transcript from its stdout. A small wrapper adapts any local model, such as whisper.cpp, MLX Whisper, or faster-whisper."
+        }
+      ],
+      "children": []
+    },
+    "cmd-1": {
+      "id": "cmd-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "It runs on macOS only. On Windows, recordings keep the local engine."
+        }
+      ],
+      "children": []
+    },
+    "cmd-2": {
+      "id": "cmd-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator adds no network requests and does not sandbox the program."
+        }
+      ],
+      "children": []
+    },
+    "cmd-3": {
+      "id": "cmd-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Settings shows "
+        },
+        {
+          "insert": "Command",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " once the key is set. You edit the command only in the config file."
+        }
+      ],
+      "children": []
+    },
+    "h-cmd-cfg": {
+      "id": "h-cmd-cfg",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Configure the Command"
+        }
+      ],
+      "children": []
+    },
+    "cmdcfg-lead": {
+      "id": "cmdcfg-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Put the command in "
+        },
+        {
+          "insert": "~/.config/scrawl/config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "cmdcfg-code": {
+      "id": "cmdcfg-code",
+      "type": "code",
+      "props": {
+        "language": "json"
+      },
+      "text": [
+        {
+          "insert": "{\n  \"transcriber\": \"command\",\n  \"transcribeCommand\": [\"/Users/me/bin/whisper-scrawl\", \"--model\", \"large-v3-turbo\", \"{audio}\"],\n  \"transcribeTimeoutSeconds\": 600\n}"
+        }
+      ],
+      "children": []
+    },
+    "cmdcfg-1": {
+      "id": "cmdcfg-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "transcribeCommand",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is an argv array run with no shell, so quoting, "
+        },
+        {
+          "insert": "~",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", variables, and globs do nothing. "
+        },
+        {
+          "insert": "argv[0]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " must be an absolute path."
+        }
+      ],
+      "children": []
+    },
+    "cmdcfg-2": {
+      "id": "cmdcfg-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Every "
+        },
+        {
+          "insert": "{audio}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in the other arguments becomes the audio path. Without one, the path is the last argument."
+        }
+      ],
+      "children": []
+    },
+    "cmdcfg-3": {
+      "id": "cmdcfg-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Put the model's language in the arguments, such as "
+        },
+        {
+          "insert": "--language nl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Annotator passes no language to the program."
+        }
+      ],
+      "children": []
+    },
+    "cmdcfg-4": {
+      "id": "cmdcfg-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "transcribeTimeoutSeconds",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is an optional positive number. The default limit is "
+        },
+        {
+          "insert": "max(300, 60 + 10 × audio seconds)",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", wall clock from the start, model loading included."
+        }
+      ],
+      "children": []
+    },
+    "cmdcfg-5": {
+      "id": "cmdcfg-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Program::load_from",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads these two keys apart from the rest of the config. A mistake in them never resets other keys."
+        }
+      ],
+      "children": []
+    },
+    "h-cmd-run": {
+      "id": "h-cmd-run",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "What the Program Gets"
+        }
+      ],
+      "children": []
+    },
+    "cmdrun-lead": {
+      "id": "cmdrun-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The program gets the whole recording as one 16 kHz mono 16-bit WAV. It must not change the audio, daemonize, or leave processes behind, and it must cope with two runs at once."
+        }
+      ],
+      "children": []
+    },
+    "cmdrun-1": {
+      "id": "cmdrun-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The environment adds "
+        },
+        {
+          "insert": "SCRAWL_TRANSCRIBE_VERSION=1",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "SCRAWL_AUDIO=<path>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "cmdrun-2": {
+      "id": "cmdrun-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Stdin is "
+        },
+        {
+          "insert": "/dev/null",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", stderr is discarded, and the program gets its own process group."
+        }
+      ],
+      "children": []
+    },
+    "cmdrun-3": {
+      "id": "cmdrun-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "On a timeout or more than 8 MiB of stdout, Annotator kills the whole group."
+        }
+      ],
+      "children": []
+    },
+    "h-cmd-out": {
+      "id": "h-cmd-out",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "What the Program Prints"
+        }
+      ],
+      "children": []
+    },
+    "cmdout-lead": {
+      "id": "cmdout-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The program exits 0 and prints exactly one JSON object. Unknown fields are ignored, and a "
+        },
+        {
+          "insert": "model",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "estimated",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of another type counts as absent."
+        }
+      ],
+      "children": []
+    },
+    "cmdout-shape": {
+      "id": "cmdout-shape",
+      "type": "state-shape",
+      "props": {
+        "example": "{\"version\":1,\"model\":\"whisper-large-v3-turbo\",\"text\":\"Click here.\",\"segments\":[{\"t0\":300,\"t1\":980,\"text\":\"Click here.\"}],\"words\":[{\"t0\":300,\"t1\":610,\"text\":\"Click\"},{\"t0\":640,\"t1\":980,\"text\":\"here.\"}],\"estimated\":false}",
+        "fields": [
+          {
+            "name": "version",
+            "type": "1",
+            "description": "Must be the integer 1. Missing or another value fails the run."
+          },
+          {
+            "name": "model",
+            "type": "string | null",
+            "required": false,
+            "description": "Stored as the transcript's `model` when not blank."
+          },
+          {
+            "name": "text",
+            "type": "string",
+            "description": "The whole transcript. Empty means no speech, and the times are then ignored."
+          },
+          {
+            "name": "segments",
+            "type": "{t0, t1, text}[] | null",
+            "required": false,
+            "description": "Phrases. Integer ms from the first sample. Sorted by `t0`, and they may overlap or be zero-length."
+          },
+          {
+            "name": "words",
+            "type": "{t0, t1, text}[] | null",
+            "required": false,
+            "description": "Words, with the same time rules. Without them, the text is spread over the segments or the whole recording."
+          },
+          {
+            "name": "estimated",
+            "type": "boolean | null",
+            "required": false,
+            "description": "`false` only when a recognizer or aligner measured the word times. Defaults to `true`, and spread words are always estimated."
+          }
+        ],
+        "name": "Command output, version 1",
+        "source": {
+          "path": "src/command_transcriber.rs",
+          "symbol": "parse"
+        }
+      },
+      "children": []
+    },
+    "cmdout-1": {
+      "id": "cmdout-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "An end up to 500 ms past the audio is clamped to the audio's end."
+        }
+      ],
+      "children": []
+    },
+    "cmdout-2": {
+      "id": "cmdout-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A negative, fractional, or reversed span, or one ending further past the audio, drops that whole array. The text stays, and dropped "
+        },
+        {
+          "insert": "words",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " are spread as above."
+        }
+      ],
+      "children": []
+    },
+    "cmdout-3": {
+      "id": "cmdout-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The transcript's "
+        },
+        {
+          "insert": "source",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is "
+        },
+        {
+          "insert": "command:<file name of argv[0]>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "cmdout-fail": {
+      "id": "cmdout-fail",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Any other problem sends that recording to Apple Speech: a malformed config, a missing program, a non-zero exit, a signal, a timeout, invalid JSON, or another version. Each problem is one fixed line in "
+        },
+        {
+          "insert": "~/Library/Logs/Scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and a malformed config is logged once. The log never holds the program's output, its arguments, or what was said."
+        }
+      ],
+      "children": []
+    },
+    "h-live": {
+      "id": "h-live",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Transcribing While Recording (Experiment)"
+        }
+      ],
+      "children": []
+    },
+    "lv-lead": {
+      "id": "lv-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The "
+        },
+        {
+          "insert": "liveTranscribe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " experiment streams the microphone to Apple Speech while the recording runs, so finishing waits only for the last words. It is off by default, as "
+        },
+        {
+          "insert": "Experiments and Feature Map",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "30-implementation/20-experiments-and-feature-map"
+            }
+          }
+        },
+        {
+          "insert": " describes."
+        }
+      ],
+      "children": []
+    },
+    "lv-code": {
+      "id": "lv-code",
+      "type": "code",
+      "props": {
+        "language": "json"
+      },
+      "text": [
+        {
+          "insert": "{ \"experiments\": { \"liveTranscribe\": true } }"
+        }
+      ],
+      "children": []
+    },
+    "lv-1": {
+      "id": "lv-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "live_transcribe::wanted",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/live_transcribe.rs",
+              "symbol": "wanted"
+            }
+          }
+        },
+        {
+          "insert": " starts a stream only on macOS and only when the preferred engine is Apple Speech. Deepgram, Hex, Command, iPhone, and imported recordings never stream."
+        }
+      ],
+      "children": []
+    },
+    "lv-2": {
+      "id": "lv-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "AudioRecorder::start",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " starts "
+        },
+        {
+          "insert": "scrawl-helper transcribe-stream",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and feeds it the 16 kHz samples as "
+        },
+        {
+          "insert": "audio::pcm16",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " every 160 ms. The helper keeps finalized results only and never downloads a model."
+        }
+      ],
+      "children": []
+    },
+    "lv-3": {
+      "id": "lv-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "At finish, the stream gets the samples it has not had from the finished WAV, then has 6 s for the tail. The helper must report exactly the WAV's sample count, so word times are the WAV's own."
+        }
+      ],
+      "children": []
+    },
+    "lv-5": {
+      "id": "lv-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A success logs "
+        },
+        {
+          "insert": "Live transcription: N words, … tail N ms",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Any failure logs "
+        },
+        {
+          "insert": "Live transcription failed, …",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and transcribes the WAV as usual."
+        }
+      ],
+      "children": []
+    },
+    "lv-other": {
+      "id": "lv-other",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Other uses of the stream",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "lv-6",
+        "lv-7",
+        "lv-8"
+      ]
+    },
+    "lv-6": {
+      "id": "lv-6",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "With "
+        },
+        {
+          "insert": "liveWords",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " on, the same stream also reports guesses ("
+        },
+        {
+          "insert": "--volatile",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") for the capsule's live words. Without the experiment, a preview stream does that alone with "
+        },
+        {
+          "insert": "--fast",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", for any engine."
+        }
+      ],
+      "children": []
+    },
+    "lv-7": {
+      "id": "lv-7",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl reprocess <bundle> --out <dir> --bench 1 --live-speed 1",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " replays a bundle's audio through the stream in real time and logs the finish timings."
+        }
+      ],
+      "children": []
+    },
+    "lv-8": {
+      "id": "lv-8",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A long recording can differ from the batch path, which splits recordings over 22 s at silences."
+        }
+      ],
+      "children": []
+    },
+    "h-files": {
+      "id": "h-files",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Related Files"
+        }
+      ],
+      "children": []
+    },
+    "rf-1": {
+      "id": "rf-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/transcribe.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/transcribe.rs"
+            }
+          }
+        },
+        {
+          "insert": " picks the engine and falls back to Apple Speech."
+        }
+      ],
+      "children": []
+    },
+    "rf-2": {
+      "id": "rf-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/deepgram.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/deepgram.rs"
+            }
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "src/hex.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/hex.rs"
+            }
+          }
+        },
+        {
+          "insert": ", and "
+        },
+        {
+          "insert": "src/command_transcriber.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/command_transcriber.rs"
+            }
+          }
+        },
+        {
+          "insert": " hold the three other engines."
+        }
+      ],
+      "children": []
+    },
+    "rf-3": {
+      "id": "rf-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/helper.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/helper.rs"
+            }
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "helper/Media.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "helper/Media.swift"
+            }
+          }
+        },
+        {
+          "insert": " run Apple Speech."
+        }
+      ],
+      "children": []
+    },
+    "rf-4": {
+      "id": "rf-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/speech_model.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/speech_model.rs"
+            }
+          }
+        },
+        {
+          "insert": " checks the Apple model and fills pending bundles."
+        }
+      ],
+      "children": []
+    },
+    "rf-5": {
+      "id": "rf-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/live_transcribe.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/live_transcribe.rs"
+            }
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "helper/LiveTranscribe.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "helper/LiveTranscribe.swift"
+            }
+          }
+        },
+        {
+          "insert": " run the live stream."
+        }
+      ],
+      "children": []
+    }
+  }
+}

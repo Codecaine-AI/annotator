@@ -29,7 +29,7 @@
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
       "shortcuts": [{ "keys": "⌥⇧S", "does": "Start or finish a capture (Alt+Shift+S on Windows and Linux)" }],
-      "docs": ["README.md#capture-controls", "docs/capture.md"]
+      "docs": ["README.md#capture-controls", "docs/10-system-design/10-capture"]
     },
     {
       "id": "switch-chips",
@@ -39,7 +39,7 @@
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
       "note": "The iPhone chip is Mac only.",
-      "docs": ["docs/capture.md"]
+      "docs": ["docs/10-system-design/10-capture"]
     },
     {
       "id": "picker",
@@ -74,7 +74,7 @@
       "says": "The picker, overlay and capsule follow the pointer between displays; each capture belongs to one display.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows"],
-      "docs": ["docs/capture.md", "docs/windows.md"]
+      "docs": ["docs/10-system-design/10-capture", "docs/10-system-design/90-windows"]
     },
     {
       "id": "recent-area",
@@ -136,7 +136,7 @@
       "config": [
         { "key": "blockDrawClicks", "value": "false", "does": "Let ⇧-clicks and ⇧-drags reach the app as well" }
       ],
-      "docs": ["docs/capture.md"]
+      "docs": ["docs/10-system-design/10-capture"]
     },
     {
       "id": "undo-cancel",
@@ -162,7 +162,7 @@
       "added": "2026-11-13",
       "note": "Windows and Linux keep Esc as cancel. The microphone and the screen stay on while paused; what they record then is removed when the recording finishes.",
       "shortcuts": [{ "keys": "Esc", "does": "Pause or resume the recording from any app (or F1 to F12, set in Settings)" }],
-      "docs": ["docs/capture.md", "README.md#capture-controls"]
+      "docs": ["docs/10-system-design/10-capture", "README.md#capture-controls"]
     },
     {
       "id": "clicks",
@@ -186,7 +186,7 @@
         { "key": "nativePill", "value": "false", "does": "Draw the GPUI capsule instead of the Metal one (Mac)" },
         { "key": "pillStyle", "value": "\"black\" | \"glass\"", "does": "The Metal capsule's look" }
       ],
-      "docs": ["docs/motion.md"]
+      "docs": ["docs/10-system-design/85-capsule-motion"]
     },
     {
       "id": "hidden-windows",
@@ -196,7 +196,7 @@
       "status": "stable@0.3.6",
       "platforms": ["mac", "windows"],
       "note": "Prompts are a macOS case. The Linux preview records its own windows and masks the capsule from keyframe picking.",
-      "docs": ["docs/capture.md"]
+      "docs": ["docs/10-system-design/10-capture"]
     },
     {
       "id": "lower-playback",
@@ -210,7 +210,7 @@
         { "key": "lowerPlayback", "value": "true", "does": "Lower other audio while recording" },
         { "key": "playbackLevel", "value": "0–100 (20)", "does": "Percent of the volume to keep" }
       ],
-      "docs": ["docs/onboarding-and-settings.md"]
+      "docs": ["docs/10-system-design/70-onboarding-and-settings"]
     },
     {
       "id": "live-audio",
@@ -225,7 +225,7 @@
         { "key": "liveAudio", "value": "false", "does": "Hide the waveform while recording" },
         { "key": "liveWords", "value": "true", "does": "Show the words as they're said under the waveform" }
       ],
-      "docs": ["docs/capture.md", "docs/onboarding-and-settings.md"]
+      "docs": ["docs/10-system-design/10-capture", "docs/10-system-design/70-onboarding-and-settings"]
     },
     {
       "id": "live-transcribe",
@@ -235,7 +235,7 @@
       "status": "experiment:liveTranscribe",
       "platforms": ["mac"],
       "added": "2026-10-19",
-      "docs": ["README.md#transcribing-while-recording-experiment", "docs/keyframes-and-text.md"]
+      "docs": ["README.md#transcribing-while-recording-experiment", "docs/10-system-design/35-transcription"]
     },
     {
       "id": "straight-line",
@@ -296,7 +296,7 @@
       "platforms": ["windows"],
       "added": "2026-10-20",
       "pr": 68,
-      "docs": ["docs/keyframes-and-text.md"]
+      "docs": ["docs/10-system-design/90-windows"]
     },
     {
       "id": "review-window",
@@ -316,7 +316,7 @@
       "platforms": ["mac"],
       "added": "2026-11-13",
       "note": "A Screen capture lists each app that came to the front, an Area capture each app whose window was on top over the region, in first-seen order. Captures made before this list the app they started on.",
-      "docs": ["docs/export-and-retention.md#history-and-the-video-tab"]
+      "docs": ["docs/10-system-design/80-export-and-retention"]
     },
     {
       "id": "review-video",
@@ -327,7 +327,7 @@
       "platforms": ["mac"],
       "added": "2026-11-13",
       "note": "The tab is hidden once retention has cleaned the video; the contact sheet, keyframes and transcript stay.",
-      "docs": ["docs/export-and-retention.md#history-and-the-video-tab"]
+      "docs": ["docs/10-system-design/80-export-and-retention"]
     },
     {
       "id": "recover",
@@ -336,7 +336,7 @@
       "says": "A capture whose bundle never got built (the app died first) is built at the next launch.",
       "status": "stable@0.3.12",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["docs/windows.md"]
+      "docs": ["docs/10-system-design/90-windows"]
     },
     {
       "id": "capture-stack",
@@ -379,7 +379,7 @@
       "says": "Keyframes in time order, each with a number chip, the ink and click ripples drawn on, and no captions.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["docs/keyframes-and-text.md"]
+      "docs": ["docs/10-system-design/30-keyframes-and-images"]
     },
     {
       "id": "keyframes",
@@ -388,7 +388,7 @@
       "says": "Keyframes are cut on marks, clicks, flags and settled screen changes, never on speech pauses: 6 up to 40 s, at most 12.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["docs/keyframes-and-text.md"]
+      "docs": ["docs/10-system-design/30-keyframes-and-images"]
     },
     {
       "id": "summary",
@@ -397,7 +397,7 @@
       "says": "Each keyframe line gives what was done and the words said while it was on screen, split at clause boundaries.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["skills/scrawl/SKILL.md", "docs/keyframes-and-text.md"]
+      "docs": ["skills/scrawl/SKILL.md", "docs/10-system-design/20-capture-bundle"]
     },
     {
       "id": "spoken-cues",
@@ -416,7 +416,7 @@
       "says": "Several marks on one keyframe are numbered ①② in the text, never on the image; scrawl zoom --mark finds one.",
       "status": "stable@0.3.7",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["docs/keyframes-and-text.md"]
+      "docs": ["docs/10-system-design/40-app-state-and-privacy"]
     },
     {
       "id": "agent-context",
@@ -430,7 +430,7 @@
       "config": [
         { "key": "appState", "value": "true | false", "does": "Save app state with captures (off by default)" }
       ],
-      "docs": ["docs/keyframes-and-text.md", "docs/windows.md"]
+      "docs": ["docs/10-system-design/40-app-state-and-privacy", "docs/10-system-design/90-windows"]
     },
     {
       "id": "screen-text",
@@ -463,7 +463,7 @@
       "says": "Transcribes with Hex's Parakeet model, or downloads Scrawl's own copy (730 MB) at first launch.",
       "status": "stable@0.3.6",
       "platforms": ["windows", "linux"],
-      "docs": ["docs/windows.md"]
+      "docs": ["docs/10-system-design/90-windows"]
     },
     {
       "id": "deepgram",
@@ -474,7 +474,7 @@
       "platforms": ["mac"],
       "added": "2026-11-13",
       "note": "Needs DEEPGRAM_API_KEY in the environment or ~/.config/codecaine/env. Without a key, on a timeout (120 s), a non-200 answer or an empty result, that recording uses Apple Speech and Settings › Recording names the reason. The language is hexLanguage (\"auto\" lets Deepgram detect it).",
-      "docs": ["docs/keyframes-and-text.md"]
+      "docs": ["docs/10-system-design/35-transcription"]
     },
     {
       "id": "hex",
@@ -488,7 +488,7 @@
         { "key": "hexModel", "value": "\"parakeet_v3\"", "does": "Hex model to use" },
         { "key": "hexLanguage", "value": "\"en\" | \"nl\" | \"auto\"", "does": "Language sent to Hex" }
       ],
-      "docs": ["README.md#apple-or-hex"]
+      "docs": ["README.md#deepgram-apple-or-hex"]
     },
     {
       "id": "command-transcriber",
@@ -514,7 +514,7 @@
       "platforms": ["mac"],
       "note": "Reads the browser's tab URL, which only the Mac does; /sdk.js registrations route everywhere.",
       "config": [{ "key": "autoSend", "value": "false", "does": "Keep dev-site captures on the clipboard" }],
-      "docs": ["README.md#sending-captures-of-a-dev-site-to-its-session", "docs/iphone-and-routing.md"]
+      "docs": ["README.md#sending-captures-of-a-dev-site-to-its-session", "docs/10-system-design/50-routing-and-delivery"]
     },
     {
       "id": "sdk-js",
@@ -534,7 +534,7 @@
       "platforms": ["mac"],
       "added": "2026-10-19",
       "config": [{ "key": "routing", "value": "{\"apps\": {…}, \"servers\": {…}}", "does": "Checkouts for apps and folders for file servers" }],
-      "docs": ["docs/routing.md"]
+      "docs": ["docs/10-system-design/50-routing-and-delivery"]
     },
     {
       "id": "delivery-retries",
@@ -543,7 +543,7 @@
       "says": "A send OpenCode didn't take is retried every 15 s, backing off to 30 min, for a day.",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["docs/iphone-and-routing.md"]
+      "docs": ["docs/10-system-design/60-iphone-and-scrawlkit"]
     },
     {
       "id": "agent-host",
@@ -588,7 +588,7 @@
       "platforms": ["mac"],
       "note": "Needs AVFoundation's screen capture devices.",
       "shortcuts": [{ "keys": "M", "does": "Flag a moment (iPhone mirror focused)" }],
-      "docs": ["README.md#iphone", "docs/iphone-and-routing.md"]
+      "docs": ["README.md#iphone", "docs/10-system-design/60-iphone-and-scrawlkit"]
     },
     {
       "id": "scrawlkit",
@@ -673,7 +673,7 @@
       "says": "General, Recording, Storage, Permissions, Agents and About, from the menu's Settings….",
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
-      "docs": ["README.md#settings", "docs/onboarding-and-settings.md"]
+      "docs": ["README.md#settings", "docs/10-system-design/70-onboarding-and-settings"]
     },
     {
       "id": "custom-shortcuts",
@@ -696,7 +696,7 @@
       "note": "Windows keeps Record, Paste and Undo in General. Its draw modifier and cancel key follow the config but have no menu yet.",
       "shortcuts": [{ "keys": "Esc", "does": "Pause or resume the recording from any app, or cancel it with two presses (or F1 to F12, set in Settings)" }],
       "config": [{ "key": "shortcuts", "value": "{\"undo\": …, \"draw\": \"shift\" | \"option\" | \"control\" | \"command\", \"cancel\": \"escape\" | \"f1\" … \"f12\"}", "does": "Undo stroke, the draw modifier and the cancel key" }],
-      "docs": ["docs/onboarding-and-settings.md", "docs/capture.md"]
+      "docs": ["docs/10-system-design/70-onboarding-and-settings", "docs/10-system-design/10-capture"]
     },
     {
       "id": "launch-at-login",
@@ -727,7 +727,7 @@
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
       "config": [{ "key": "retention", "value": "{\"mediaDays\": null, \"bundleDays\": null}", "does": "How long to keep media and bundles; null or a missing field keeps forever (the default)" }],
-      "docs": ["README.md#keeping-captures-small", "docs/export-and-retention.md"]
+      "docs": ["README.md#keeping-captures-small", "docs/10-system-design/80-export-and-retention"]
     },
     {
       "id": "retention-hourly",
@@ -738,7 +738,7 @@
       "platforms": ["mac", "windows", "linux"],
       "added": "2026-10-21",
       "pr": 79,
-      "docs": ["docs/export-and-retention.md"]
+      "docs": ["docs/10-system-design/80-export-and-retention"]
     },
     {
       "id": "pin",
@@ -809,7 +809,7 @@
       "status": "main",
       "platforms": ["mac", "windows", "linux"],
       "added": "2026-11-17",
-      "docs": ["docs/keyframes-and-text.md"]
+      "docs": ["docs/10-system-design/30-keyframes-and-images"]
     },
     {
       "id": "cli-read",
@@ -856,7 +856,7 @@
       "status": "stable@0.3.4",
       "platforms": ["mac"],
       "note": "Rendered with AVFoundation in the helper.",
-      "docs": ["README.md#export-as-video", "docs/export-and-retention.md"]
+      "docs": ["README.md#export-as-video", "docs/10-system-design/80-export-and-retention"]
     },
     {
       "id": "export-menu",
@@ -878,7 +878,7 @@
       "status": "stable@0.3.4",
       "platforms": ["mac"],
       "note": "Windows has its own zip.",
-      "docs": ["README.md#install", "docs/release.md"]
+      "docs": ["README.md#install", "docs/40-guides/40-release"]
     },
     {
       "id": "sparkle",
@@ -888,7 +888,7 @@
       "status": "stable@0.3.4",
       "platforms": ["mac"],
       "note": "On Windows and Linux, Check for Updates… opens the releases page.",
-      "docs": ["docs/release.md"]
+      "docs": ["docs/40-guides/40-release"]
     },
     {
       "id": "windows-zip",
@@ -897,7 +897,7 @@
       "says": "scrawl.exe for Windows 10 (2004) and later on x64, unsigned, without automatic updates.",
       "status": "stable@0.3.6",
       "platforms": ["windows"],
-      "docs": ["README.md#windows", "docs/windows.md"]
+      "docs": ["README.md#windows", "docs/10-system-design/90-windows"]
     },
     {
       "id": "linux-appimage",
@@ -927,7 +927,7 @@
       "status": "stable@0.3.4",
       "platforms": ["mac", "windows", "linux"],
       "config": [{ "key": "onboarding", "value": "{…}", "does": "Tour progress; delete it to replay the tour" }],
-      "docs": ["README.md#welcome-and-permissions", "docs/onboarding-and-settings.md"]
+      "docs": ["README.md#welcome-and-permissions", "docs/10-system-design/70-onboarding-and-settings"]
     },
     {
       "id": "permission-card",
@@ -966,7 +966,7 @@
       "says": "Windows 10 (2004) and later on x64: the same app, without the iPhone, export, Sparkle or the tab URL.",
       "status": "stable@0.3.6",
       "platforms": ["windows"],
-      "docs": ["README.md#windows", "docs/windows.md"]
+      "docs": ["README.md#windows", "docs/10-system-design/90-windows"]
     },
     {
       "id": "linux",

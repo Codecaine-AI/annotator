@@ -1,0 +1,1540 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-2da8dedc8411f98a6410ec2d90b25fee",
+  "title": "Build, Test, and Install",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "intro",
+        "bt-h",
+        "bt-p",
+        "bt-code",
+        "bt-1",
+        "bt-2",
+        "bt-3",
+        "sign-h",
+        "sign-p",
+        "sign-code",
+        "sign-1",
+        "sign-2",
+        "sign-3",
+        "live-h",
+        "live-p",
+        "live-outline",
+        "live-1",
+        "live-2",
+        "live-3",
+        "dev-h",
+        "dev-p",
+        "dev-table",
+        "dev-1",
+        "dev-2",
+        "dev-3",
+        "dev-4",
+        "chk-h",
+        "chk-p",
+        "chk-code",
+        "rl-h",
+        "rl-p",
+        "man-h",
+        "man-p",
+        "man-1",
+        "man-2",
+        "man-3",
+        "man-4",
+        "mk-h",
+        "mk-p",
+        "mk-1",
+        "mk-2",
+        "mk-3",
+        "rm-h",
+        "rm-p"
+      ]
+    },
+    "intro": {
+      "id": "intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "This guide builds and tests Annotator, then installs it as a signed app so macOS keeps its permission grants across rebuilds. Agents test in Annotator Dev.app, never in the live Annotator.app, because the live app is in daily use. "
+        },
+        {
+          "insert": "Safety and Recovery",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/30-safety-and-recovery"
+            }
+          }
+        },
+        {
+          "insert": " lists what a test must never do on the real Macs."
+        }
+      ],
+      "children": []
+    },
+    "bt-h": {
+      "id": "bt-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Build and Test"
+        }
+      ],
+      "children": []
+    },
+    "bt-p": {
+      "id": "bt-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Build and test at utility priority, with 3 jobs and no network. Keep "
+        },
+        {
+          "insert": "Cargo.toml",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "Cargo.lock",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " unchanged."
+        }
+      ],
+      "children": []
+    },
+    "bt-code": {
+      "id": "bt-code",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "taskpolicy -c utility cargo build -j 3 --offline\ntaskpolicy -c utility cargo test -j 3 --offline -- --test-threads=2"
+        }
+      ],
+      "children": []
+    },
+    "bt-1": {
+      "id": "bt-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "cargo test",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " does not rebuild "
+        },
+        {
+          "insert": "target/debug/scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". After a Rust change, run "
+        },
+        {
+          "insert": "cargo build",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " before you run that binary."
+        }
+      ],
+      "children": []
+    },
+    "bt-2": {
+      "id": "bt-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The build also compiles "
+        },
+        {
+          "insert": "scrawl-helper",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " into "
+        },
+        {
+          "insert": "target/debug/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with "
+        },
+        {
+          "insert": "xcrun swiftc",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which needs the macOS 26 SDK. "
+        },
+        {
+          "insert": "Mac App and Helper",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "30-implementation/10-mac-app-and-helper"
+            }
+          }
+        },
+        {
+          "insert": " explains the helper."
+        }
+      ],
+      "children": []
+    },
+    "bt-3": {
+      "id": "bt-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "swift test",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " runs the ScrawlKit outbox tests on the Mac, against a "
+        },
+        {
+          "insert": "URLProtocol",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " stub of the ingest endpoint."
+        }
+      ],
+      "children": []
+    },
+    "sign-h": {
+      "id": "sign-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Set Up Signing Once"
+        }
+      ],
+      "children": []
+    },
+    "sign-p": {
+      "id": "sign-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The install scripts sign with one pinned local certificate, so the designated requirement stays the same on every build. Run this once per Mac:"
+        }
+      ],
+      "children": []
+    },
+    "sign-code": {
+      "id": "sign-code",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "python3 scripts/setup-local-signing.py"
+        }
+      ],
+      "children": []
+    },
+    "sign-1": {
+      "id": "sign-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The script makes or reuses the "
+        },
+        {
+          "insert": "Annotator Local Development",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " certificate in the login keychain. It writes its SHA-1 and keychain to "
+        },
+        {
+          "insert": "~/.config/annotator/signing.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "sign-2": {
+      "id": "sign-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "When "
+        },
+        {
+          "insert": "signing.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " exists, the script prints the saved identity and changes nothing."
+        }
+      ],
+      "children": []
+    },
+    "sign-3": {
+      "id": "sign-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "When the keychain holds more than one Annotator certificate, the script stops and changes nothing."
+        }
+      ],
+      "children": []
+    },
+    "live-h": {
+      "id": "live-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Install the Live App"
+        }
+      ],
+      "children": []
+    },
+    "live-p": {
+      "id": "live-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Install and start the live app only with "
+        },
+        {
+          "insert": "./scripts/install-app.sh",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Never run "
+        },
+        {
+          "insert": "target/debug/scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " as the background app. "
+        },
+        {
+          "insert": "hivemind clean",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " purges "
+        },
+        {
+          "insert": "target/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which unlinks the running binary, and "
+        },
+        {
+          "insert": "tccd",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " then revokes Screen Recording and Microphone. The script runs these steps:"
+        }
+      ],
+      "children": []
+    },
+    "live-outline": {
+      "id": "live-outline",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Install Annotator.app",
+            "steps": [
+              {
+                "text": "Check the Signing Identity",
+                "steps": [
+                  {
+                    "text": "If `signing.json` is missing, stop with a message to run `setup-local-signing.py`"
+                  },
+                  {
+                    "text": "If the identity is not a SHA-1, stop"
+                  },
+                  {
+                    "text": "If the identity is not in the keychain, stop"
+                  },
+                  {
+                    "text": "the script never signs ad hoc",
+                    "kind": "note"
+                  }
+                ]
+              },
+              {
+                "text": "Build and Copy",
+                "steps": [
+                  {
+                    "text": "Run `taskpolicy -c utility cargo build -j 3 --offline`"
+                  },
+                  {
+                    "text": "Copy `scrawl` and `scrawl-helper` into `/Applications/Annotator.app/Contents/MacOS/`"
+                  },
+                  {
+                    "text": "Remove `Contents/Frameworks`"
+                  },
+                  {
+                    "text": "Write `Info.plist` with bundle id `ai.codecaine.annotator`"
+                  }
+                ]
+              },
+              {
+                "text": "Sign",
+                "steps": [
+                  {
+                    "text": "Sign the helper as `ai.codecaine.annotator.helper`"
+                  },
+                  {
+                    "text": "Sign the app as `ai.codecaine.annotator`"
+                  },
+                  {
+                    "text": "each designated requirement names only the identifier and the certificate leaf",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "Run `codesign --verify --strict` on the app"
+                  }
+                ]
+              },
+              {
+                "text": "If `SCRAWL_NO_LAUNCH` Is 1",
+                "steps": [
+                  {
+                    "text": "Stop before the links and the restart"
+                  }
+                ]
+              },
+              {
+                "text": "Link and Restart",
+                "steps": [
+                  {
+                    "text": "Link `~/bin/scrawl` and `/usr/local/bin/scrawl` to the app's binary"
+                  },
+                  {
+                    "text": "Quit Scrawl.app, Annotator.app and any `target/debug/scrawl`"
+                  },
+                  {
+                    "text": "If an old app still runs after 2 s, stop with an error"
+                  },
+                  {
+                    "text": "Open Annotator.app"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "live-1": {
+      "id": "live-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Run the script again after each change. The pinned signature keeps the Screen Recording, Microphone and Accessibility grants."
+        }
+      ],
+      "children": []
+    },
+    "live-2": {
+      "id": "live-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The script quits upstream's Scrawl.app because the two apps share the shortcut and the captures folder. It never deletes "
+        },
+        {
+          "insert": "/Applications/Scrawl.app",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or its data."
+        }
+      ],
+      "children": []
+    },
+    "live-3": {
+      "id": "live-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "SCRAWL_APP_DIR",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " builds the signed app at another path."
+        }
+      ],
+      "children": []
+    },
+    "dev-h": {
+      "id": "dev-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Test in Annotator Dev.app"
+        }
+      ],
+      "children": []
+    },
+    "dev-p": {
+      "id": "dev-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "./scripts/install-dev-app.sh",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " runs "
+        },
+        {
+          "insert": "install-app.sh --dev",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". It runs the same steps with the values in the Dev column. Dev never quits, replaces or relinks the live app, Scrawl.app, "
+        },
+        {
+          "insert": "/usr/local/bin/scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "~/bin/scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "dev-table": {
+      "id": "dev-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Value",
+          "Live install",
+          "Dev install"
+        ],
+        "rows": [
+          [
+            "App",
+            [
+              {
+                "insert": "/Applications/Annotator.app",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "~/Applications/Annotator Dev.app",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Bundle id",
+            [
+              {
+                "insert": "ai.codecaine.annotator",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "ai.codecaine.annotator.dev",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Helper id",
+            [
+              {
+                "insert": "ai.codecaine.annotator.helper",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "ai.codecaine.annotator.dev.helper",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Command links",
+            [
+              {
+                "insert": "~/bin/scrawl",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "/usr/local/bin/scrawl",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "~/bin/scrawl-dev",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Apps it quits",
+            "Scrawl.app, Annotator.app",
+            "Annotator Dev.app"
+          ],
+          [
+            "Shortcuts",
+            [
+              {
+                "insert": "⌥⇧S",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "⌥⇧V",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "⌃⌥S",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "⌃⌥V",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ]
+        ]
+      },
+      "children": []
+    },
+    "dev-1": {
+      "id": "dev-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Both modes also quit every "
+        },
+        {
+          "insert": "target/debug/scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " process."
+        }
+      ],
+      "children": []
+    },
+    "dev-2": {
+      "id": "dev-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Start Dev with "
+        },
+        {
+          "insert": "open -a \"$HOME/Applications/Annotator Dev.app\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and use "
+        },
+        {
+          "insert": "scrawl-dev",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for its command."
+        }
+      ],
+      "children": []
+    },
+    "dev-3": {
+      "id": "dev-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Dev keeps its own config, captures, logs, exports and ingest port "
+        },
+        {
+          "insert": "47778",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", so both apps run at once. "
+        },
+        {
+          "insert": "Mac App and Helper",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "30-implementation/10-mac-app-and-helper"
+            }
+          }
+        },
+        {
+          "insert": " lists each path."
+        }
+      ],
+      "children": []
+    },
+    "dev-4": {
+      "id": "dev-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Dev asks for Screen Recording, Microphone and Accessibility once. The grants then persist across rebuilds."
+        }
+      ],
+      "children": []
+    },
+    "chk-h": {
+      "id": "chk-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Check the Signature"
+        }
+      ],
+      "children": []
+    },
+    "chk-p": {
+      "id": "chk-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Run "
+        },
+        {
+          "insert": "scripts/check-signing.sh <app>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " after any change to signing or to the install script. It passes when the app and its helper each have the expected identifier and a designated requirement of only that identifier and the pinned certificate leaf, with no cdhash. It exits 1 on a mismatch."
+        }
+      ],
+      "children": []
+    },
+    "chk-code": {
+      "id": "chk-code",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "scripts/check-signing.sh /Applications/Annotator.app\nscripts/check-signing.sh \"$HOME/Applications/Annotator Dev.app\""
+        }
+      ],
+      "children": []
+    },
+    "rl-h": {
+      "id": "rl-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Relaunch After the Shell Exits"
+        }
+      ],
+      "children": []
+    },
+    "rl-p": {
+      "id": "rl-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The install script starts the app from your shell, and an agent's shell tool can kill the app when the command returns. If "
+        },
+        {
+          "insert": "pgrep -fl Annotator.app",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " shows nothing, run "
+        },
+        {
+          "insert": "open -a /Applications/Annotator.app",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or the Dev app path for Dev."
+        }
+      ],
+      "children": []
+    },
+    "man-h": {
+      "id": "man-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Test by Hand"
+        }
+      ],
+      "children": []
+    },
+    "man-p": {
+      "id": "man-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each area below has a manual check in Annotator Dev. After each one, inspect the newest bundle's "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", contact sheet and frames."
+        }
+      ],
+      "children": []
+    },
+    "man-1": {
+      "id": "man-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "iPhone",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "man-1a",
+        "man-1b"
+      ]
+    },
+    "man-1a": {
+      "id": "man-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Connect a phone, press "
+        },
+        {
+          "insert": "⌃⌥S",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", click the iPhone chip, talk, draw over the mirror, press M and click "
+        },
+        {
+          "insert": "Finish",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "man-1b": {
+      "id": "man-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Check "
+        },
+        {
+          "insert": "source",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "device",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "man-2": {
+      "id": "man-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "ScrawlKit",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "man-2a",
+        "man-2b"
+      ]
+    },
+    "man-2a": {
+      "id": "man-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Run "
+        },
+        {
+          "insert": "scrawl-dev import",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " on a recording and its timeline, or on any phone video with a hand-written timeline."
+        }
+      ],
+      "children": []
+    },
+    "man-2b": {
+      "id": "man-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Check the ripples and trails on the frames and the app-event lines in the summary."
+        }
+      ],
+      "children": []
+    },
+    "man-3": {
+      "id": "man-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Transcription",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "man-3a",
+        "man-3b"
+      ]
+    },
+    "man-3a": {
+      "id": "man-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "scrawl-helper transcribe <wav or movie>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints the words with timings."
+        }
+      ],
+      "children": []
+    },
+    "man-3b": {
+      "id": "man-3b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "scrawl-dev reprocess <bundle> --out <dir>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reruns transcription and keyframe selection on a real bundle."
+        }
+      ],
+      "children": []
+    },
+    "man-4": {
+      "id": "man-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Windows",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "man-4a",
+        "man-4b"
+      ]
+    },
+    "man-4a": {
+      "id": "man-4a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Run "
+        },
+        {
+          "insert": "cargo test",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", then "
+        },
+        {
+          "insert": "scrawl.exe app",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and record with "
+        },
+        {
+          "insert": "Alt+Shift+S",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "man-4b": {
+      "id": "man-4b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "SCRAWL_SHOW_OWN_WINDOWS=1",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " keeps the capsule, overlay and picker in screenshots, which leave them out by default."
+        }
+      ],
+      "children": []
+    },
+    "mk-h": {
+      "id": "mk-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Rebuild the UI Mockups"
+        }
+      ],
+      "children": []
+    },
+    "mk-p": {
+      "id": "mk-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The HTML mockups in "
+        },
+        {
+          "insert": "design/mockups/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " are the screens approved in the Annotator Initial Setup plan, revision 4. "
+        },
+        {
+          "insert": "root.css",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds the design-system tokens for the frame and captions, and the app colors come from the Scrawl source. To rebuild the images:"
+        }
+      ],
+      "children": []
+    },
+    "mk-1": {
+      "id": "mk-1",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Run "
+        },
+        {
+          "insert": "python3 design/mockups/build.py",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to write the screen mockups to "
+        },
+        {
+          "insert": "design/mockups/out/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "mk-2": {
+      "id": "mk-2",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Run "
+        },
+        {
+          "insert": "python3 design/mockups/keys.py",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to write the capsule-keys mockup."
+        }
+      ],
+      "children": []
+    },
+    "mk-3": {
+      "id": "mk-3",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Run "
+        },
+        {
+          "insert": "design/mockups/render.sh",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to render each "
+        },
+        {
+          "insert": "out/*.html",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to "
+        },
+        {
+          "insert": "design/mockups/images/*.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " at 2x in the light theme."
+        }
+      ],
+      "children": [
+        "mk-3a",
+        "mk-3b",
+        "mk-3c"
+      ]
+    },
+    "mk-3a": {
+      "id": "mk-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "render.sh",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " needs Google Chrome and "
+        },
+        {
+          "insert": "python3",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with Pillow."
+        }
+      ],
+      "children": []
+    },
+    "mk-3b": {
+      "id": "mk-3b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It shrinks each PNG with "
+        },
+        {
+          "insert": "pngquant",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " when "
+        },
+        {
+          "insert": "pngquant",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is installed."
+        }
+      ],
+      "children": []
+    },
+    "mk-3c": {
+      "id": "mk-3c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The "
+        },
+        {
+          "insert": "CHROME",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " environment variable sets another Chrome path."
+        }
+      ],
+      "children": []
+    },
+    "rm-h": {
+      "id": "rm-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Do Not Use the Remote Installer"
+        }
+      ],
+      "children": []
+    },
+    "rm-p": {
+      "id": "rm-p",
+      "type": "callout",
+      "props": {
+        "tone": "warning"
+      },
+      "text": [
+        {
+          "insert": "scripts/install-app-remote.sh",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is upstream's installer for Kit's Macs and is stale in this fork. It expects "
+        },
+        {
+          "insert": "~/code/open-source/scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and Developer ID signing, and it does not know Annotator.app or the pinned identity."
+        }
+      ],
+      "children": []
+    }
+  }
+}

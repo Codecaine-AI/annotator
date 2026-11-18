@@ -1,0 +1,191 @@
+{
+  "version": 1,
+  "id": "sequence",
+  "title": "ScrawlKit recording to OpenCode",
+  "participants": [
+    {
+      "id": "p1",
+      "name": "ScrawlKit app",
+      "kind": "participant"
+    },
+    {
+      "id": "p2",
+      "name": "Ingest server",
+      "kind": "participant",
+      "stereotype": "ingest_recording"
+    },
+    {
+      "id": "p3",
+      "name": "Bundle builder",
+      "kind": "participant",
+      "stereotype": "build_ingested"
+    },
+    {
+      "id": "p4",
+      "name": "OpenCode",
+      "kind": "participant"
+    }
+  ],
+  "items": [
+    {
+      "kind": "message",
+      "id": "m1",
+      "from": "p1",
+      "to": "p2",
+      "line": "sync",
+      "text": "POST /ingest (timeline, movie)"
+    },
+    {
+      "kind": "message",
+      "id": "m2",
+      "from": "p2",
+      "to": "p2",
+      "line": "sync",
+      "text": "check bearer token"
+    },
+    {
+      "kind": "fragment",
+      "id": "f1",
+      "op": "alt",
+      "operands": [
+        {
+          "guard": "another copy has this recordedAt",
+          "items": [
+            {
+              "kind": "message",
+              "id": "m3",
+              "from": "p2",
+              "to": "p2",
+              "line": "sync",
+              "text": "wait for the first copy"
+            }
+          ]
+        },
+        {
+          "items": [
+            {
+              "kind": "message",
+              "id": "m4",
+              "from": "p2",
+              "to": "p3",
+              "line": "async",
+              "text": "build on a thread"
+            },
+            {
+              "kind": "message",
+              "id": "m5",
+              "from": "p3",
+              "to": "p3",
+              "line": "sync",
+              "text": "import(movie, timeline)"
+            },
+            {
+              "kind": "message",
+              "id": "m6",
+              "from": "p3",
+              "to": "p4",
+              "line": "sync",
+              "text": "POST /api/session/{id}/prompt"
+            },
+            {
+              "kind": "fragment",
+              "id": "f2",
+              "op": "alt",
+              "operands": [
+                {
+                  "guard": "OpenCode took it",
+                  "items": [
+                    {
+                      "kind": "message",
+                      "id": "m7",
+                      "from": "p4",
+                      "to": "p3",
+                      "line": "return",
+                      "text": "200 OK"
+                    }
+                  ]
+                },
+                {
+                  "guard": "OpenCode failed",
+                  "items": [
+                    {
+                      "kind": "message",
+                      "id": "m8",
+                      "from": "p4",
+                      "to": "p3",
+                      "line": "return",
+                      "text": "error"
+                    },
+                    {
+                      "kind": "message",
+                      "id": "m9",
+                      "from": "p3",
+                      "to": "p3",
+                      "line": "sync",
+                      "text": "write .deliver.json"
+                    }
+                  ]
+                }
+              ]
+            },
+            {
+              "kind": "message",
+              "id": "m10",
+              "from": "p3",
+              "to": "p2",
+              "line": "async",
+              "text": "delivery outcome"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "kind": "fragment",
+      "id": "f3",
+      "op": "alt",
+      "operands": [
+        {
+          "guard": "bundle built in time",
+          "items": [
+            {
+              "kind": "message",
+              "id": "m11",
+              "from": "p2",
+              "to": "p1",
+              "line": "return",
+              "text": "200 {delivered, state}"
+            }
+          ]
+        },
+        {
+          "guard": "X-Scrawl-Wait ran out",
+          "items": [
+            {
+              "kind": "message",
+              "id": "m12",
+              "from": "p2",
+              "to": "p1",
+              "line": "return",
+              "text": "200 state processing"
+            }
+          ]
+        },
+        {
+          "guard": "build failed",
+          "items": [
+            {
+              "kind": "message",
+              "id": "m13",
+              "from": "p2",
+              "to": "p1",
+              "line": "return",
+              "text": "500 {ok: false, error}"
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "style": {}
+}

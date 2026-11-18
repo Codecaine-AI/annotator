@@ -1,0 +1,5520 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-02090758a0cdf0717fd40334cc777f58",
+  "title": "Onboarding and Settings",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "open",
+        "h-tour",
+        "tour-lead",
+        "tour-outline",
+        "tour-b1",
+        "tour-b2",
+        "tour-b3",
+        "h-launch",
+        "launch-lead",
+        "launch-outline",
+        "h-progress",
+        "progress-lead",
+        "progress-shape",
+        "progress-replay",
+        "progress-replay-code",
+        "progress-warn",
+        "h-perms",
+        "perms-lead",
+        "perms-table",
+        "h-im",
+        "im-lead",
+        "im-g1",
+        "im-g2",
+        "h-gate",
+        "gate-lead",
+        "gate-1",
+        "gate-2",
+        "gate-3",
+        "gate-4",
+        "h-relaunch",
+        "relaunch-lead",
+        "relaunch-outline",
+        "relaunch-1",
+        "relaunch-2",
+        "relaunch-3",
+        "h-panel",
+        "panel-lead",
+        "panel-1",
+        "panel-2",
+        "panel-4",
+        "panel-5",
+        "panel-warn",
+        "h-settings",
+        "set-lead",
+        "set-open",
+        "panes-table",
+        "h-sidebar",
+        "set-g1a",
+        "set-g1b",
+        "set-g1c",
+        "h-shell",
+        "set-g2a",
+        "set-g2b",
+        "set-g2c",
+        "set-g2d",
+        "h-short",
+        "img-short",
+        "short-lead",
+        "short-table",
+        "short-cancel",
+        "h-recs",
+        "recs-lead",
+        "recs-g1",
+        "recs-g2",
+        "recs-g3",
+        "h-keycaps",
+        "keycaps",
+        "keycaps-a",
+        "keycaps-b",
+        "keycaps-c",
+        "keycaps-d",
+        "h-sc",
+        "sc-lead",
+        "sc-shape",
+        "sc-lead2",
+        "sc-ga",
+        "sc-gb",
+        "sc-gc",
+        "sc-gd",
+        "h-recpane",
+        "img-rec",
+        "recpane-lead",
+        "h-mic",
+        "mic-lead",
+        "mic-a",
+        "mic-b",
+        "mic-c",
+        "mic-e",
+        "mic-cli",
+        "h-live",
+        "live-lead",
+        "live-a",
+        "live-b",
+        "live-c",
+        "live-d",
+        "h-words",
+        "words-lead",
+        "words-b",
+        "words-c",
+        "words-d",
+        "words-e",
+        "rec-other",
+        "rec-other2",
+        "h-general",
+        "gen-lead",
+        "h-lower",
+        "lower-lead",
+        "lower-b",
+        "lower-c",
+        "lower-d",
+        "lower-e",
+        "h-storage",
+        "storage-lead",
+        "loc-a",
+        "loc-b",
+        "loc-c",
+        "loc-d",
+        "h-agents",
+        "cli-lead",
+        "cli-a",
+        "cli-b",
+        "cli-c",
+        "cli-d",
+        "skill",
+        "h-config",
+        "cfg-lead",
+        "cfg-a",
+        "cfg-b",
+        "cfg-c",
+        "cfg-d",
+        "cfg-table-lead",
+        "cfg-table",
+        "h-render",
+        "render-lead",
+        "render-table"
+      ]
+    },
+    "open": {
+      "id": "open",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator asks for its macOS permissions in a first-run welcome tour, and the Settings window changes everything later. Both windows are SwiftUI processes of "
+        },
+        {
+          "insert": "scrawl-helper",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that draw only what Rust sends them and report what was clicked. Rust decides every state and writes every choice to the config file, "
+        },
+        {
+          "insert": "~/.config/scrawl/config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". This page covers the tour, the permissions, each Settings pane, every config key, and the command-line tool."
+        }
+      ],
+      "children": []
+    },
+    "h-tour": {
+      "id": "h-tour",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Welcome Tour"
+        }
+      ],
+      "children": []
+    },
+    "tour-lead": {
+      "id": "tour-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Flow",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/onboarding.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/onboarding.rs"
+            }
+          }
+        },
+        {
+          "insert": " decides what the window shows. "
+        },
+        {
+          "insert": "scrawl-helper onboarding",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "helper/Onboarding.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "helper/Onboarding.swift"
+            }
+          }
+        },
+        {
+          "insert": ") renders that state and reports each button, such as "
+        },
+        {
+          "insert": "grant:<permission>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for a row. The tour has five steps."
+        }
+      ],
+      "children": []
+    },
+    "tour-outline": {
+      "id": "tour-outline",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Welcome Tour",
+            "steps": [
+              {
+                "text": "Welcome",
+                "steps": [
+                  {
+                    "text": "Show the welcome screen"
+                  }
+                ]
+              },
+              {
+                "text": "How It Works",
+                "steps": [
+                  {
+                    "text": "the demo is silent and 11 s long, in `helper/OnboardingDemo.swift`",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "Play the demo loop on a pretend checkout page"
+                  },
+                  {
+                    "text": "every element is a function of one clock (`DemoScript`), so any moment renders the same",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "When the user holds ⇧ over the stage",
+                    "steps": [
+                      {
+                        "text": "Pause the loop"
+                      },
+                      {
+                        "text": "Draw a mark in the window only"
+                      },
+                      {
+                        "text": "nothing is recorded or asked for",
+                        "kind": "note"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "Show Skip until the loop plays through or a mark is drawn"
+                  },
+                  {
+                    "text": "Show Continue after that"
+                  },
+                  {
+                    "text": "Store the furthest outcome in `Progress::tutorial`",
+                    "trace": true
+                  },
+                  {
+                    "text": "`practiced` beats `watched`, which beats `skipped`, so a resumed tour keeps Continue",
+                    "kind": "note"
+                  }
+                ]
+              },
+              {
+                "text": "Permissions",
+                "steps": [
+                  {
+                    "text": "Show one checklist with Screen Recording first"
+                  },
+                  {
+                    "text": "Show Microphone and Accessibility under it"
+                  },
+                  {
+                    "text": "When the helper reports Speech Recognition",
+                    "steps": [
+                      {
+                        "text": "Add it as an optional fourth row"
+                      },
+                      {
+                        "text": "only before macOS 26, where SFSpeechRecognizer makes transcripts",
+                        "kind": "note"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "Enable Continue when the three required rows are on"
+                  },
+                  {
+                    "text": "rows can be granted in any order",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "If every row already works",
+                    "steps": [
+                      {
+                        "text": "Pass this step when walking forward"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "Try It",
+                "steps": [
+                  {
+                    "text": "Wait for a first capture"
+                  },
+                  {
+                    "text": "Hide the window while the capture runs"
+                  }
+                ]
+              },
+              {
+                "text": "Done",
+                "steps": [
+                  {
+                    "text": "Show that the capture is on the clipboard"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "tour-b1": {
+      "id": "tour-b1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Reduced motion shows four still frames with captions in place of the demo loop."
+        }
+      ],
+      "children": []
+    },
+    "tour-b2": {
+      "id": "tour-b2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Camera is never in the tour. Its first use opens "
+        },
+        {
+          "insert": "Flow::fix(vec![Camera])",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", the same window with one row."
+        }
+      ],
+      "children": []
+    },
+    "tour-b3": {
+      "id": "tour-b3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "SCRAWL_NO_ONBOARDING=1",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " keeps the window from opening at launch."
+        }
+      ],
+      "children": []
+    },
+    "h-launch": {
+      "id": "h-launch",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "What Opens at Launch"
+        }
+      ],
+      "children": []
+    },
+    "launch-lead": {
+      "id": "launch-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "launch_plan",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " picks one window from the saved progress and the current grants. Once the tour is seen, only "
+        },
+        {
+          "insert": "Welcome tour",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " in Settings › About shows it again."
+        }
+      ],
+      "children": []
+    },
+    "launch-outline": {
+      "id": "launch-outline",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Launch Plan",
+            "steps": [
+              {
+                "text": "If the Tour Is Not `seen`",
+                "steps": [
+                  {
+                    "text": "Open the tour at `resume`, else at Welcome",
+                    "trace": true
+                  },
+                  {
+                    "text": "a later step never shows while a permission on the checklist is missing",
+                    "kind": "note"
+                  }
+                ]
+              },
+              {
+                "text": "Otherwise, If a Fix Was Open or a Required Grant Is Gone",
+                "steps": [
+                  {
+                    "text": "`reopenFix` is set, or a required permission in `granted` is no longer granted",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "Open the permissions screen with the three required rows",
+                    "trace": true
+                  }
+                ]
+              },
+              {
+                "text": "Otherwise",
+                "steps": [
+                  {
+                    "text": "Open nothing"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "h-progress": {
+      "id": "h-progress",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Onboarding Progress"
+        }
+      ],
+      "children": []
+    },
+    "progress-lead": {
+      "id": "progress-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Progress",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " lives under "
+        },
+        {
+          "insert": "\"onboarding\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in the config file. It holds the tour's current step, so any quit, macOS's Quit & Reopen included, picks up on the same screen."
+        }
+      ],
+      "children": []
+    },
+    "progress-shape": {
+      "id": "progress-shape",
+      "type": "state-shape",
+      "props": {
+        "example": "{\n  \"seen\": false,\n  \"resume\": \"permissions\",\n  \"granted\": [\"screen-recording\", \"microphone\"],\n  \"relaunchedAt\": 1792000000000,\n  \"reopenFix\": true,\n  \"tutorial\": \"watched\"\n}",
+        "fields": [
+          {
+            "name": "seen",
+            "type": "bool",
+            "description": "Set when the tour is finished or closed. The tour then never opens by itself."
+          },
+          {
+            "name": "resume",
+            "type": "Option<Step>",
+            "required": false,
+            "description": "The step the tour opens on next launch: `welcome`, `how-it-works`, `permissions`, `try-it` or `done`."
+          },
+          {
+            "name": "granted",
+            "type": "BTreeSet<Permission>",
+            "description": "Every permission seen granted. A required one that is gone later reopens the permissions screen."
+          },
+          {
+            "name": "relaunchedAt",
+            "type": "Option<u64>",
+            "required": false,
+            "description": "Unix ms of the last automatic relaunch for Screen Recording. Blocks a second one for `RELAUNCH_GUARD_MS`."
+          },
+          {
+            "name": "reopenFix",
+            "type": "bool",
+            "required": false,
+            "description": "A permissions fix was open at the relaunch, so it opens again at launch. Omitted when false."
+          },
+          {
+            "name": "tutorial",
+            "type": "Option<Tutorial>",
+            "required": false,
+            "description": "The demo outcome: `skipped`, `watched` or `practiced`."
+          }
+        ],
+        "name": "Progress",
+        "source": {
+          "path": "src/onboarding.rs",
+          "symbol": "Progress"
+        }
+      },
+      "children": []
+    },
+    "progress-replay": {
+      "id": "progress-replay",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "To replay the tour from the start in Annotator Dev, reset only the Dev app's grants, delete its "
+        },
+        {
+          "insert": "onboarding",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " key, and reopen it:"
+        }
+      ],
+      "children": []
+    },
+    "progress-replay-code": {
+      "id": "progress-replay-code",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "tccutil reset All ai.codecaine.annotator.dev\njq 'del(.onboarding)' ~/.config/scrawl-dev/config.json > /tmp/c.json\nmv /tmp/c.json ~/.config/scrawl-dev/config.json"
+        }
+      ],
+      "children": []
+    },
+    "progress-warn": {
+      "id": "progress-warn",
+      "type": "callout",
+      "props": {
+        "tone": "warning"
+      },
+      "text": [
+        {
+          "insert": "Never run "
+        },
+        {
+          "insert": "tccutil reset",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " against the live app, "
+        },
+        {
+          "insert": "ai.codecaine.annotator",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Ford uses its grants every day."
+        }
+      ],
+      "children": []
+    },
+    "h-perms": {
+      "id": "h-perms",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Permissions"
+        }
+      ],
+      "children": []
+    },
+    "perms-lead": {
+      "id": "perms-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator needs three permissions to record, "
+        },
+        {
+          "insert": "Permission::REQUIRED",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and asks for two more only where a feature uses them. The table lists them in checklist order. On macOS 27, Accessibility is named Device Control and Data Access."
+        }
+      ],
+      "children": []
+    },
+    "perms-table": {
+      "id": "perms-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Permission",
+          "Used for",
+          "When it is asked for",
+          "Required"
+        ],
+        "rows": [
+          [
+            "Screen Recording",
+            "Recording the screen with ScreenCaptureKit",
+            "The tour",
+            "Yes"
+          ],
+          [
+            "Microphone",
+            "Your narration",
+            "The tour",
+            "Yes"
+          ],
+          [
+            "Accessibility",
+            [
+              {
+                "insert": "The key event tap, and "
+              },
+              {
+                "insert": "⌥⇧V",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " and the Paste chip, which post "
+              },
+              {
+                "insert": "⌘V",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The tour",
+            "Yes"
+          ],
+          [
+            "Camera",
+            "The cabled iPhone mirror, which macOS treats as a camera",
+            "The first time you pick iPhone",
+            "No"
+          ],
+          [
+            "Speech Recognition",
+            "SFSpeechRecognizer transcripts before macOS 26",
+            "The tour, as an optional row",
+            "No"
+          ]
+        ],
+        "title": "Permissions Annotator asks for"
+      },
+      "children": []
+    },
+    "h-im": {
+      "id": "h-im",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "No Input Monitoring"
+        }
+      ],
+      "children": []
+    },
+    "im-lead": {
+      "id": "im-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator never asks for or reads Input Monitoring, because macOS wants a relaunch after that grant. Each input comes from a source that needs no Input Monitoring:"
+        }
+      ],
+      "children": []
+    },
+    "im-g1": {
+      "id": "im-g1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Input Sources",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "im-1",
+        "im-2",
+        "im-3",
+        "im-4"
+      ]
+    },
+    "im-1": {
+      "id": "im-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Clicks come from an "
+        },
+        {
+          "insert": "NSEvent",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " global mouse monitor, which needs no permission."
+        }
+      ],
+      "children": []
+    },
+    "im-2": {
+      "id": "im-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "⇧ and other held modifiers come from "
+        },
+        {
+          "insert": "CGEventSourceFlagsState",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which needs no permission."
+        }
+      ],
+      "children": []
+    },
+    "im-3": {
+      "id": "im-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Keys come from an active "
+        },
+        {
+          "insert": "kCGEventTapOptionDefault",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " tap, which Accessibility allows. "
+        },
+        {
+          "insert": "check_key_tap",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " makes or stops the tap every 500 ms as "
+        },
+        {
+          "insert": "AXIsProcessTrusted",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " changes, so a grant works with no relaunch."
+        }
+      ],
+      "children": []
+    },
+    "im-4": {
+      "id": "im-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The ⌥⇧S and ⌥⇧V hotkeys use Carbon "
+        },
+        {
+          "insert": "RegisterEventHotKey",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which needs no permission."
+        }
+      ],
+      "children": []
+    },
+    "im-g2": {
+      "id": "im-g2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Rules",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "im-5",
+        "im-6",
+        "im-7"
+      ]
+    },
+    "im-5": {
+      "id": "im-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Never poll key codes with "
+        },
+        {
+          "insert": "CGEventSourceKeyState",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or make a listen-only tap."
+        }
+      ],
+      "children": []
+    },
+    "im-6": {
+      "id": "im-6",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The test "
+        },
+        {
+          "insert": "input_monitoring_is_never_requested",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " greps the sources for a request."
+        }
+      ],
+      "children": []
+    },
+    "im-7": {
+      "id": "im-7",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The "
+        },
+        {
+          "insert": "InputMonitoring",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " variant stays only so a 0.3.x config, which lists it under "
+        },
+        {
+          "insert": "granted",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", still loads."
+        }
+      ],
+      "children": []
+    },
+    "h-gate": {
+      "id": "h-gate",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Grants and the Record Gate"
+        }
+      ],
+      "children": []
+    },
+    "gate-lead": {
+      "id": "gate-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A fresh "
+        },
+        {
+          "insert": "scrawl-helper permissions",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " process reports the grants every 0.5 s, and the coordinator caches them in "
+        },
+        {
+          "insert": "ScrawlCoordinator::grants",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The grants decide whether a capture can start and when the window comes forward."
+        }
+      ],
+      "children": []
+    },
+    "gate-1": {
+      "id": "gate-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Until the three required permissions are on, ⌥⇧S and the menu's record items start nothing, with no picker or overlay. "
+        },
+        {
+          "insert": "Gate",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds the request, and "
+        },
+        {
+          "insert": "tick_gate",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " opens or raises the window once the modifiers are up."
+        }
+      ],
+      "children": [
+        "gate-1a"
+      ]
+    },
+    "gate-1a": {
+      "id": "gate-1a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The picker sits at "
+        },
+        {
+          "insert": "NSStatusWindowLevel + 1",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and takes clicks, so it could trap a macOS prompt under it."
+        }
+      ],
+      "children": []
+    },
+    "gate-2": {
+      "id": "gate-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Capture code must go through "
+        },
+        {
+          "insert": "ready_to_record",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "ready_for",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". It must never call "
+        },
+        {
+          "insert": "CGRequestScreenCaptureAccess",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or start the iPhone mirror without Camera."
+        }
+      ],
+      "children": []
+    },
+    "gate-3": {
+      "id": "gate-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "When a row turns on, the window comes forward once macOS stops asking, up to five minutes after the grant ("
+        },
+        {
+          "insert": "returnAfterGrant",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": [
+        "gate-3a"
+      ]
+    },
+    "gate-3a": {
+      "id": "gate-3a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "macOS is asking while a UserNotificationCenter window, a SecurityAgent window, or a System Settings alert is in front."
+        }
+      ],
+      "children": []
+    },
+    "gate-4": {
+      "id": "gate-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Once Screen Recording works on Permissions or Try It, "
+        },
+        {
+          "insert": "Effect::ConfirmScreen",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " lists the screen once, 1.2 s after the window is back. ScreenCaptureKit's \"bypass the system private window picker\" alert then comes up under a note to choose Allow ("
+        },
+        {
+          "insert": "View::picker_note",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), not over the first recording."
+        }
+      ],
+      "children": []
+    },
+    "h-relaunch": {
+      "id": "h-relaunch",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Screen Recording Relaunch"
+        }
+      ],
+      "children": []
+    },
+    "relaunch-lead": {
+      "id": "relaunch-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "macOS shows "
+        },
+        {
+          "insert": "Quit & Reopen",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "Later",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " the moment Screen Recording is granted. A running process may not see the grant, because "
+        },
+        {
+          "insert": "CGPreflightScreenCaptureAccess",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " caches its answer. Whatever the user picks, nobody reopens Annotator by hand."
+        }
+      ],
+      "children": []
+    },
+    "relaunch-outline": {
+      "id": "relaunch-outline",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Screen Recording Relaunch",
+            "steps": [
+              {
+                "text": "Read Grants",
+                "steps": [
+                  {
+                    "text": "Read the grants from a fresh helper (`read_grants`)",
+                    "trace": true
+                  }
+                ]
+              },
+              {
+                "text": "When the Helper Reports Screen Recording Granted",
+                "steps": [
+                  {
+                    "text": "Try a one-frame ScreenCaptureKit capture in this process",
+                    "trace": true
+                  },
+                  {
+                    "text": "`capture::screen_capture_usable(true)` runs only after the grant, so no prompt can come of it",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "If the capture fails and no relaunch ran in the last `RELAUNCH_GUARD_MS`",
+                    "steps": [
+                      {
+                        "text": "Show `Reopening Annotator` on the row for `RELAUNCH_AFTER_MS`"
+                      },
+                      {
+                        "text": "Save `Progress::relaunching` with the tour's `resume` or `reopenFix`",
+                        "trace": true
+                      },
+                      {
+                        "text": "Reopen the app after this process exits (`onboarding::relaunch`)",
+                        "trace": true
+                      },
+                      {
+                        "text": "the reopen has no `-n`, so one copy runs even when Quit & Reopen got there first",
+                        "kind": "note"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "If the capture fails within `RELAUNCH_GUARD_MS` of the last relaunch",
+                    "steps": [
+                      {
+                        "text": "Show `Reopen Annotator` as the row's button"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "relaunch-1": {
+      "id": "relaunch-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "RELAUNCH_AFTER_MS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is 1,000 ms, and "
+        },
+        {
+          "insert": "RELAUNCH_GUARD_MS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is 120,000 ms."
+        }
+      ],
+      "children": []
+    },
+    "relaunch-2": {
+      "id": "relaunch-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Quit & Reopen lands on the same screen through the saved "
+        },
+        {
+          "insert": "resume",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". A tour resumed on Permissions stays there."
+        }
+      ],
+      "children": []
+    },
+    "relaunch-3": {
+      "id": "relaunch-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl sck-probe [--watch S]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "scrawl-helper sck-probe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " test whether a grant reaches a running process."
+        }
+      ],
+      "children": []
+    },
+    "h-panel": {
+      "id": "h-panel",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Permission Panel"
+        }
+      ],
+      "children": []
+    },
+    "panel-lead": {
+      "id": "panel-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Screen Recording and Accessibility are lists that you drag an app into ("
+        },
+        {
+          "insert": "Permission::draggable",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), so their row's button skips Apple's prompt. It opens the System Settings pane and starts "
+        },
+        {
+          "insert": "scrawl-helper permission-panel",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "helper/PermissionPanel.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "helper/PermissionPanel.swift"
+            }
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "panel-1": {
+      "id": "panel-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A card flies from the button to just below the System Settings window. With no room on the screen there, it docks inside the window's empty lower area ("
+        },
+        {
+          "insert": "PermissionPanel.dock",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", checked by "
+        },
+        {
+          "insert": "scripts/check-permission-panel-dock.sh",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "scripts/check-permission-panel-dock.sh"
+            }
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": [
+        "panel-1a"
+      ]
+    },
+    "panel-1a": {
+      "id": "panel-1a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The card follows the window and steps aside when another app is in front. With Reduce Motion on, it fades in place."
+        }
+      ],
+      "children": []
+    },
+    "panel-2": {
+      "id": "panel-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The card drags the "
+        },
+        {
+          "insert": "Annotator.app",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "Annotator Dev.app",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that contains the helper, which is the bundle macOS grants."
+        }
+      ],
+      "children": []
+    },
+    "panel-4": {
+      "id": "panel-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A drop proves nothing. The panel reads the grant from a fresh "
+        },
+        {
+          "insert": "permission-panel --check",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " process, and the app tells it "
+        },
+        {
+          "insert": "granted",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " when the row turns on."
+        }
+      ],
+      "children": []
+    },
+    "panel-5": {
+      "id": "panel-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Microphone and Camera can't be dragged in. The first press on their row shows the macOS prompt, and a later press or a denied row opens the System Settings pane."
+        }
+      ],
+      "children": []
+    },
+    "panel-warn": {
+      "id": "panel-warn",
+      "type": "callout",
+      "props": {
+        "tone": "warning"
+      },
+      "text": [
+        {
+          "insert": "Preview the panel with "
+        },
+        {
+          "insert": "scrawl-helper permission-panel --permission screen-recording --preview",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Never "
+        },
+        {
+          "insert": "tccutil reset",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " Kit's real grants to test it."
+        }
+      ],
+      "children": []
+    },
+    "h-settings": {
+      "id": "h-settings",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Settings Window"
+        }
+      ],
+      "children": []
+    },
+    "set-lead": {
+      "id": "set-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Settings follows the onboarding pattern. "
+        },
+        {
+          "insert": "scrawl-helper settings",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "helper/Settings.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "helper/Settings.swift"
+            }
+          }
+        },
+        {
+          "insert": ") draws the "
+        },
+        {
+          "insert": "View",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that "
+        },
+        {
+          "insert": "src/settings.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/settings.rs"
+            }
+          }
+        },
+        {
+          "insert": " sends and reports each action as a JSON line. "
+        },
+        {
+          "insert": "Panel",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " decides each action and writes the config through "
+        },
+        {
+          "insert": "handoff::set_config_value_in",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "set-open": {
+      "id": "set-open",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "⌘, while the menu is open, the menu's "
+        },
+        {
+          "insert": "Settings…",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": ", and "
+        },
+        {
+          "insert": "Open Settings",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " on the tour's last screen open the window. The table lists its seven panes in sidebar order."
+        }
+      ],
+      "children": []
+    },
+    "panes-table": {
+      "id": "panes-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Pane",
+          "Rows"
+        ],
+        "rows": [
+          [
+            "General",
+            "Launch at login, Send dev-site captures to OpenCode, Lower other audio while recording"
+          ],
+          [
+            "Recording",
+            "Microphone, Input level, Show live audio, Show live words, Transcription, Save app state, Video export"
+          ],
+          [
+            "Shortcuts",
+            "Record, Paste last capture, Draw, Undo stroke, Cancel recording"
+          ],
+          [
+            "Storage",
+            "Keep recordings, Location, Size, Show in Finder"
+          ],
+          [
+            "Permissions",
+            "The three required rows, then Camera and Speech Recognition under When you use them"
+          ],
+          [
+            "Agents",
+            "Command-line tool, Agent skill"
+          ],
+          [
+            "About",
+            "Version, Check for Updates…, Website and Source links, Welcome tour"
+          ]
+        ],
+        "title": "Settings panes"
+      },
+      "children": []
+    },
+    "h-sidebar": {
+      "id": "h-sidebar",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Sidebar"
+        }
+      ],
+      "children": []
+    },
+    "set-g1a": {
+      "id": "set-g1a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The sidebar belongs to the helper."
+        }
+      ],
+      "children": [
+        "set-g1a1"
+      ]
+    },
+    "set-g1a1": {
+      "id": "set-g1a1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A row selects on mouse-down, and its pane replaces the last one on the next frame with no transition."
+        }
+      ],
+      "children": []
+    },
+    "set-g1b": {
+      "id": "set-g1b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Keep the switch instant, because a fade read as lag."
+        }
+      ],
+      "children": [
+        "set-g1b1"
+      ]
+    },
+    "set-g1b1": {
+      "id": "set-g1b1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The level meter starts only after the Recording pane has drawn."
+        }
+      ],
+      "children": []
+    },
+    "set-g1c": {
+      "id": "set-g1c",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Rust's "
+        },
+        {
+          "insert": "state",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " message never carries the pane, so a reply can't move the selection."
+        }
+      ],
+      "children": [
+        "set-g1c1"
+      ]
+    },
+    "set-g1c1": {
+      "id": "set-g1c1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Only "
+        },
+        {
+          "insert": "show",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " carries a pane, when Settings opens again."
+        }
+      ],
+      "children": []
+    },
+    "h-shell": {
+      "id": "h-shell",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Menu and App Shell"
+        }
+      ],
+      "children": []
+    },
+    "set-g2a": {
+      "id": "set-g2a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The menu holds Record, Choose What to Record…, Open Latest Capture, History…, Export Last Capture as Video…, Settings…, and Quit Annotator."
+        }
+      ],
+      "children": [
+        "set-g2a1"
+      ]
+    },
+    "set-g2a1": {
+      "id": "set-g2a1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The export item shows only with "
+        },
+        {
+          "insert": "videoExport",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " on."
+        }
+      ],
+      "children": []
+    },
+    "set-g2b": {
+      "id": "set-g2b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Check for Updates…",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " shows only when Sparkle is bundled ("
+        },
+        {
+          "insert": "sparkle::bundled",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": [
+        "set-g2b1"
+      ]
+    },
+    "set-g2b1": {
+      "id": "set-g2b1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator.app ships without Sparkle, so the menu and About hide it."
+        }
+      ],
+      "children": []
+    },
+    "set-g2c": {
+      "id": "set-g2c",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Launch at login uses "
+        },
+        {
+          "insert": "SMAppService.mainApp",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and works only inside an installed app bundle."
+        }
+      ],
+      "children": []
+    },
+    "set-g2d": {
+      "id": "set-g2d",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator has no Dock icon."
+        }
+      ],
+      "children": [
+        "set-g2d1"
+      ]
+    },
+    "set-g2d1": {
+      "id": "set-g2d1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "gpui 0.2.2 makes the app Regular after launch despite "
+        },
+        {
+          "insert": "LSUIElement",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", so "
+        },
+        {
+          "insert": "ui::stay_out_of_dock",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " sets Accessory again at the top of "
+        },
+        {
+          "insert": "run_app",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-short": {
+      "id": "h-short",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Shortcuts Pane"
+        }
+      ],
+      "children": []
+    },
+    "img-short": {
+      "id": "img-short",
+      "type": "image",
+      "props": {
+        "alt": "Settings window on the Shortcuts pane. Start and finish lists Record (⌥⇧S) and Paste last capture (⌥⇧V). While recording lists Draw (⇧ Shift), Undo stroke (⌘Z) and Cancel recording (Esc). A last group shows Paste refused with the caption ⌥⇧S is already Record. Pick another key.",
+        "caption": "Settings › Shortcuts, the approved design mockup. The app's Cancel recording caption reads \"Press once to pause or resume. Press twice to cancel.\"",
+        "src": "./assets/images/settings-shortcuts.jpg"
+      },
+      "children": []
+    },
+    "short-lead": {
+      "id": "short-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The pane has five rows ("
+        },
+        {
+          "insert": "settings::Control",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") in two groups. Start and finish holds the two global hotkeys, and While recording holds the three keys that work only during a recording. The table lists the rows in pane order."
+        }
+      ],
+      "children": []
+    },
+    "short-table": {
+      "id": "short-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Row",
+          "Type",
+          "Default",
+          "Annotator Dev default",
+          "Takes"
+        ],
+        "rows": [
+          [
+            "Record",
+            [
+              {
+                "insert": "ShortcutKind::Record",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "⌥⇧S",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "⌃⌥S",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A combination. It can't be off."
+          ],
+          [
+            "Paste last capture",
+            [
+              {
+                "insert": "ShortcutKind::Paste",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "⌥⇧V",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "⌃⌥V",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A combination, or off"
+          ],
+          [
+            "Draw",
+            [
+              {
+                "insert": "DrawModifier",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "⇧",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "⇧",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "⇧",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "⌥",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "⌃",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "⌘",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " from a menu"
+              }
+            ]
+          ],
+          [
+            "Undo stroke",
+            [
+              {
+                "insert": "ShortcutKind::Undo",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "⌘Z",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "⌘Z",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A combination"
+          ],
+          [
+            "Cancel recording",
+            [
+              {
+                "insert": "CancelKey",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Esc",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Esc",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Esc",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "F1",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " to "
+              },
+              {
+                "insert": "F12",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " from a menu"
+              }
+            ]
+          ]
+        ],
+        "title": "Shortcut rows"
+      },
+      "children": []
+    },
+    "short-cancel": {
+      "id": "short-cancel",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Cancel recording's caption says what the key does while recording: one press pauses or resumes, and two presses cancel, as "
+        },
+        {
+          "insert": "Capture and Recording",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/10-capture"
+            }
+          }
+        },
+        {
+          "insert": " describes. Annotator Dev's Record and Paste defaults have no aliases."
+        }
+      ],
+      "children": []
+    },
+    "h-recs": {
+      "id": "h-recs",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Recording a Shortcut"
+        }
+      ],
+      "children": []
+    },
+    "recs-lead": {
+      "id": "recs-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Clicking a row's keys sends "
+        },
+        {
+          "insert": "record-shortcut",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Rust then pauses every Annotator hotkey ("
+        },
+        {
+          "insert": "capture::pause_shortcuts",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " unregisters Carbon and mutes "
+        },
+        {
+          "insert": "emit_*",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), so the current combination reaches the recorder."
+        }
+      ],
+      "children": []
+    },
+    "recs-g1": {
+      "id": "recs-g1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Refused Combinations",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "recs-g1a",
+        "recs-g1b",
+        "recs-g1c",
+        "recs-g1d"
+      ]
+    },
+    "recs-g1a": {
+      "id": "recs-g1a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "settings::validate",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " refuses a combination without ⌘, ⌥ or ⌃. A function key can stand alone."
+        }
+      ],
+      "children": []
+    },
+    "recs-g1b": {
+      "id": "recs-g1b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "It refuses ⌘ with one key for Record and Paste. Undo stroke can take ⌘ with one key, because Undo only listens and hands the key on."
+        }
+      ],
+      "children": []
+    },
+    "recs-g1c": {
+      "id": "recs-g1c",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "It refuses a combination that macOS uses: a static list plus the helper's enabled "
+        },
+        {
+          "insert": "CopySymbolicHotKeys",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "recs-g1d": {
+      "id": "recs-g1d",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "settings::check",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " refuses a clash with another row in either order and names that row, such as "
+        },
+        {
+          "insert": "⌥⇧S is already Record. Pick another key.",
+          "attributes": {
+            "code": true
+          }
+        }
+      ],
+      "children": []
+    },
+    "recs-g2": {
+      "id": "recs-g2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Clash Rules",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "recs-g2a",
+        "recs-g2b",
+        "recs-g2c",
+        "recs-g2d"
+      ]
+    },
+    "recs-g2a": {
+      "id": "recs-g2a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Two combinations clash when they share a combination or a label. The aliases of the Record and Paste defaults count, so Paste can't take "
+        },
+        {
+          "insert": "⌃⌥⌘S",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " from the live Record default."
+        }
+      ],
+      "children": []
+    },
+    "recs-g2b": {
+      "id": "recs-g2b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "For the same reason, a Reset of Record is refused while Paste holds one of its aliases."
+        }
+      ],
+      "children": []
+    },
+    "recs-g2c": {
+      "id": "recs-g2c",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The cancel key clashes with any combination on that key, whatever its modifiers. The key tap takes the cancel key with ⌥ or ⇧ held, so ⇧ held to draw doesn't stop Esc."
+        }
+      ],
+      "children": []
+    },
+    "recs-g2d": {
+      "id": "recs-g2d",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The draw modifier clashes with a combination whose only modifier it is."
+        }
+      ],
+      "children": []
+    },
+    "recs-g3": {
+      "id": "recs-g3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Taking a Shortcut",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "recs-g3a",
+        "recs-g3b",
+        "recs-g3c",
+        "recs-g3d",
+        "recs-g3e"
+      ]
+    },
+    "recs-g3a": {
+      "id": "recs-g3a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "capture::set_shortcuts",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " registers Record and Paste, and puts the old ones back if "
+        },
+        {
+          "insert": "RegisterEventHotKey",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " refuses one."
+        }
+      ],
+      "children": []
+    },
+    "recs-g3b": {
+      "id": "recs-g3b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A change reaches the next key press and poll with no restart ("
+        },
+        {
+          "insert": "SharedCaptureTelemetry::set_recording_keys",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "recs-g3c": {
+      "id": "recs-g3c",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Only a default answers to its aliases: ⌃ or ⌘ added, ⌃⌥⌘, and the ANSI key. A custom combination matches exactly in Carbon and in the key event tap."
+        }
+      ],
+      "children": []
+    },
+    "recs-g3d": {
+      "id": "recs-g3d",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Paste turns off with the × beside its field, or with Delete while it listens ("
+        },
+        {
+          "insert": "clear-shortcut",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). "
+        },
+        {
+          "insert": "ShortcutConfig::unset()",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " registers nothing, and the field shows Set shortcut."
+        }
+      ],
+      "children": []
+    },
+    "recs-g3e": {
+      "id": "recs-g3e",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The ↺ Reset button names the running variant's default ("
+        },
+        {
+          "insert": "ShortcutView::default_label",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "ChoiceView::default_label",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "h-keycaps": {
+      "id": "h-keycaps",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Keycaps"
+        }
+      ],
+      "children": []
+    },
+    "keycaps": {
+      "id": "keycaps",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "helper/ShortcutKeys.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "helper/ShortcutKeys.swift"
+            }
+          }
+        },
+        {
+          "insert": " draws each shortcut as rounded keycaps in a recessed field, like Hex's control. Every value is a closed-form spring evaluated at a time ("
+        },
+        {
+          "insert": "Track",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "KeyController",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), so the helper draws any moment the same live or rendered."
+        }
+      ],
+      "children": []
+    },
+    "keycaps-a": {
+      "id": "keycaps-a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Holding a shortcut's modifiers while Settings is in front sinks those keys onto their bases and turns the key red."
+        }
+      ],
+      "children": []
+    },
+    "keycaps-b": {
+      "id": "keycaps-b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Listening tints the field red, and a dot breathes beside Type a shortcut. Modifiers land as they go down, in macOS order, with a red caret after them."
+        }
+      ],
+      "children": []
+    },
+    "keycaps-c": {
+      "id": "keycaps-c",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "An accepted shortcut's keys bob once, left to right. A refused one turns red and shakes, then the old keys return with Rust's reason in the caption."
+        }
+      ],
+      "children": []
+    },
+    "keycaps-d": {
+      "id": "keycaps-d",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The TimelineView stops when the keys are still."
+        }
+      ],
+      "children": []
+    },
+    "h-sc": {
+      "id": "h-sc",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Shortcuts in the Config"
+        }
+      ],
+      "children": []
+    },
+    "sc-lead": {
+      "id": "sc-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Every row lives under "
+        },
+        {
+          "insert": "\"shortcuts\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in the config file. "
+        },
+        {
+          "insert": "Shortcuts::load_from",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " gives each reader the same shortcuts and writes nothing."
+        }
+      ],
+      "children": []
+    },
+    "sc-shape": {
+      "id": "sc-shape",
+      "type": "state-shape",
+      "props": {
+        "example": "{\n  \"record\": {\"keyCode\": 1, \"modifiers\": 2560, \"label\": \"⌥⇧S\"},\n  \"paste\": null,\n  \"draw\": \"option\",\n  \"cancel\": \"f5\"\n}",
+        "fields": [
+          {
+            "name": "record",
+            "type": "Stored",
+            "required": false,
+            "description": "Absent means the default.",
+            "fields": [
+              {
+                "name": "keyCode",
+                "type": "u32",
+                "description": "Carbon virtual key code."
+              },
+              {
+                "name": "modifiers",
+                "type": "u32",
+                "description": "Carbon modifier bits."
+              },
+              {
+                "name": "label",
+                "type": "String",
+                "description": "What the keycaps show, such as `⌥⇧S`."
+              }
+            ]
+          },
+          {
+            "name": "paste",
+            "type": "Stored | null",
+            "required": false,
+            "description": "`null` turns paste off. Absent means the default."
+          },
+          {
+            "name": "undo",
+            "type": "Stored",
+            "required": false,
+            "description": "The same fields as `record`. Absent means `⌘Z`."
+          },
+          {
+            "name": "draw",
+            "type": "\"shift\" | \"option\" | \"control\" | \"command\"",
+            "required": false,
+            "description": "Absent means `shift`."
+          },
+          {
+            "name": "cancel",
+            "type": "\"escape\" | \"f1\" … \"f12\"",
+            "required": false,
+            "description": "Absent means `escape`."
+          }
+        ],
+        "name": "shortcuts",
+        "source": {
+          "path": "src/settings.rs",
+          "symbol": "Shortcuts"
+        }
+      },
+      "children": []
+    },
+    "sc-lead2": {
+      "id": "sc-lead2",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Shortcuts::load_from",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " applies two rules to an older config."
+        }
+      ],
+      "children": []
+    },
+    "sc-ga": {
+      "id": "sc-ga",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "0.3.x kept a custom record shortcut in a file under Application Support."
+        }
+      ],
+      "children": [
+        "sc-ga1"
+      ]
+    },
+    "sc-ga1": {
+      "id": "sc-ga1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator moves it across once when "
+        },
+        {
+          "insert": "\"shortcuts\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is absent."
+        }
+      ],
+      "children": []
+    },
+    "sc-gb": {
+      "id": "sc-gb",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A config saved before the cancel-key rule is checked at load ("
+        },
+        {
+          "insert": "Shortcuts::free_cancel_key",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": [
+        "sc-gb1"
+      ]
+    },
+    "sc-gb1": {
+      "id": "sc-gb1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A shortcut on the cancel key goes back to its default, or off when another row has the default and it can be off."
+        }
+      ],
+      "children": []
+    },
+    "sc-gc": {
+      "id": "sc-gc",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The log names the dropped shortcut once, and its row shows one line from "
+        },
+        {
+          "insert": "Dropped::note",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", such as "
+        },
+        {
+          "insert": "⇧F6 is the Cancel recording key, so Undo stroke is ⌘Z again. Pick another key.",
+          "attributes": {
+            "code": true
+          }
+        }
+      ],
+      "children": []
+    },
+    "sc-gd": {
+      "id": "sc-gd",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The line goes when a key is picked for that row or another shortcut change is taken."
+        }
+      ],
+      "children": [
+        "sc-gd1"
+      ]
+    },
+    "sc-gd1": {
+      "id": "sc-gd1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Dropped::settle",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " then writes what the row has over the saved one."
+        }
+      ],
+      "children": []
+    },
+    "h-recpane": {
+      "id": "h-recpane",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Recording Pane"
+        }
+      ],
+      "children": []
+    },
+    "img-rec": {
+      "id": "img-rec",
+      "type": "image",
+      "props": {
+        "alt": "Settings on the Recording pane, with the microphone and its level meter, Deepgram nova-3, Show live audio on, Show live words off, Save app state on, and Video export off.",
+        "caption": "Settings › Recording, the approved design mockup. Save app state is shown on, but it is off by default.",
+        "src": "./assets/images/settings-recording.jpg"
+      },
+      "children": []
+    },
+    "recpane-lead": {
+      "id": "recpane-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The Recording pane holds the microphone, what the capsule shows while recording, the transcriber, app state, and the video export switch."
+        }
+      ],
+      "children": []
+    },
+    "h-mic": {
+      "id": "h-mic",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Microphone"
+        }
+      ],
+      "children": []
+    },
+    "mic-lead": {
+      "id": "mic-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/mic.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/mic.rs"
+            }
+          }
+        },
+        {
+          "insert": " picks the input that Mac captures record from."
+        }
+      ],
+      "children": []
+    },
+    "mic-a": {
+      "id": "mic-a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "\"microphone\": {\"id\", \"name\"}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds the CoreAudio device UID, the same string as "
+        },
+        {
+          "insert": "AVCaptureDevice.uniqueID",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and a name that only says which device is missing. Absent means System default, which follows macOS."
+        }
+      ],
+      "children": []
+    },
+    "mic-b": {
+      "id": "mic-b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "mic::Watch",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " re-lists the inputs into "
+        },
+        {
+          "insert": "Event::Microphones",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " while Settings is open. It uses CoreAudio listeners on its own thread and coalesces bursts, so nothing polls."
+        }
+      ],
+      "children": []
+    },
+    "mic-c": {
+      "id": "mic-c",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "AudioRecorder",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " opens the chosen device on its worker thread, else the default. A missing or unopenable choice never stops a capture: Settings shows a note ("
+        },
+        {
+          "insert": "mic::Pick",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), and "
+        },
+        {
+          "insert": "note_pick",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " logs one line."
+        }
+      ],
+      "children": [
+        "mic-d"
+      ]
+    },
+    "mic-d": {
+      "id": "mic-d",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "An error partway through, such as an unplug or an overload, keeps the samples heard so far."
+        }
+      ],
+      "children": []
+    },
+    "mic-e": {
+      "id": "mic-e",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The helper's "
+        },
+        {
+          "insert": "MicMeter",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " runs only while the Recording pane is on screen and "
+        },
+        {
+          "insert": "meter",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is set. Rust sets "
+        },
+        {
+          "insert": "meter",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " only once Microphone is granted."
+        }
+      ],
+      "children": []
+    },
+    "mic-cli": {
+      "id": "mic-cli",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The iPhone mirror gets "
+        },
+        {
+          "insert": "--microphone",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for its narration. From a terminal, "
+        },
+        {
+          "insert": "scrawl mic list",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " shows the inputs and the one recordings use. "
+        },
+        {
+          "insert": "scrawl mic set <id|default>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " chooses one, and "
+        },
+        {
+          "insert": "scrawl mic watch",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints the list on every change."
+        }
+      ],
+      "children": []
+    },
+    "h-live": {
+      "id": "h-live",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Show Live Audio"
+        }
+      ],
+      "children": []
+    },
+    "live-lead": {
+      "id": "live-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Show live audio is on by default, and "
+        },
+        {
+          "insert": "\"liveAudio\": false",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " hides it. "
+        },
+        {
+          "insert": "src/live_audio.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/live_audio.rs"
+            }
+          }
+        },
+        {
+          "insert": " feeds the capsule from the recorder."
+        }
+      ],
+      "children": []
+    },
+    "live-a": {
+      "id": "live-a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The capsule shows a waveform beside the timer ("
+        },
+        {
+          "insert": "ElemId::Wave",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), so a dead, muted or wrong microphone shows in time to fix it."
+        }
+      ],
+      "children": []
+    },
+    "live-b": {
+      "id": "live-b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "AudioRecorder::start",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads the setting once and publishes its 16 kHz buffer ("
+        },
+        {
+          "insert": "live_audio::begin",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": [
+        "live-b1"
+      ]
+    },
+    "live-b1": {
+      "id": "live-b1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A newer recording replaces an older one."
+        }
+      ],
+      "children": []
+    },
+    "live-c": {
+      "id": "live-c",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Levels",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " makes one bar per 50 ms ("
+        },
+        {
+          "insert": "BUCKET",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), with RMS mapped from −54 to −12 dBFS."
+        }
+      ],
+      "children": [
+        "live-c1"
+      ]
+    },
+    "live-c1": {
+      "id": "live-c1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The newest bar is at the right, and the capsule redraws at most every 16 ms."
+        }
+      ],
+      "children": []
+    },
+    "live-d": {
+      "id": "live-d",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Silence is a row of dim dots. No samples for 600 ms turns them into a flat red line ("
+        },
+        {
+          "insert": "Levels::stalled",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "h-words": {
+      "id": "h-words",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Show Live Words"
+        }
+      ],
+      "children": []
+    },
+    "words-lead": {
+      "id": "words-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Show live words is off by default, and "
+        },
+        {
+          "insert": "\"liveWords\": true",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " turns it on. It works on macOS 26 and needs the waveform on."
+        }
+      ],
+      "children": []
+    },
+    "words-b": {
+      "id": "words-b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The words come from Apple Speech, whatever the transcriber is, in a row under the controls ("
+        },
+        {
+          "insert": "ElemId::Caption",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": [
+        "words-b1"
+      ]
+    },
+    "words-b1": {
+      "id": "words-b1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The row appears once "
+        },
+        {
+          "insert": "transcribe-stream",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is ready, leaves if it fails, and says Listening… until words come."
+        }
+      ],
+      "children": []
+    },
+    "words-c": {
+      "id": "words-c",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Without the "
+        },
+        {
+          "insert": "liveTranscribe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " experiment, a stream of their own ("
+        },
+        {
+          "insert": "Live::preview",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "--volatile --fast",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") makes the words and stops with the recording."
+        }
+      ],
+      "children": [
+        "words-c1"
+      ]
+    },
+    "words-c1": {
+      "id": "words-c1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The transcript is still made from "
+        },
+        {
+          "insert": "audio.wav",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "words-d": {
+      "id": "words-d",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "With "
+        },
+        {
+          "insert": "liveTranscribe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", that experiment's stream shows the words with "
+        },
+        {
+          "insert": "--volatile",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " only, so its finalized words, which become the transcript, are unchanged."
+        }
+      ],
+      "children": []
+    },
+    "words-e": {
+      "id": "words-e",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The text is two lines at a fixed width ("
+        },
+        {
+          "insert": "live_audio::wrap",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") that scroll up a whole line at a time."
+        }
+      ],
+      "children": [
+        "words-e1"
+      ]
+    },
+    "words-e1": {
+      "id": "words-e1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A cabled iPhone recording shows them through "
+        },
+        {
+          "insert": "AudioRecorder::listen",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and the GPUI capsule ("
+        },
+        {
+          "insert": "\"nativePill\": false",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") doesn't draw them."
+        }
+      ],
+      "children": []
+    },
+    "rec-other": {
+      "id": "rec-other",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Transcription",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " picks Deepgram nova-3, Apple Speech, Hex while Hex runs, or Command when "
+        },
+        {
+          "insert": "transcribeCommand",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is usable. Under Apple Speech, Language writes "
+        },
+        {
+          "insert": "appleLocale",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", Automatic removes the key, and "
+        },
+        {
+          "insert": "Effect::SpeechModel",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " restarts the model check. "
+        },
+        {
+          "insert": "Transcription",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/35-transcription"
+            }
+          }
+        },
+        {
+          "insert": " covers the engines."
+        }
+      ],
+      "children": []
+    },
+    "rec-other2": {
+      "id": "rec-other2",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Save app state",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " writes "
+        },
+        {
+          "insert": "appState",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which is off by default, as "
+        },
+        {
+          "insert": "App State and Privacy",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/40-app-state-and-privacy"
+            }
+          }
+        },
+        {
+          "insert": " describes. "
+        },
+        {
+          "insert": "Video export",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": ", under Experimental, writes "
+        },
+        {
+          "insert": "videoExport",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which shows the menu's export item from "
+        },
+        {
+          "insert": "Export and Retention",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/80-export-and-retention"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-general": {
+      "id": "h-general",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "General Pane"
+        }
+      ],
+      "children": []
+    },
+    "gen-lead": {
+      "id": "gen-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "General holds Launch at login, Send dev-site captures to OpenCode ("
+        },
+        {
+          "insert": "autoSend",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", from "
+        },
+        {
+          "insert": "Routing and Delivery",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/50-routing-and-delivery"
+            }
+          }
+        },
+        {
+          "insert": "), and Lower other audio while recording ("
+        },
+        {
+          "insert": "src/playback.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/playback.rs"
+            }
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "helper/PlaybackVolume.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "helper/PlaybackVolume.swift"
+            }
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "h-lower": {
+      "id": "h-lower",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Lower Other Audio While Recording"
+        }
+      ],
+      "children": []
+    },
+    "lower-lead": {
+      "id": "lower-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The setting is off by default. "
+        },
+        {
+          "insert": "\"lowerPlayback\": true",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ramps the default output's volume over one second to "
+        },
+        {
+          "insert": "playbackLevel",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " percent of what it was. Lower to defaults to 20%, and 0 mutes."
+        }
+      ],
+      "children": []
+    },
+    "lower-b": {
+      "id": "lower-b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The ramp starts when the shortcut is pressed or a recording starts, Mac or cabled iPhone. The volume comes back when the recording finishes or is cancelled, or the picker closes without recording."
+        }
+      ],
+      "children": []
+    },
+    "lower-c": {
+      "id": "lower-c",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl-helper playback-volume --server",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " does the CoreAudio work and takes "
+        },
+        {
+          "insert": "start N",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "stop",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " lines on stdin. It starts at launch while the setting is on."
+        }
+      ],
+      "children": []
+    },
+    "lower-d": {
+      "id": "lower-d",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "It reads every writable output channel's volume before it writes any, or the master volume when the channels have none. Balance and silent channels come back as they were, and it never touches the mute flag or an input device."
+        }
+      ],
+      "children": []
+    },
+    "lower-e": {
+      "id": "lower-e",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "It restores on "
+        },
+        {
+          "insert": "stop",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", when Annotator exits or crashes and stdin closes, and at once on SIGTERM, SIGINT or SIGHUP. It leaves the volume alone if someone changed it during the recording."
+        }
+      ],
+      "children": [
+        "lower-f"
+      ]
+    },
+    "lower-f": {
+      "id": "lower-f",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A device switched to mid-recording isn't lowered, and the original device is restored. Fixed-volume outputs stay unchanged, and Windows and Linux do nothing."
+        }
+      ],
+      "children": []
+    },
+    "h-storage": {
+      "id": "h-storage",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Storage Pane"
+        }
+      ],
+      "children": []
+    },
+    "storage-lead": {
+      "id": "storage-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Storage holds Keep recordings, Location, Size, and Show in Finder. Keep recordings writes "
+        },
+        {
+          "insert": "\"retention\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", as "
+        },
+        {
+          "insert": "Export and Retention",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/80-export-and-retention"
+            }
+          }
+        },
+        {
+          "insert": " describes. Location ("
+        },
+        {
+          "insert": "CapturesDirView",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") sets where new captures go."
+        }
+      ],
+      "children": []
+    },
+    "loc-a": {
+      "id": "loc-a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Change… opens the helper's folder picker and sends "
+        },
+        {
+          "insert": "set capturesDir",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with an absolute path. Reset sends "
+        },
+        {
+          "insert": "\"\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which removes the key."
+        }
+      ],
+      "children": []
+    },
+    "loc-b": {
+      "id": "loc-b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "handoff::default_captures_dir",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads the folder on every call: "
+        },
+        {
+          "insert": "SCRAWL_CAPTURES_DIR",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " wins, then "
+        },
+        {
+          "insert": "\"capturesDir\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", then "
+        },
+        {
+          "insert": "builtin_captures_dir",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". A leading "
+        },
+        {
+          "insert": "~",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " expands, and a relative path is logged and skipped."
+        }
+      ],
+      "children": []
+    },
+    "loc-c": {
+      "id": "loc-c",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "New captures, retention, "
+        },
+        {
+          "insert": "scrawl latest",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and the Size row follow a change at once. Captures already made stay where they are."
+        }
+      ],
+      "children": [
+        "loc-e"
+      ]
+    },
+    "loc-e": {
+      "id": "loc-e",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "State kept beside the captures ("
+        },
+        {
+          "insert": "inbox.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "last-mode",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", the legacy "
+        },
+        {
+          "insert": "config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") stays under the parent of "
+        },
+        {
+          "insert": "builtin_captures_dir",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "loc-d": {
+      "id": "loc-d",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A folder that can't be created or written falls back to the built-in one, and the log says so once."
+        }
+      ],
+      "children": []
+    },
+    "h-agents": {
+      "id": "h-agents",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Command-Line Tool and Agent Skill"
+        }
+      ],
+      "children": []
+    },
+    "cli-lead": {
+      "id": "cli-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Agents › Command-line tool ("
+        },
+        {
+          "insert": "src/command_line.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/command_line.rs"
+            }
+          }
+        },
+        {
+          "insert": ") links the app's own binary onto PATH. Agents and terminals then run the copy that updates with the app. A bare "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " from a terminal prints help instead of starting a second app."
+        }
+      ],
+      "children": []
+    },
+    "cli-a": {
+      "id": "cli-a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Install symlinks the binary's real path into the first writable folder of "
+        },
+        {
+          "insert": "/opt/homebrew/bin",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "/usr/local/bin",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", else "
+        },
+        {
+          "insert": "~/.local/bin",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": [
+        "cli-a1"
+      ]
+    },
+    "cli-a1": {
+      "id": "cli-a1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The real path is how the binary finds "
+        },
+        {
+          "insert": "scrawl-helper",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "cli-b": {
+      "id": "cli-b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Install never asks for admin rights, and never touches a "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that doesn't link to an app bundle's "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "cli-c": {
+      "id": "cli-c",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A link from upstream's Homebrew cask "
+        },
+        {
+          "insert": "binary",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " stanza reads as installed, with no Uninstall button."
+        }
+      ],
+      "children": []
+    },
+    "cli-d": {
+      "id": "cli-d",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator Dev links "
+        },
+        {
+          "insert": "scrawl-dev",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " instead, so it never replaces the live app's link."
+        }
+      ],
+      "children": [
+        "cli-d1"
+      ]
+    },
+    "cli-d1": {
+      "id": "cli-d1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A build outside an app bundle can't install."
+        }
+      ],
+      "children": []
+    },
+    "skill": {
+      "id": "skill",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Agents › Agent skill shows "
+        },
+        {
+          "insert": "bunx skills add kitlangton/scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with Copy, which installs upstream's copy of "
+        },
+        {
+          "insert": "skills/scrawl/SKILL.md",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "skills/scrawl/SKILL.md"
+            }
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "scrawl skill",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints the same file, compiled into the binary. Keep that file true to the CLI."
+        }
+      ],
+      "children": []
+    },
+    "h-config": {
+      "id": "h-config",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Config File"
+        }
+      ],
+      "children": []
+    },
+    "cfg-lead": {
+      "id": "cfg-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The live app's config file is "
+        },
+        {
+          "insert": "~/.config/scrawl/config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and Annotator Dev's is "
+        },
+        {
+          "insert": "~/.config/scrawl-dev/config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "SCRAWL_CONFIG",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " names another file. "
+        },
+        {
+          "insert": "src/handoff.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/handoff.rs"
+            }
+          }
+        },
+        {
+          "insert": " reads the file again on each call, so a key read there needs no restart."
+        }
+      ],
+      "children": []
+    },
+    "cfg-a": {
+      "id": "cfg-a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A missing or unreadable file means every default."
+        }
+      ],
+      "children": []
+    },
+    "cfg-b": {
+      "id": "cfg-b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A key whose value doesn't fit, such as "
+        },
+        {
+          "insert": "\"autoSend\": \"maybe\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", is dropped and logged once. The other keys keep their values ("
+        },
+        {
+          "insert": "config_from_value",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "cfg-c": {
+      "id": "cfg-c",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "experiments",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " takes "
+        },
+        {
+          "insert": "true",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "\"yes\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "\"on\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "\"1\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", their opposites, or a number. Any other value is skipped and logged."
+        }
+      ],
+      "children": []
+    },
+    "cfg-d": {
+      "id": "cfg-d",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "set_config_value_in",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " writes one top-level key through a temp file and a rename, and a "
+        },
+        {
+          "insert": "null",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " value removes the key."
+        }
+      ],
+      "children": [
+        "cfg-d1"
+      ]
+    },
+    "cfg-d1": {
+      "id": "cfg-d1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "It keeps every other key and sets mode "
+        },
+        {
+          "insert": "0600",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", since the file holds "
+        },
+        {
+          "insert": "ingestToken",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "cfg-table-lead": {
+      "id": "cfg-table-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The table lists every top-level key the app reads: the fields of "
+        },
+        {
+          "insert": "handoff::Config",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in source order, then the keys that other modules read. "
+        },
+        {
+          "insert": "cargo test feature_map",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " fails when a key the code reads has no entry in "
+        },
+        {
+          "insert": "site/src/features.json",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "site/src/features.json"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "cfg-table": {
+      "id": "cfg-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Key",
+          "Type",
+          "Default",
+          "Effect"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "agentHost",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "string",
+            "none",
+            [
+              {
+                "insert": "SSH host whose OpenCode server holds the sessions. "
+              },
+              {
+                "insert": "SCRAWL_AGENT_HOST",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " wins."
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "agentOpencode",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "string",
+            [
+              {
+                "insert": "\"opencode2\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The opencode command on that host"
+          ],
+          [
+            [
+              {
+                "insert": "ingestToken",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "string",
+            "generated",
+            "Bearer token for phone uploads, 32 random bytes in hex when absent"
+          ],
+          [
+            [
+              {
+                "insert": "usbApps",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "string[]",
+            [
+              {
+                "insert": "[]",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Bundle ids whose container the USB watcher checks. "
+              },
+              {
+                "insert": "tetherApps",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " is an alias."
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "autocrop",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "false",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or object"
+              }
+            ],
+            "on",
+            [
+              {
+                "insert": "false",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " turns Screen auto-crop off, and an object changes its settings"
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "autoSend",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "bool",
+            [
+              {
+                "insert": "true",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "false",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " keeps dev-site captures on the clipboard"
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "videoExport",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "bool",
+            [
+              {
+                "insert": "false",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Shows Export Last Capture as Video… in the menu"
+          ],
+          [
+            [
+              {
+                "insert": "transcriber",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "string",
+            [
+              {
+                "insert": "\"deepgram\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " on macOS, else "
+              },
+              {
+                "insert": "\"apple\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "\"deepgram\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "\"apple\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "\"hex\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "\"command\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "lowerPlayback",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "bool",
+            [
+              {
+                "insert": "false",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Lowers other audio while recording"
+          ],
+          [
+            [
+              {
+                "insert": "playbackLevel",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "u8",
+            [
+              {
+                "insert": "20",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Percent of the volume kept, capped at 100"
+          ],
+          [
+            [
+              {
+                "insert": "liveAudio",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "bool",
+            [
+              {
+                "insert": "true",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Shows the waveform in the capsule"
+          ],
+          [
+            [
+              {
+                "insert": "liveWords",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "bool",
+            [
+              {
+                "insert": "false",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Shows the words under the waveform"
+          ],
+          [
+            [
+              {
+                "insert": "blockDrawClicks",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "bool",
+            [
+              {
+                "insert": "true",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Keeps a draw-modifier press inside the target from the app under the pointer"
+          ],
+          [
+            [
+              {
+                "insert": "hexModel",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "string",
+            [
+              {
+                "insert": "first ready model of "
+              },
+              {
+                "insert": "hex::PREFERRED_MODELS",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "The Hex model when "
+              },
+              {
+                "insert": "transcriber",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " is "
+              },
+              {
+                "insert": "\"hex\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "hexLanguage",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "string",
+            [
+              {
+                "insert": "\"en\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Language sent to Hex. "
+              },
+              {
+                "insert": "\"auto\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " lets the model detect it."
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "appleLocale",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "string",
+            "the Mac's language",
+            [
+              {
+                "insert": "BCP-47 locale for Apple Speech, such as "
+              },
+              {
+                "insert": "\"zh-TW\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "nativePill",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "bool",
+            [
+              {
+                "insert": "true",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "false",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " draws the GPUI capsule on macOS. "
+              },
+              {
+                "insert": "SCRAWL_NATIVE_PILL",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " wins."
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "pillStyle",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "string",
+            [
+              {
+                "insert": "\"black\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "\"black\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "\"glass\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", the Metal capsule's look"
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "appState",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "bool",
+            "off",
+            [
+              {
+                "insert": "Saves app state. Absent follows "
+              },
+              {
+                "insert": "experiments.agentContext",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": "."
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "experiments",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "object",
+            [
+              {
+                "insert": "{}",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Each experiment by name, on or off"
+          ],
+          [
+            [
+              {
+                "insert": "microphone",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "{id, name}",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "System default",
+            "The input that Mac captures record from"
+          ],
+          [
+            [
+              {
+                "insert": "routing",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "{apps, servers}",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "none",
+            "Checkouts for apps and folders for file servers, for smart routing"
+          ],
+          [
+            [
+              {
+                "insert": "capturesDir",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "string",
+            "the built-in folder",
+            [
+              {
+                "insert": "Absolute folder for new captures. "
+              },
+              {
+                "insert": "SCRAWL_CAPTURES_DIR",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " wins."
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "transcribeCommand",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "string[]",
+            "none",
+            "The command transcriber's program and arguments"
+          ],
+          [
+            [
+              {
+                "insert": "transcribeTimeoutSeconds",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "number",
+            "300 s, or 60 s plus 10 times the audio length if longer",
+            "The command's time limit, capped at 7 days"
+          ],
+          [
+            [
+              {
+                "insert": "onboarding",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "object",
+            "none",
+            "Tour progress. Delete it to replay the tour."
+          ],
+          [
+            [
+              {
+                "insert": "retention",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "object",
+            "keep forever",
+            [
+              {
+                "insert": "mediaDays",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " and "
+              },
+              {
+                "insert": "bundleDays",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "shortcuts",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "object",
+            "each row's default",
+            "The five shortcut rows"
+          ]
+        ],
+        "title": "Config keys"
+      },
+      "children": []
+    },
+    "h-render": {
+      "id": "h-render",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Render and Test"
+        }
+      ],
+      "children": []
+    },
+    "render-lead": {
+      "id": "render-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each helper window renders its states to PNGs without the app, and each Rust module has its own tests. The table lists the commands for this page's subsystems."
+        }
+      ],
+      "children": []
+    },
+    "render-table": {
+      "id": "render-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Command",
+          "What it produces"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "scrawl-helper onboarding --render DIR",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Every onboarding screen and permission state. Add "
+              },
+              {
+                "insert": "--icon assets/app-icon.png",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " for the icon."
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "scrawl-helper onboarding --render DIR --demo-frames 30",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "One How It Works loop as PNGs for a video"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl-helper settings --render DIR",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Every pane, dark and light, each shortcut state, and each microphone state"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl-helper settings --render DIR --shortcut-clip",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "One shortcut take as 60 fps PNGs. Add "
+              },
+              {
+                "insert": "--light",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " for the light look."
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "cargo test settings::",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The Settings logic tests"
+          ],
+          [
+            [
+              {
+                "insert": "cargo test live_audio",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The level, guess and wrap tests"
+          ],
+          [
+            [
+              {
+                "insert": "SCRAWL_PILL_STILLS=DIR cargo test live_audio_renders_offscreen",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Each capsule state as a PNG"
+          ],
+          [
+            [
+              {
+                "insert": "SCRAWL_LIVE_WAV=audio.wav cargo test live_words_from_the_real_helper -- --ignored --nocapture",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The live words for a recording, through the real helper"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl-helper playback-volume --self-test",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The ramp tests on fake devices"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl-helper playback-volume --inspect",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The current output device's volume controls, unchanged"
+          ]
+        ],
+        "title": "Render and test commands"
+      },
+      "children": []
+    }
+  }
+}

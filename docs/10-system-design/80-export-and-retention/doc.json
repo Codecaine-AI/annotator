@@ -1,0 +1,2507 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-f7151d8e32ea9bb1871969d4e0533cdf",
+  "title": "Export and Retention",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "open",
+        "h-export",
+        "export-lead",
+        "export-outline",
+        "opts-lead",
+        "opts-table",
+        "opts-ex-lead",
+        "opts-ex",
+        "h-crop",
+        "crop-lead",
+        "crop-1",
+        "crop-2",
+        "crop-3",
+        "h-zoom",
+        "zoom-lead",
+        "zoom-1",
+        "zoom-2",
+        "zoom-3",
+        "zoom-4",
+        "h-ink",
+        "ink-lead",
+        "ink-1",
+        "ink-2",
+        "ink-3",
+        "ink-4",
+        "h-menu",
+        "menu-lead",
+        "menu-1",
+        "menu-2",
+        "menu-3",
+        "h-history",
+        "img-history",
+        "history-lead",
+        "history-table",
+        "apps-lead",
+        "apps-table",
+        "apps-1",
+        "apps-2",
+        "apps-3",
+        "h-review",
+        "img-review",
+        "review-lead",
+        "review-1",
+        "review-2",
+        "review-3",
+        "review-4",
+        "h-retention",
+        "ret-lead",
+        "ret-shape",
+        "presets-lead",
+        "presets-table",
+        "h-pass",
+        "pass-lead",
+        "pass-outline",
+        "pass-1",
+        "pass-2",
+        "pass-3",
+        "pass-4",
+        "clean-lead",
+        "clean-code",
+        "h-shrink",
+        "shrink-lead",
+        "shrink-1",
+        "shrink-2",
+        "shrink-3",
+        "shrink-4",
+        "h-test",
+        "test-lead"
+      ]
+    },
+    "open": {
+      "id": "open",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator turns a capture into a shareable video on request and keeps the captures folder from growing forever. "
+        },
+        {
+          "insert": "scrawl export",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " renders a bundle as one "
+        },
+        {
+          "insert": ".mp4",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and the History window lists every capture with a Review video tab. Retention moves old media and old bundles to the Trash after the limits you set, and shrinks cabled-iPhone video."
+        }
+      ],
+      "children": []
+    },
+    "h-export": {
+      "id": "h-export",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Video Export"
+        }
+      ],
+      "children": []
+    },
+    "export-lead": {
+      "id": "export-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl export <bundle>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " writes one H.264 or HEVC "
+        },
+        {
+          "insert": ".mp4",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with AAC audio, cropped to the activity, with the ink and click ripples burned in at the times they happened. Rust ("
+        },
+        {
+          "insert": "src/export/mod.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/export/mod.rs"
+            }
+          }
+        },
+        {
+          "insert": ") decides everything, and "
+        },
+        {
+          "insert": "scrawl-helper export",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "helper/Export.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "helper/Export.swift"
+            }
+          }
+        },
+        {
+          "insert": ") renders a JSON plan on AVFoundation. Nothing is decoded into Rust, and ffmpeg isn't needed."
+        }
+      ],
+      "children": []
+    },
+    "export-outline": {
+      "id": "export-outline",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Video Export",
+            "steps": [
+              {
+                "text": "Read the Video",
+                "steps": [
+                  {
+                    "text": "Find the video that `scrawl.json` names, else `recording.mp4`"
+                  },
+                  {
+                    "text": "If the video file is missing",
+                    "steps": [
+                      {
+                        "text": "Fail with the reason from `retention::missing_media_reason`",
+                        "trace": true
+                      },
+                      {
+                        "text": "a bundle that retention never cleaned says it has no video",
+                        "kind": "note"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "Probe the video's size, frame rate and length"
+                  }
+                ]
+              },
+              {
+                "text": "Plan the Frame",
+                "steps": [
+                  {
+                    "text": "Resolve the crop (`crop::resolve`)"
+                  },
+                  {
+                    "text": "Pick the output size (`crop::output_size`) and frame rate"
+                  },
+                  {
+                    "text": "Pick the audio track or window"
+                  }
+                ]
+              },
+              {
+                "text": "Plan the Overlays",
+                "steps": [
+                  {
+                    "text": "If `--zoom` is set",
+                    "steps": [
+                      {
+                        "text": "Plan the camera rectangles (`camera_rows`)"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "Plan the ink, pins, laser and ripples (`ink::plan`)"
+                  },
+                  {
+                    "text": "Write the plan to a temp JSON file",
+                    "trace": true
+                  }
+                ]
+              },
+              {
+                "text": "Render in the Helper",
+                "steps": [
+                  {
+                    "text": "Decode frames with AVAssetReader"
+                  },
+                  {
+                    "text": "Crop and move the camera with Core Image"
+                  },
+                  {
+                    "text": "Draw the ink into the same pixel buffers with Core Graphics"
+                  },
+                  {
+                    "text": "Encode video and AAC audio into `<name>.partial.mp4`",
+                    "trace": true
+                  },
+                  {
+                    "text": "Report `{\"progress\": f}` lines, then `{\"done\": {...}}`",
+                    "trace": true
+                  }
+                ]
+              },
+              {
+                "text": "Finish",
+                "steps": [
+                  {
+                    "text": "If the helper fails",
+                    "steps": [
+                      {
+                        "text": "Delete the partial file"
+                      },
+                      {
+                        "text": "Return the helper's error"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "Rename the partial file to the output",
+                    "trace": true
+                  },
+                  {
+                    "text": "Print one summary line (`export::describe`)"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "opts-lead": {
+      "id": "opts-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The table lists the command's arguments in the order "
+        },
+        {
+          "insert": "src/main.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/main.rs"
+            }
+          }
+        },
+        {
+          "insert": " declares them."
+        }
+      ],
+      "children": []
+    },
+    "opts-table": {
+      "id": "opts-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Argument",
+          "Default",
+          "Effect"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "<bundle>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "latest",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "The "
+              },
+              {
+                "insert": ".scrawl",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " folder to export"
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "--out <path>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "~/Movies/Scrawl/<bundle>.mp4",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "The output file. Annotator Dev writes to "
+              },
+              {
+                "insert": "~/Movies/Scrawl Dev/",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": "."
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "--crop <crop>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "auto",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "auto",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "full",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", or "
+              },
+              {
+                "insert": "x,y,w,h",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "--size <px>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "1920",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Longest output side. The video is never scaled up."
+          ],
+          [
+            [
+              {
+                "insert": "--zoom",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "off",
+            "Eases the camera toward activity and back out"
+          ],
+          [
+            [
+              {
+                "insert": "--no-ink",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "off",
+            "Leaves out the red ink, pins and laser"
+          ],
+          [
+            [
+              {
+                "insert": "--no-clicks",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "off",
+            "Leaves out click ripples and touch trails"
+          ],
+          [
+            [
+              {
+                "insert": "--hevc",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "off",
+            "Encodes HEVC instead of H.264"
+          ],
+          [
+            [
+              {
+                "insert": "--fps <n>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "60 for a recording at 45 fps or more, else 30",
+            "The output frame rate"
+          ]
+        ],
+        "title": "scrawl export arguments"
+      },
+      "children": []
+    },
+    "opts-ex-lead": {
+      "id": "opts-ex-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "These examples combine the arguments:"
+        }
+      ],
+      "children": []
+    },
+    "opts-ex": {
+      "id": "opts-ex",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "scrawl export latest --out demo.mp4 --zoom        # with auto-zoom\nscrawl export latest --crop full --size 1280      # whole capture, 1280 px long edge\nscrawl export latest --crop 0.1,0.2,0.6,0.5       # x,y,w,h as fractions of the capture"
+        }
+      ],
+      "children": []
+    },
+    "h-crop": {
+      "id": "h-crop",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Crop"
+        }
+      ],
+      "children": []
+    },
+    "crop-lead": {
+      "id": "crop-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/export/crop.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/export/crop.rs"
+            }
+          }
+        },
+        {
+          "insert": " decides what part of the recording the export keeps, how big it comes out, and where the audio starts."
+        }
+      ],
+      "children": []
+    },
+    "crop-1": {
+      "id": "crop-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "auto",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is auto-crop's whole-recording crop ("
+        },
+        {
+          "insert": "Scope::Whole",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") for a Screen capture, and the whole capture for a Window, Area or iPhone capture."
+        }
+      ],
+      "children": []
+    },
+    "crop-2": {
+      "id": "crop-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "x,y,w,h",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is fractions of the capture when every number is 1 or less, else pixels of the recording's video."
+        }
+      ],
+      "children": []
+    },
+    "crop-3": {
+      "id": "crop-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The output keeps the crop's aspect with even sides, capped at "
+        },
+        {
+          "insert": "--size",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " on its long edge."
+        }
+      ],
+      "children": []
+    },
+    "h-zoom": {
+      "id": "h-zoom",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Auto-Zoom"
+        }
+      ],
+      "children": []
+    },
+    "zoom-lead": {
+      "id": "zoom-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/export/camera.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/export/camera.rs"
+            }
+          }
+        },
+        {
+          "insert": " turns the clicks, drags, marks, laser points and cursor path into one camera rectangle per 1/60 s. "
+        },
+        {
+          "insert": "camera::plan",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is pure and deterministic, and the helper only interpolates and draws. The method comes from ScreenDemon's click zoom, held longer because a shared video reads slower."
+        }
+      ],
+      "children": []
+    },
+    "zoom-1": {
+      "id": "zoom-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Nearby activity shares one zoom on its bounding box, up to 1.8× ("
+        },
+        {
+          "insert": "ZOOM_SCALE",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": [
+        "zoom-1a"
+      ]
+    },
+    "zoom-1a": {
+      "id": "zoom-1a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Activity that needs a wider view than 1.5× ("
+        },
+        {
+          "insert": "MIN_ZOOM_SCALE",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") stays unzoomed."
+        }
+      ],
+      "children": []
+    },
+    "zoom-2": {
+      "id": "zoom-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A zoom starts 350 ms before the activity ("
+        },
+        {
+          "insert": "LEAD_MS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), holds 2.5 s after the last activity ("
+        },
+        {
+          "insert": "HOLD_MS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), and then eases back out."
+        }
+      ],
+      "children": []
+    },
+    "zoom-3": {
+      "id": "zoom-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The camera is critically damped springs on scale and offset, so it travels as one move with no bounce."
+        }
+      ],
+      "children": [
+        "zoom-3a"
+      ]
+    },
+    "zoom-3a": {
+      "id": "zoom-3a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Inside a zoom, the focus follows the cursor only once it leaves a central safe zone ("
+        },
+        {
+          "insert": "FOLLOW_SAFE",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", 0.22 divided by the scale)."
+        }
+      ],
+      "children": []
+    },
+    "zoom-4": {
+      "id": "zoom-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A zoom never starts while the cursor travels faster than 0.9 crop widths per second ("
+        },
+        {
+          "insert": "FAST_TRAVEL",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), and the follow pauses then."
+        }
+      ],
+      "children": []
+    },
+    "h-ink": {
+      "id": "h-ink",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Ink, Audio and Frame Rate"
+        }
+      ],
+      "children": []
+    },
+    "ink-lead": {
+      "id": "ink-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Every time in the plan is on the video's clock: bundle time minus "
+        },
+        {
+          "insert": "videoOffsetMs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Activity from before the video began is dropped."
+        }
+      ],
+      "children": []
+    },
+    "ink-1": {
+      "id": "ink-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "src/export/ink.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/export/ink.rs"
+            }
+          }
+        },
+        {
+          "insert": " draws strokes through "
+        },
+        {
+          "insert": "sketch::freehand_outline",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", with sizes that mirror "
+        },
+        {
+          "insert": "render::annotate_keyframe_in_place",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": [
+        "ink-1a"
+      ]
+    },
+    "ink-1a": {
+      "id": "ink-1a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Ink stays 2.5 s after its mark's last stroke, then fades over 500 ms."
+        }
+      ],
+      "children": []
+    },
+    "ink-2": {
+      "id": "ink-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A Mac "
+        },
+        {
+          "insert": "audio.wav",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " starts "
+        },
+        {
+          "insert": "videoOffsetMs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " before the video, so "
+        },
+        {
+          "insert": "crop::audio_window",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " trims it to start where the video does."
+        }
+      ],
+      "children": []
+    },
+    "ink-3": {
+      "id": "ink-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "An iPhone movie with an audio track uses its own audio, and a bundle with neither exports with no audio."
+        }
+      ],
+      "children": []
+    },
+    "ink-4": {
+      "id": "ink-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The output has a constant frame rate, because a screen movie has frames only when the screen changes."
+        }
+      ],
+      "children": [
+        "ink-4a"
+      ]
+    },
+    "ink-4a": {
+      "id": "ink-4a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each tick shows the latest source frame, so the camera and the ink move while the screen holds still."
+        }
+      ],
+      "children": []
+    },
+    "h-menu": {
+      "id": "h-menu",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Export From the Menu"
+        }
+      ],
+      "children": []
+    },
+    "menu-lead": {
+      "id": "menu-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "With "
+        },
+        {
+          "insert": "\"videoExport\": true",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (Settings › Recording › Video export, off by default), the menu shows "
+        },
+        {
+          "insert": "Export Last Capture as Video…",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": ". The flag gates only the menu item, and "
+        },
+        {
+          "insert": "scrawl export",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " works either way."
+        }
+      ],
+      "children": []
+    },
+    "menu-1": {
+      "id": "menu-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The item exports the newest bundle to the default output under "
+        },
+        {
+          "insert": "taskpolicy -c utility",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", so a recording in progress isn't hurt."
+        }
+      ],
+      "children": []
+    },
+    "menu-2": {
+      "id": "menu-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Progress shows beside the menu bar icon as Exporting N%, then Exported or Export failed for 4 s."
+        }
+      ],
+      "children": []
+    },
+    "menu-3": {
+      "id": "menu-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A finished export reveals the file in Finder, and a click while an export runs does nothing."
+        }
+      ],
+      "children": []
+    },
+    "h-history": {
+      "id": "h-history",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "History and Review"
+        }
+      ],
+      "children": []
+    },
+    "img-history": {
+      "id": "img-history",
+      "type": "image",
+      "props": {
+        "alt": "The menu bar menu with History… selected beside the History window, which lists captures newest first with Date, Apps, Length and Video columns. The last row shows Video cleaned.",
+        "caption": "The History window and its menu item, the approved design mockup.",
+        "src": "./assets/images/history-window.jpg"
+      },
+      "children": []
+    },
+    "history-lead": {
+      "id": "history-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "History…",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " in the menu opens "
+        },
+        {
+          "insert": "HistoryWindow",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "history::scan",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "src/history.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/history.rs"
+            }
+          }
+        },
+        {
+          "insert": ") reads every "
+        },
+        {
+          "insert": "*.scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " folder in "
+        },
+        {
+          "insert": "handoff::default_captures_dir",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", skips one without a readable "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and sorts newest first. The table lists a row's columns in window order."
+        }
+      ],
+      "children": []
+    },
+    "history-table": {
+      "id": "history-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Column",
+          "Shows"
+        ],
+        "rows": [
+          [
+            "Date",
+            [
+              {
+                "insert": "createdAtMs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " in local time, such as "
+              },
+              {
+                "insert": "Nov 13, 2:41 PM",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", with the year only when it isn't this year"
+              }
+            ]
+          ],
+          [
+            "Apps",
+            [
+              {
+                "insert": "ScrawlBundle::apps",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ": three joined by arrows, then "
+              },
+              {
+                "insert": "+N",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Length",
+            [
+              {
+                "insert": "durationMs",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " as "
+              },
+              {
+                "insert": "M:SS",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Video",
+            [
+              {
+                "insert": "Video cleaned when "
+              },
+              {
+                "insert": "history::playable_video",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " finds no file"
+              }
+            ]
+          ]
+        ],
+        "title": "History columns"
+      },
+      "children": []
+    },
+    "apps-lead": {
+      "id": "apps-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The Apps tooltip and the Review header show every app. "
+        },
+        {
+          "insert": "ScrawlBundle::apps",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " builds one app list per capture mode, as the table shows."
+        }
+      ],
+      "children": []
+    },
+    "apps-table": {
+      "id": "apps-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Mode",
+          "Apps"
+        ],
+        "rows": [
+          [
+            "Screen",
+            [
+              {
+                "insert": "The app of each window-log snapshot's "
+              },
+              {
+                "insert": "frontmost",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " entry, in first-seen order"
+              }
+            ]
+          ],
+          [
+            "Area",
+            "The app of each snapshot's first layer-0 regular window, in first-seen order"
+          ],
+          [
+            "Window",
+            [
+              {
+                "insert": "target.app",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "iPhone",
+            [
+              {
+                "insert": "device.app",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", else "
+              },
+              {
+                "insert": "target.app",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ]
+        ],
+        "title": "Apps by capture mode"
+      },
+      "children": []
+    },
+    "apps-1": {
+      "id": "apps-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A Screen or Area capture with no app in its window log uses "
+        },
+        {
+          "insert": "target.app",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", as captures from before Area captures logged windows do."
+        }
+      ],
+      "children": []
+    },
+    "apps-2": {
+      "id": "apps-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "windows::top_window",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds the per-snapshot rule, and "
+        },
+        {
+          "insert": "windows::top_raw_window",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " applies it with the window log's filters to a live "
+        },
+        {
+          "insert": "raw_windows()",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " list."
+        }
+      ],
+      "children": []
+    },
+    "apps-3": {
+      "id": "apps-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The window log runs for Area captures too, over the region, but the summary keeps window open and close lines for Screen captures only."
+        }
+      ],
+      "children": []
+    },
+    "h-review": {
+      "id": "h-review",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Review Video Tab"
+        }
+      ],
+      "children": []
+    },
+    "img-review": {
+      "id": "img-review",
+      "type": "image",
+      "props": {
+        "alt": "The Review window on its Video tab, with a native player showing a recording with a red ink circle, and the transcript and timeline on the right.",
+        "caption": "The Review window's Video tab, the approved design mockup.",
+        "src": "./assets/images/review-video-tab.jpg"
+      },
+      "children": []
+    },
+    "review-lead": {
+      "id": "review-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Double-click a row, or press Return, to open it in Review. Review shows a "
+        },
+        {
+          "insert": "Video",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " tab only while "
+        },
+        {
+          "insert": "history::playable_video",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " finds the file that "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " names in "
+        },
+        {
+          "insert": "video",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", resolved by "
+        },
+        {
+          "insert": "handoff::bundle_video",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "review-1": {
+      "id": "review-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A row with its video opens on the Video tab, and for a paused recording that file is the cut movie."
+        }
+      ],
+      "children": []
+    },
+    "review-2": {
+      "id": "review-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The tab starts "
+        },
+        {
+          "insert": "scrawl-helper play MOVIE --title T --frame X,Y,W,H",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "helper/Player.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "helper/Player.swift"
+            }
+          }
+        },
+        {
+          "insert": "), an AVPlayerView window that plays at once."
+        }
+      ],
+      "children": [
+        "review-2a"
+      ]
+    },
+    "review-2a": {
+      "id": "review-2a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The window fits the movie's shape inside the Review stage."
+        }
+      ],
+      "children": []
+    },
+    "review-3": {
+      "id": "review-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Review kills the player when the tab, the capture or the window changes."
+        }
+      ],
+      "children": [
+        "review-3a"
+      ]
+    },
+    "review-3a": {
+      "id": "review-3a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Closing the player leaves the tab on a "
+        },
+        {
+          "insert": "Play",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " button."
+        }
+      ],
+      "children": []
+    },
+    "review-4": {
+      "id": "review-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A cleaned capture opens on its contact sheet, with its keyframes and transcript."
+        }
+      ],
+      "children": []
+    },
+    "h-retention": {
+      "id": "h-retention",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Retention"
+        }
+      ],
+      "children": []
+    },
+    "ret-lead": {
+      "id": "ret-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Captures are kept forever unless you pick a limit. A bundle's prompt ("
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "contact-sheet.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "frames/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") is small, and its video, audio and full-size frames are nearly all of its size. "
+        },
+        {
+          "insert": "src/retention.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/retention.rs"
+            }
+          }
+        },
+        {
+          "insert": " trashes the heavy media first and the whole bundle later."
+        }
+      ],
+      "children": []
+    },
+    "ret-shape": {
+      "id": "ret-shape",
+      "type": "state-shape",
+      "props": {
+        "example": "{\n  \"mediaDays\": 7,\n  \"bundleDays\": 30\n}",
+        "fields": [
+          {
+            "name": "mediaDays",
+            "type": "Option<u32>",
+            "required": false,
+            "description": "Days to keep video, audio and full-size frames. `null` or a missing field keeps them. 0 counts as 1."
+          },
+          {
+            "name": "bundleDays",
+            "type": "Option<u32>",
+            "required": false,
+            "description": "Days to keep the whole bundle. `null` or a missing field keeps it. 0 counts as 1."
+          }
+        ],
+        "name": "retention",
+        "source": {
+          "path": "src/retention.rs",
+          "symbol": "Policy"
+        }
+      },
+      "children": []
+    },
+    "presets-lead": {
+      "id": "presets-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Settings › Storage › Keep recordings writes one of three presets ("
+        },
+        {
+          "insert": "retention::Preset",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), listed in menu order. A policy written by hand that matches no preset shows as Custom."
+        }
+      ],
+      "children": []
+    },
+    "presets-table": {
+      "id": "presets-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Preset",
+          "mediaDays",
+          "bundleDays"
+        ],
+        "rows": [
+          [
+            "Video for 7 Days",
+            [
+              {
+                "insert": "7",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "30",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Video for 30 Days",
+            [
+              {
+                "insert": "30",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "90",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Forever, the default",
+            [
+              {
+                "insert": "null",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "null",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ]
+        ],
+        "title": "Keep recordings presets"
+      },
+      "children": []
+    },
+    "h-pass": {
+      "id": "h-pass",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Cleanup Pass"
+        }
+      ],
+      "children": []
+    },
+    "pass-lead": {
+      "id": "pass-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The app's "
+        },
+        {
+          "insert": "scrawl-retention",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " thread runs at utility QoS. Each pass plans what to do for every bundle, then checks each step again just before it runs."
+        }
+      ],
+      "children": []
+    },
+    "pass-outline": {
+      "id": "pass-outline",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Cleanup Pass",
+            "steps": [
+              {
+                "text": "Schedule",
+                "steps": [
+                  {
+                    "text": "Run the first pass 90 s after launch",
+                    "trace": true
+                  },
+                  {
+                    "text": "Run a pass every hour after that (`PASS_EVERY`)"
+                  },
+                  {
+                    "text": "the Mac sleeps through `Instant`s, so the hour also goes by the wall clock",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "Run a pass 5 s after the policy changes (`retention::nudge`)"
+                  },
+                  {
+                    "text": "If a recording runs",
+                    "steps": [
+                      {
+                        "text": "Try the pass again in 60 s"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "For Each Bundle in the Captures Folder",
+                "steps": [
+                  {
+                    "text": "If the bundle is protected or busy",
+                    "steps": [
+                      {
+                        "text": "it is pinned, owed delivery, claimed, owed a `scrawl recover` build, or has a copy marker under a day old",
+                        "kind": "note"
+                      },
+                      {
+                        "text": "Skip the bundle"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "If the bundle is under 10 minutes old or changed in the last 10 minutes",
+                    "steps": [
+                      {
+                        "text": "Skip the bundle"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "If the bundle is under a day old or changed in the last day",
+                    "steps": [
+                      {
+                        "text": "Plan a shrink when its iPhone video qualifies"
+                      },
+                      {
+                        "text": "Go to the next bundle"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "If the bundle is older than `bundleDays`",
+                    "steps": [
+                      {
+                        "text": "Plan to trash the whole bundle",
+                        "trace": true
+                      }
+                    ]
+                  },
+                  {
+                    "text": "Otherwise",
+                    "steps": [
+                      {
+                        "text": "If the bundle is older than `mediaDays`",
+                        "steps": [
+                          {
+                            "text": "Plan to trash the heavy media that exists",
+                            "trace": true
+                          }
+                        ]
+                      },
+                      {
+                        "text": "Otherwise",
+                        "steps": [
+                          {
+                            "text": "Plan a shrink when its iPhone video qualifies"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "Apply the Plan",
+                "steps": [
+                  {
+                    "text": "Remove leftovers over 6 hours old (`sweep_leftovers`)"
+                  },
+                  {
+                    "text": "the leftovers are `.shrinking.mov` files and `.trash-staging`",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "Drop the shrink steps unless a day has passed since the last shrink pass"
+                  },
+                  {
+                    "text": "Run each step"
+                  },
+                  {
+                    "text": "Log the pass when it is the first or when it planned a step",
+                    "trace": true
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "pass-1": {
+      "id": "pass-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The heavy media is "
+        },
+        {
+          "insert": "handoff::HEAVY_MEDIA",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "recording.mp4",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "recording.mov",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "audio.wav",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "frames-full",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "contact-sheet-full.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") plus the "
+        },
+        {
+          "insert": "zoom/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " sheets made from it ("
+        },
+        {
+          "insert": "DERIVED_MEDIA",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "pass-2": {
+      "id": "pass-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The media goes to the Trash as one "
+        },
+        {
+          "insert": "<bundle> media",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " folder, and "
+        },
+        {
+          "insert": ".media-cleaned",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " records "
+        },
+        {
+          "insert": "cleanedAtMs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "afterDays",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and the trashed names."
+        }
+      ],
+      "children": [
+        "pass-2a",
+        "pass-2b"
+      ]
+    },
+    "pass-2a": {
+      "id": "pass-2a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Pasting and reading still work from the prompt files."
+        }
+      ],
+      "children": []
+    },
+    "pass-2b": {
+      "id": "pass-2b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Code that reads "
+        },
+        {
+          "insert": "video",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " must handle it missing, and "
+        },
+        {
+          "insert": "retention::missing_media_reason",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " says why it is gone."
+        }
+      ],
+      "children": []
+    },
+    "pass-3": {
+      "id": "pass-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A bundle's age comes from "
+        },
+        {
+          "insert": "createdAtMs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", else the "
+        },
+        {
+          "insert": "scrawl-<ms>-…",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " folder name, else the folder's modified time."
+        }
+      ],
+      "children": [
+        "pass-3a"
+      ]
+    },
+    "pass-3a": {
+      "id": "pass-3a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A change is the folder's change time (ctime), which a copy by "
+        },
+        {
+          "insert": "tar",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " can't backdate."
+        }
+      ],
+      "children": []
+    },
+    "pass-4": {
+      "id": "pass-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl pin [bundle]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " writes "
+        },
+        {
+          "insert": ".pinned",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to keep a bundle forever, and "
+        },
+        {
+          "insert": "scrawl pin --off",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " removes it."
+        }
+      ],
+      "children": []
+    },
+    "clean-lead": {
+      "id": "clean-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl clean --dry-run",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints what a pass would do now, and "
+        },
+        {
+          "insert": "scrawl clean",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " runs one, shrinks included. To try passes on a temp folder, use the hidden flags:"
+        }
+      ],
+      "children": []
+    },
+    "clean-code": {
+      "id": "clean-code",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "scrawl clean --captures DIR --days-ahead N --dry-run"
+        }
+      ],
+      "children": []
+    },
+    "h-shrink": {
+      "id": "h-shrink",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Shrinking Phone Video"
+        }
+      ],
+      "children": []
+    },
+    "shrink-lead": {
+      "id": "shrink-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A cabled-iPhone "
+        },
+        {
+          "insert": "recording.mov",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is about 18 Mbps at 1320×2868. Retention re-encodes it to HEVC at the size keyframes use, about ten times smaller: a 4.5-minute capture goes from 750 MB to 72 MB in about 20 s."
+        }
+      ],
+      "children": []
+    },
+    "shrink-1": {
+      "id": "shrink-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Only a cabled-iPhone mirror video above 6 Mbps qualifies ("
+        },
+        {
+          "insert": "SHRINK_ABOVE_BPS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": [
+        "shrink-1a"
+      ]
+    },
+    "shrink-1a": {
+      "id": "shrink-1a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A video whose long edge is within 15% of 1600 px stays as it is."
+        }
+      ],
+      "children": []
+    },
+    "shrink-2": {
+      "id": "shrink-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The phone capture queues its bundle ("
+        },
+        {
+          "insert": "retention::after_phone_capture",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), and the shrink runs a minute later ("
+        },
+        {
+          "insert": "SHRINK_DELAY",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), so pasting and sending go first."
+        }
+      ],
+      "children": [
+        "shrink-2a",
+        "shrink-2b"
+      ]
+    },
+    "shrink-2a": {
+      "id": "shrink-2a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "While a recording runs, the media is still copying, or another job claimed the bundle ("
+        },
+        {
+          "insert": "retention::claim",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), the shrink retries every 30 s for up to 2 hours."
+        }
+      ],
+      "children": []
+    },
+    "shrink-2b": {
+      "id": "shrink-2b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "One pass a day also shrinks any qualifying video that was missed."
+        }
+      ],
+      "children": []
+    },
+    "shrink-3": {
+      "id": "shrink-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Media.shrink",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "helper/Media.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "helper/Media.swift"
+            }
+          }
+        },
+        {
+          "insert": ") writes HEVC at a 1600 px long edge, copies the audio as is, and keeps every sample time."
+        }
+      ],
+      "children": [
+        "shrink-3a"
+      ]
+    },
+    "shrink-3a": {
+      "id": "shrink-3a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The timeline is unchanged, so "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " stays as it is."
+        }
+      ],
+      "children": []
+    },
+    "shrink-4": {
+      "id": "shrink-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The new movie is written beside the bundle as "
+        },
+        {
+          "insert": ".<name>.shrinking.mov",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and renamed over the original, so a copy to another Mac never picks up half of it."
+        }
+      ],
+      "children": [
+        "shrink-4a"
+      ]
+    },
+    "shrink-4a": {
+      "id": "shrink-4a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A movie that didn't get smaller, or one whose media started copying meanwhile, keeps the original."
+        }
+      ],
+      "children": []
+    },
+    "h-test": {
+      "id": "h-test",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Test"
+        }
+      ],
+      "children": []
+    },
+    "test-lead": {
+      "id": "test-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "cargo test export::",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " covers the export plan: the crop, the camera and the ink. "
+        },
+        {
+          "insert": "cargo test retention::",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " covers the cleanup plan, and the hidden "
+        },
+        {
+          "insert": "scrawl clean",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " flags above try a pass on a real folder."
+        }
+      ],
+      "children": []
+    }
+  }
+}

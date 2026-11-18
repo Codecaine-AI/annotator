@@ -1,0 +1,3493 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-7a722d559e3a341a63fb9daa6e37d779",
+  "title": "Keyframes and Images",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "open",
+        "h-select",
+        "sel-lead",
+        "sel-table",
+        "h-cues",
+        "cue-lead",
+        "g-cue-strong",
+        "g-cue-novel",
+        "g-cue-weak",
+        "h-budget",
+        "budget",
+        "h-marks",
+        "marks-lead",
+        "g-marks-group",
+        "g-marks-budget",
+        "h-coverage",
+        "coverage",
+        "h-words",
+        "words",
+        "words-link",
+        "h-shapes",
+        "shapes-lead",
+        "shapes-table",
+        "shapes-b-lead",
+        "g-sh-circle",
+        "g-sh-arrow",
+        "h-images",
+        "img-lead",
+        "g-img-ink",
+        "g-img-chip",
+        "g-img-pins",
+        "img-sheet",
+        "h-crop",
+        "crop-lead",
+        "cr-1",
+        "cr-2",
+        "crop-po-lead",
+        "crop-po",
+        "crop-out",
+        "h-crop-settings",
+        "cs-lead",
+        "cs-code",
+        "cs-table-lead",
+        "cs-table",
+        "cs-cmds",
+        "h-tuning",
+        "tu-1",
+        "tu-2",
+        "tu-3",
+        "tu-code",
+        "tu-4",
+        "h-measure",
+        "ms-lead",
+        "ms-coords",
+        "ms-src-1",
+        "ms-src-2",
+        "ms-src-3",
+        "ms-ink",
+        "h-ms-point",
+        "pt-lead",
+        "pt-list-lead",
+        "g-pt-seeds",
+        "g-pt-json",
+        "pt-po-lead",
+        "pt-po",
+        "pt-proof",
+        "h-ms-region",
+        "rg-lead",
+        "g-rg-boxes",
+        "g-rg-limits",
+        "g-rg-msgs",
+        "h-ms-notes",
+        "nt-lead",
+        "nt-table",
+        "h-ms-ppp",
+        "ppp-1",
+        "ppp-2",
+        "ppp-3",
+        "h-ms-limits",
+        "lim-lead",
+        "lim-table",
+        "fx",
+        "h-exp",
+        "exp-lead",
+        "exp-table",
+        "exp-links",
+        "exp-eval",
+        "exp-eval2"
+      ]
+    },
+    "open": {
+      "id": "open",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Keyframes are the few frames of a capture that an agent looks at. "
+        },
+        {
+          "insert": "src/keyframes.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/keyframes.rs"
+            }
+          }
+        },
+        {
+          "insert": " chooses them, "
+        },
+        {
+          "insert": "src/sketch.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/sketch.rs"
+            }
+          }
+        },
+        {
+          "insert": " names the shape of each mark, and "
+        },
+        {
+          "insert": "src/render.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/render.rs"
+            }
+          }
+        },
+        {
+          "insert": " draws the frames and the contact sheet. A Screen capture is then cropped to the activity, and "
+        },
+        {
+          "insert": "scrawl measure",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads exact sizes from a keyframe."
+        }
+      ],
+      "children": []
+    },
+    "h-select": {
+      "id": "h-select",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Keyframe Selection"
+        }
+      ],
+      "children": []
+    },
+    "sel-lead": {
+      "id": "sel-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A keyframe is cut only on a real action, a mark or a visual change. Speech pauses over a static screen never cut extra keyframes. Each row is one trigger, with the "
+        },
+        {
+          "insert": "reason",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " it gets in "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ":"
+        }
+      ],
+      "children": []
+    },
+    "sel-table": {
+      "id": "sel-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Trigger",
+          "Reason"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "An ink stroke drawn while "
+              },
+              {
+                "insert": "⇧",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " is held, or a flag"
+              }
+            ],
+            [
+              {
+                "insert": "mark",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "A click or drag inside the capture target, or a phone tap or swipe",
+            [
+              {
+                "insert": "click",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "A laser point",
+            [
+              {
+                "insert": "laser",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "A settled scene change",
+            [
+              {
+                "insert": "scene_change",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "A spoken cue with measured word times",
+            [
+              {
+                "insert": "speech",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "No other trigger, such as speech over an unchanged screen",
+            [
+              {
+                "insert": "initial",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ]
+        ],
+        "title": "What cuts a keyframe"
+      },
+      "children": []
+    },
+    "h-cues": {
+      "id": "h-cues",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Spoken Cues"
+        }
+      ],
+      "children": []
+    },
+    "cue-lead": {
+      "id": "cue-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A spoken cue is the one speech trigger, and it needs measured word times. A Hex transcript never gives cues, because its times are "
+        },
+        {
+          "insert": "estimated",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "g-cue-strong": {
+      "id": "g-cue-strong",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Strong Cues",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "cue-1",
+        "cue-1b"
+      ]
+    },
+    "cue-1": {
+      "id": "cue-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The strong cues "
+        },
+        {
+          "insert": "now",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "here",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "look",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "watch",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " snap to a transition that starts from 0.3 s before to 1.2 s after the word."
+        }
+      ],
+      "children": []
+    },
+    "cue-1b": {
+      "id": "cue-1b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Without such a transition, the cue takes the frame 150 ms after the word."
+        }
+      ],
+      "children": []
+    },
+    "g-cue-novel": {
+      "id": "g-cue-novel",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Novelty",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "cue-2",
+        "cue-2b"
+      ]
+    },
+    "cue-2": {
+      "id": "cue-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A cue keyframe is dropped unless its image differs from every keyframe already chosen, by a scene diff of 0.03 or more."
+        }
+      ],
+      "children": []
+    },
+    "cue-2b": {
+      "id": "cue-2b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "So speech over an unchanged screen still yields one frame."
+        }
+      ],
+      "children": []
+    },
+    "g-cue-weak": {
+      "id": "g-cue-weak",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Weak Cues",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "cue-3",
+        "cue-3b"
+      ]
+    },
+    "cue-3": {
+      "id": "cue-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Demonstratives and the words "
+        },
+        {
+          "insert": "see",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "there",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " rank with ordinary scene changes."
+        }
+      ],
+      "children": []
+    },
+    "cue-3b": {
+      "id": "cue-3b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "They are weak because they are usually filler."
+        }
+      ],
+      "children": []
+    },
+    "h-budget": {
+      "id": "h-budget",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Budget"
+        }
+      ],
+      "children": []
+    },
+    "budget": {
+      "id": "budget",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "keyframe_budget",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/model.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/model.rs"
+            }
+          }
+        },
+        {
+          "insert": " allows 6 keyframes below 40 s, one more for each 20 s after that, and at most 12 from 2:20. Each image costs a reading model about 1,000 to 1,500 tokens. Ordinary events fill only the first 6, and the rest go to marks and coverage."
+        }
+      ],
+      "children": []
+    },
+    "h-marks": {
+      "id": "h-marks",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Marks"
+        }
+      ],
+      "children": []
+    },
+    "marks-lead": {
+      "id": "marks-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Marks are never dropped, and marks drawn on one screen share one keyframe."
+        }
+      ],
+      "children": []
+    },
+    "g-marks-group": {
+      "id": "g-marks-group",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Grouping",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "mk-1",
+        "mk-2",
+        "mk-3"
+      ]
+    },
+    "mk-1": {
+      "id": "mk-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A shared keyframe sits at the last mark of its group and draws the ink of all of them. "
+        },
+        {
+          "insert": "mark.frame",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " names that keyframe, and its "
+        },
+        {
+          "insert": "markId",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the first mark."
+        }
+      ],
+      "children": []
+    },
+    "mk-2": {
+      "id": "mk-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The screen counts as the same while the luma grid around the ink, padded by 8%, changed in under 5% of its cells."
+        }
+      ],
+      "children": []
+    },
+    "mk-3": {
+      "id": "mk-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A group closes at a click or a drag, past 20 s, or past 12 strokes."
+        }
+      ],
+      "children": []
+    },
+    "g-marks-budget": {
+      "id": "g-marks-budget",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Over the Budget",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "mk-4",
+        "mk-5",
+        "mk-6"
+      ]
+    },
+    "mk-4": {
+      "id": "mk-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Groups beyond the budget merge with a neighbour: same-screen pairs with the least ink first, else the most alike screens."
+        }
+      ],
+      "children": []
+    },
+    "mk-5": {
+      "id": "mk-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Flags stay on their own, and no other keyframe cuts into the span of a group with more than one mark."
+        }
+      ],
+      "children": []
+    },
+    "mk-6": {
+      "id": "mk-6",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Auto-crop gives a group's ink to its own keyframe's crop alone ("
+        },
+        {
+          "insert": "Input::pin_ink",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "h-coverage": {
+      "id": "h-coverage",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Coverage"
+        }
+      ],
+      "children": []
+    },
+    "coverage": {
+      "id": "coverage",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "After the marks, a stretch longer than 100 words or 35 s gets a frame from inside it when one qualifies. A click, a laser point, a settled scene change or a novel cue qualifies. The lead-in before the first keyframe is its own stretch."
+        }
+      ],
+      "children": []
+    },
+    "h-words": {
+      "id": "h-words",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Words per Keyframe"
+        }
+      ],
+      "children": []
+    },
+    "words": {
+      "id": "words",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each keyframe owns the words from the start of the clause in progress at its anchor until the next keyframe's start. The anchor is the action start, the transition start or the cue word. A clause breaks at clause punctuation, at a recognizer segment start, or at a pause of 1.5 s or more. Words before the first keyframe belong to it."
+        }
+      ],
+      "children": []
+    },
+    "words-link": {
+      "id": "words-link",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The words become the keyframe's "
+        },
+        {
+          "insert": "said",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which "
+        },
+        {
+          "insert": "Capture Bundle and Paste",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/20-capture-bundle"
+            }
+          }
+        },
+        {
+          "insert": " shows in the summary line of each keyframe."
+        }
+      ],
+      "children": []
+    },
+    "h-shapes": {
+      "id": "h-shapes",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Mark Shapes"
+        }
+      ],
+      "children": []
+    },
+    "shapes-lead": {
+      "id": "shapes-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "sketch::marks_of",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " groups strokes into marks and names each shape from the path, measured in pixels. A pause over 1.2 s, or a 7th stroke, starts a new mark. Each row is one shape the test gives:"
+        }
+      ],
+      "children": []
+    },
+    "shapes-table": {
+      "id": "shapes-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Shape",
+          "Rule"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "circle",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Ends near its start, is longer than twice its box's long side, fills a third of its box, and its box's short side is over 0.42 of the long side"
+          ],
+          [
+            [
+              {
+                "insert": "circle",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", flat loop"
+              }
+            ],
+            "Is up to 5:1, closes well within its short side and goes round at most about three times, such as a loop round a line of text"
+          ],
+          [
+            [
+              {
+                "insert": "line",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "underline",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Is straight"
+          ],
+          [
+            [
+              {
+                "insert": "arrow",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Is a line with one or two short strokes near one end, or one stroke whose straight shaft turns back at the tip into one or two straight barbs"
+          ],
+          [
+            [
+              {
+                "insert": "mark",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Is anything else: a hooked underline, ticks, V shapes, zigzags, scribbles and C-shaped arcs"
+          ]
+        ],
+        "title": "Mark shapes"
+      },
+      "children": []
+    },
+    "shapes-b-lead": {
+      "id": "shapes-b-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The shape also sets the mark's box and ends in "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "g-sh-circle": {
+      "id": "g-sh-circle",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Circles",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "sh-1",
+        "sh-1b",
+        "sh-2"
+      ]
+    },
+    "sh-1": {
+      "id": "sh-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A loop that is most of a stroke with a lead-in, a tail or an overshoot is a circle too."
+        }
+      ],
+      "children": []
+    },
+    "sh-1b": {
+      "id": "sh-1b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Its "
+        },
+        {
+          "insert": "boxNorm",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the loop alone, and a stroke gone round more than once keeps its whole box."
+        }
+      ],
+      "children": []
+    },
+    "sh-2": {
+      "id": "sh-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "In a stroke longer than 512 points, the test tries loop ends at every nth point only, but judges each stretch by the whole path's length and area."
+        }
+      ],
+      "children": []
+    },
+    "g-sh-arrow": {
+      "id": "g-sh-arrow",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Arrows",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "sh-3",
+        "sh-3b"
+      ]
+    },
+    "sh-3": {
+      "id": "sh-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A one-stroke arrow's head must reach both sides of the shaft, with two barbs or one barb that runs across it."
+        }
+      ],
+      "children": []
+    },
+    "sh-3b": {
+      "id": "sh-3b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "from",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the shaft's start and "
+        },
+        {
+          "insert": "to",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the tip."
+        }
+      ],
+      "children": []
+    },
+    "h-images": {
+      "id": "h-images",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Frames and the Contact Sheet"
+        }
+      ],
+      "children": []
+    },
+    "img-lead": {
+      "id": "img-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The images stay visual, and the text carries the meaning. A keyframe image shows the screenshot, the ink, the input and the keyframe number, with no rasterized captions or card chrome. The transcript, the "
+        },
+        {
+          "insert": "#N (M:SS)",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " index and the file paths go in "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " as plain text."
+        }
+      ],
+      "children": []
+    },
+    "g-img-ink": {
+      "id": "g-img-ink",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Ink and Input",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "im-1",
+        "im-2",
+        "im-3"
+      ]
+    },
+    "im-1": {
+      "id": "im-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The image draws the red strokes that are active at its moment."
+        }
+      ],
+      "children": []
+    },
+    "im-2": {
+      "id": "im-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "draw_click_ripple",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " draws a click as a thin translucent blue ring with a hairline white edge and a small centre dot. It has no fill, so the clicked thing stays readable."
+        }
+      ],
+      "children": []
+    },
+    "im-3": {
+      "id": "im-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A phone swipe is a thin translucent trail from a small dot to a larger one where the finger lifted."
+        }
+      ],
+      "children": []
+    },
+    "g-img-chip": {
+      "id": "g-img-chip",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Number Chip",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "im-4",
+        "im-5",
+        "im-6"
+      ]
+    },
+    "im-4": {
+      "id": "im-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "draw_keyframe_badge",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " draws the number alone, with no "
+        },
+        {
+          "insert": "#",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and no time, in bold black on a small white rounded square with a thin dark ring."
+        }
+      ],
+      "children": []
+    },
+    "im-5": {
+      "id": "im-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The chip sits 5 px in from the top-left corner. It moves to the top right when ink, a click or the cursor is in the top left."
+        }
+      ],
+      "children": []
+    },
+    "im-6": {
+      "id": "im-6",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Every contact-sheet tile gets one chip size, about 24 px with its ring. Blind reading tests failed at 20 px on a sheet shown at half size, read a bare digit as screen text, and read "
+        },
+        {
+          "insert": "#6",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " as "
+        },
+        {
+          "insert": "8",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "g-img-pins": {
+      "id": "g-img-pins",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Mark Numbers and Pins",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "im-7",
+        "im-8",
+        "im-9"
+      ]
+    },
+    "im-7": {
+      "id": "im-7",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Two or more marks on one keyframe get the numbers ①②③ in drawing order in the text and in "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", never on the image, so nothing covers the screen."
+        }
+      ],
+      "children": []
+    },
+    "im-8": {
+      "id": "im-8",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A pin is the one exception. "
+        },
+        {
+          "insert": "render::draw_pin",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " draws a red disc in a white ring with its number in white, on frames, contact sheets and exports, and live while recording."
+        }
+      ],
+      "children": []
+    },
+    "im-9": {
+      "id": "im-9",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The pin's number is its "
+        },
+        {
+          "insert": "pin",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and its "
+        },
+        {
+          "insert": "pin N",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ": 1, 2, 3 in drop order, whatever keyframe each lands on."
+        }
+      ],
+      "children": []
+    },
+    "img-sheet": {
+      "id": "img-sheet",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "contact-sheet.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " packs the keyframes in time order, left to right and top to bottom, into aspect-ratio-justified rows of 1 to 6 frames. The rows sit on a dark canvas with 6 px gutters and no card borders or rounded frame masks. The sheet is capped at 1600 px on its long edge and about 1.56 megapixels."
+        }
+      ],
+      "children": []
+    },
+    "h-crop": {
+      "id": "h-crop",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Auto-Crop"
+        }
+      ],
+      "children": []
+    },
+    "crop-lead": {
+      "id": "crop-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A Screen capture crops each keyframe to where the user was gesturing, so the user records the whole screen instead of picking an area first. Area and Window captures are not cropped. "
+        },
+        {
+          "insert": "src/autocrop.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/autocrop.rs"
+            }
+          }
+        },
+        {
+          "insert": " reads two logs that a Screen capture keeps while it records."
+        }
+      ],
+      "children": []
+    },
+    "cr-1": {
+      "id": "cr-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "windows",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds the on-screen windows, front to back, with the menu bar and the Dock's strip."
+        }
+      ],
+      "children": [
+        "cr-1a",
+        "cr-1b",
+        "cr-1c"
+      ]
+    },
+    "cr-1a": {
+      "id": "cr-1a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A snapshot is taken at the start, when a click, stroke or shortcut starts, and when the frontmost app changes."
+        }
+      ],
+      "children": []
+    },
+    "cr-1b": {
+      "id": "cr-1b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Between those, a snapshot comes at most every 500 ms while the cursor moves, else every 2 s."
+        }
+      ],
+      "children": []
+    },
+    "cr-1c": {
+      "id": "cr-1c",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A snapshot is stored only when the list changed, and each one costs about 0.5 ms."
+        }
+      ],
+      "children": []
+    },
+    "cr-2": {
+      "id": "cr-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "cursor",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds the cursor at up to 15 Hz while it moves, as "
+        },
+        {
+          "insert": "[t, x, y]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", so dwell counts."
+        }
+      ],
+      "children": []
+    },
+    "crop-po-lead": {
+      "id": "crop-po-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "When the capture finishes, each keyframe gets a crop by this path:"
+        }
+      ],
+      "children": []
+    },
+    "crop-po": {
+      "id": "crop-po",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Crop a Screen Capture",
+            "steps": [
+              {
+                "text": "For Each Keyframe",
+                "steps": [
+                  {
+                    "text": "Take the slice of the timeline halfway to each neighbouring keyframe"
+                  },
+                  {
+                    "text": "Weigh ink, clicks, drags and scrolls first, then cursor rests and screen changes",
+                    "steps": [
+                      {
+                        "text": "A cursor that wanders far from the ink is ignored"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "If one or two windows hold the activity, crop to those windows",
+                    "steps": [
+                      {
+                        "text": "Two windows fit an arrow from one to the other"
+                      },
+                      {
+                        "text": "The crop keeps a menu the window opened and the touched part of the menu bar"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "If that window is most of the screen, crop to the activity inside it with some context",
+                    "steps": [
+                      {
+                        "text": "Edges move into nearby white space and past the ends of the text lines they cross, up to the window's edge"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "If the keyframe has only talk, keep the previous crop"
+                  }
+                ]
+              },
+              {
+                "text": "Merge Neighbours",
+                "steps": [
+                  {
+                    "text": "Merge neighbouring crops that mostly overlap",
+                    "steps": [
+                      {
+                        "text": "The sheet does not jitter"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "If a crop covers most of the screen, keep the whole keyframe"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "crop-out": {
+      "id": "crop-out",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The cropped "
+        },
+        {
+          "insert": "frames/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "contact-sheet.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " come from the full-resolution frames, with the ink and the numbers drawn again at the crop's scale. The uncropped copies go to "
+        },
+        {
+          "insert": "frames-full/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "contact-sheet-full.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The summary gets a "
+        },
+        {
+          "insert": "Cropped to:",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " line, such as "
+        },
+        {
+          "insert": "Cropped to: Ghostty + Safari (full frames in frames-full/)",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and "
+        },
+        {
+          "insert": "Capture Bundle and Paste",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/20-capture-bundle"
+            }
+          }
+        },
+        {
+          "insert": " shows the "
+        },
+        {
+          "insert": "autocrop",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " shape in "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-crop-settings": {
+      "id": "h-crop-settings",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Crop Settings"
+        }
+      ],
+      "children": []
+    },
+    "cs-lead": {
+      "id": "cs-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The "
+        },
+        {
+          "insert": "autocrop",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " key in "
+        },
+        {
+          "insert": "~/.config/scrawl/config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " turns the crop off with "
+        },
+        {
+          "insert": "false",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or takes an object of settings:"
+        }
+      ],
+      "children": []
+    },
+    "cs-code": {
+      "id": "cs-code",
+      "type": "code",
+      "props": {
+        "language": "json"
+      },
+      "text": [
+        {
+          "insert": "{ \"autocrop\": { \"padding\": 24, \"minW\": 480 } }"
+        }
+      ],
+      "children": []
+    },
+    "cs-table-lead": {
+      "id": "cs-table-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "This table lists 10 of the settings with their defaults. "
+        },
+        {
+          "insert": "Settings",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/autocrop.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds the other weights and limits."
+        }
+      ],
+      "children": []
+    },
+    "cs-table": {
+      "id": "cs-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Key",
+          "Default",
+          "Effect"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "scope",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "grouped",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A crop per keyframe, then neighbours merged"
+          ],
+          [
+            [
+              {
+                "insert": "snapThreshold",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "0.8",
+            "Share of the activity the top windows must hold"
+          ],
+          [
+            [
+              {
+                "insert": "maxWindows",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "2",
+            "Windows in one crop"
+          ],
+          [
+            [
+              {
+                "insert": "bigWindow",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "0.6",
+            "Share of the screen above which a window is not a crop"
+          ],
+          [
+            [
+              {
+                "insert": "context",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "0.15",
+            "Margin round focused activity, as a share of the window"
+          ],
+          [
+            [
+              {
+                "insert": "padding",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "0",
+            "Points round the crop"
+          ],
+          [
+            [
+              {
+                "insert": "minW",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "320",
+            "Smallest crop width in points"
+          ],
+          [
+            [
+              {
+                "insert": "minH",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "200",
+            "Smallest crop height in points"
+          ],
+          [
+            [
+              {
+                "insert": "maxZoom",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "4",
+            "The crop covers at least 1/4 of the screen's longer side"
+          ],
+          [
+            [
+              {
+                "insert": "aspect",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "free",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "free",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "auto",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "screen",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "W:H",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ]
+        ],
+        "title": "Auto-crop settings"
+      },
+      "children": []
+    },
+    "cs-cmds": {
+      "id": "cs-cmds",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl zoom",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " crops its cells like the nearest keyframe, and "
+        },
+        {
+          "insert": "--full",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " shows the whole screen. "
+        },
+        {
+          "insert": "scrawl reprocess <bundle> --out <dir>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " runs auto-crop again on a Screen capture from its video."
+        }
+      ],
+      "children": []
+    },
+    "h-tuning": {
+      "id": "h-tuning",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Tuning"
+        }
+      ],
+      "children": []
+    },
+    "tu-1": {
+      "id": "tu-1",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl autocrop <bundle|latest> --serve --open",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " opens a playground that runs the same Rust crop as you move its sliders. It shows each keyframe's windows, activity, cursor heat, outliers and crop, the cropped frame and the cropped contact sheet. "
+        },
+        {
+          "insert": "Copy settings",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " gives the JSON for the config. Without "
+        },
+        {
+          "insert": "--serve",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", it writes "
+        },
+        {
+          "insert": "autocrop/index.html",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with the presets only."
+        }
+      ],
+      "children": []
+    },
+    "tu-2": {
+      "id": "tu-2",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The defaults were tuned on 12 simulated captures with hand-labelled ideal crops. They are a maximized terminal, two windows side by side, an arrow between windows, a tiny badge in a huge window, a menu-bar menu and talk-only keyframes. The rest are a dragged window, overlapping windows, 30 s across three windows, a stray cursor, a full-screen app and a scrolling page."
+        }
+      ],
+      "children": []
+    },
+    "tu-3": {
+      "id": "tu-3",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scripts/autocrop-corpus.mjs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " renders the scenarios with Playwright from "
+        },
+        {
+          "insert": "site/node_modules",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "scrawl fixture",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " builds each one into a real bundle through the capture pipeline. "
+        },
+        {
+          "insert": "scrawl autocrop-eval",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " scores ink and click coverage, overlap with the ideal, context, legibility in the sheet and stability, and "
+        },
+        {
+          "insert": "--sweep",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " searches the settings. "
+        },
+        {
+          "insert": "scripts/autocrop-gallery.mjs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " renders a gallery to judge them by eye:"
+        }
+      ],
+      "children": []
+    },
+    "tu-code": {
+      "id": "tu-code",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "bun scripts/autocrop-corpus.mjs /tmp/corpus\nfor s in /tmp/corpus/*/scenario.json; do\n  scrawl fixture \"$s\" --out \"/tmp/bundles/$(basename \"$(dirname \"$s\")\").scrawl\"\ndone\nscrawl autocrop-eval /tmp/bundles --json /tmp/scores.json   # add --sweep to search\nbun scripts/autocrop-gallery.mjs /tmp/gallery /tmp/bundles --scores /tmp/scores.json"
+        }
+      ],
+      "children": []
+    },
+    "tu-4": {
+      "id": "tu-4",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl autocrop-eval --export src/autocrop-corpus.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " refreshes the corpus that the unit tests score."
+        }
+      ],
+      "children": []
+    },
+    "h-measure": {
+      "id": "h-measure",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Measuring a Keyframe"
+        }
+      ],
+      "children": []
+    },
+    "ms-lead": {
+      "id": "ms-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scrawl measure <BUNDLE> --frame N --at X,Y [--json]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " gives the box that holds a point. "
+        },
+        {
+          "insert": "--region X0,Y0,X1,Y1",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " gives every box in a region and the gaps between them. An agent uses it so that it never estimates a size from the image. It changes nothing in the bundle, and a frame out of range names the range and exits 2."
+        }
+      ],
+      "children": []
+    },
+    "ms-coords": {
+      "id": "ms-coords",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "X,Y",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " are fractions from 0 to 1 of the keyframe image that the agent sees, "
+        },
+        {
+          "insert": "frames/frame-NN.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "src/measure.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/measure.rs"
+            }
+          }
+        },
+        {
+          "insert": " maps them through the keyframe's auto-crop onto the full frame and reads the pixels from the first source it has:"
+        }
+      ],
+      "children": []
+    },
+    "ms-src-1": {
+      "id": "ms-src-1",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "The full, ink-free frame decoded from the movie at the keyframe's time."
+        }
+      ],
+      "children": []
+    },
+    "ms-src-2": {
+      "id": "ms-src-2",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "The uncropped "
+        },
+        {
+          "insert": "frames-full/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " image, when there is no movie or the movie is still copying."
+        }
+      ],
+      "children": []
+    },
+    "ms-src-3": {
+      "id": "ms-src-3",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "frames/frame-NN.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " itself, where the fractions apply directly."
+        }
+      ],
+      "children": []
+    },
+    "ms-ink": {
+      "id": "ms-ink",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The two saved images carry red ink, pins and click rings, and the output says so. The keyframe image also carries its number chip in a corner, and the output names it."
+        }
+      ],
+      "children": []
+    },
+    "h-ms-point": {
+      "id": "h-ms-point",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "A Point"
+        }
+      ],
+      "children": []
+    },
+    "pt-lead": {
+      "id": "pt-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "--at",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " gives the box that holds the point and no gaps, and its output says to use "
+        },
+        {
+          "insert": "--region",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for gaps. A ray from a box edge read wrong distances on the noise that a movie leaves next to an edge, and a region measures the same gap from both boxes."
+        }
+      ],
+      "children": []
+    },
+    "pt-list-lead": {
+      "id": "pt-list-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each point is measured from five seeds, and "
+        },
+        {
+          "insert": "--json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " gives the result as fields."
+        }
+      ],
+      "children": []
+    },
+    "g-pt-seeds": {
+      "id": "g-pt-seeds",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Five Seeds",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "pt-1",
+        "pt-2",
+        "pt-3",
+        "pt-4"
+      ]
+    },
+    "pt-1": {
+      "id": "pt-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The point and the four pixels 0.5 pt from it, at least 1 px left, right, up and down, are each measured on their own."
+        }
+      ],
+      "children": []
+    },
+    "pt-2": {
+      "id": "pt-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Boxes within 1 px of each other on every side count as one answer."
+        }
+      ],
+      "children": []
+    },
+    "pt-3": {
+      "id": "pt-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The point's box stands when two of the four give it too, or all four when the point stepped off a mark. When three of the four agree and none gives the point's box, the box is theirs."
+        }
+      ],
+      "children": []
+    },
+    "pt-4": {
+      "id": "pt-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Five searches take 0.16 s on a 2560×1440 movie frame, and 0.27 s when the box is most of the frame."
+        }
+      ],
+      "children": []
+    },
+    "g-pt-json": {
+      "id": "g-pt-json",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "JSON Output",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "pt-5",
+        "pt-6"
+      ]
+    },
+    "pt-5": {
+      "id": "pt-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "--json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " gives "
+        },
+        {
+          "insert": "frame",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "source",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "pxPerPt",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "image",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "warnings",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", plus "
+        },
+        {
+          "insert": "box",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for a point or "
+        },
+        {
+          "insert": "boxes",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "gaps",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for a region."
+        }
+      ],
+      "children": []
+    },
+    "pt-6": {
+      "id": "pt-6",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "box",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is left out when there is no box, and "
+        },
+        {
+          "insert": "warnings",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " says why. Each box has "
+        },
+        {
+          "insert": "px",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and "
+        },
+        {
+          "insert": "pt",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " when px per pt is known."
+        }
+      ],
+      "children": []
+    },
+    "pt-po-lead": {
+      "id": "pt-po-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A point finds its box the way a region does, from the pixels off one background color that are joined to the point. So the two modes agree within 1 px on the fixtures, on a PNG and on a movie frame. The search runs this path:"
+        }
+      ],
+      "children": []
+    },
+    "pt-po": {
+      "id": "pt-po",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Find the Box Under a Point",
+            "steps": [
+              {
+                "text": "Choose the Window",
+                "steps": [
+                  {
+                    "text": "Search 15 pt round the point first, which finds a small part whatever a movie did to its shades"
+                  },
+                  {
+                    "text": "Else flood-fill from the point within 10 per channel of the mean color under it, and add 3 pt to that box",
+                    "steps": [
+                      {
+                        "text": "The fill runs again round its own most common color when the point's color is more than 3 per channel off it"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "Start from an open place of the fill within 12 pt of the point, with the fill 1.5 pt round it, else half that, else 1 px"
+                  }
+                ]
+              },
+              {
+                "text": "Find the Background",
+                "steps": [
+                  {
+                    "text": "Take the main colors on the window's border, most common first, each the mean of its shades"
+                  },
+                  {
+                    "text": "Skip a color that holds under 1/8 of the border or is the point's own"
+                  },
+                  {
+                    "text": "Take the first color that closes a part inside the window or at the image edge"
+                  }
+                ]
+              },
+              {
+                "text": "Join the Part",
+                "steps": [
+                  {
+                    "text": "Join pixels that are clearly off the background, by half the point's contrast and 8 to 24 per channel, and whose 8 neighbours are too"
+                  },
+                  {
+                    "text": "Take in the pixels next to those"
+                  },
+                  {
+                    "text": "A part too thin for that, such as a glyph or a line, joins through its clear pixels"
+                  }
+                ]
+              },
+              {
+                "text": "Judge the Part",
+                "steps": [
+                  {
+                    "text": "If a small part under 12 pt is a solid shape of its own, keep it as the box",
+                    "steps": [
+                      {
+                        "text": "A solid shape is 2.5 pt or more on a side and fills 0.65 of its box"
+                      },
+                      {
+                        "text": "It has no clear pixels within 1.5 pt on its rows, and under 12 pt on both sides it is at most 2:1"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "If the part is a mark, step to the surface next to it, at most three times",
+                    "steps": [
+                      {
+                        "text": "A mark is a glyph, a word, an icon outline, a text line under 20 pt, or a run of the point's color at most 1.5 pt long"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "If the fill is a pocket, a tinted patch or a sliver, step to the nearest surface of its color"
+                  },
+                  {
+                    "text": "If the part's main color is further off the background than the seed, find the part again at that color's threshold"
+                  }
+                ]
+              },
+              {
+                "text": "Report the Box",
+                "steps": [
+                  {
+                    "text": "If no color closes the part, give the flood fill's box, with up to 2 px of blurred edge on each side"
+                  },
+                  {
+                    "text": "Else give the part's box, trimmed as a region trims it"
+                  },
+                  {
+                    "text": "If no surface is found, give no box and say the point is on text or a thin line"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "pt-proof": {
+      "id": "pt-proof",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "This is measured, not proven. On a grid of 405 points over a 17 pt label, every point gives the button at 2 px per pt from a PNG, libx264 and VideoToolbox. At 1 px per pt a PNG gives the button everywhere, and each encoder leaves a few points with another box and an unsure note. The test holds each encoded frame to 401 of 405."
+        }
+      ],
+      "children": []
+    },
+    "h-ms-region": {
+      "id": "h-ms-region",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "A Region"
+        }
+      ],
+      "children": []
+    },
+    "rg-lead": {
+      "id": "rg-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "--region",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " takes the most common color on the region's border as the background, and boxes the parts that are off it."
+        }
+      ],
+      "children": []
+    },
+    "g-rg-boxes": {
+      "id": "g-rg-boxes",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Boxes",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "rg-1",
+        "rg-2",
+        "rg-3",
+        "rg-4"
+      ]
+    },
+    "rg-1": {
+      "id": "rg-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Pixels more than 8 per channel off the background form 8-connected parts, and parts on one row at most 1.5 pt apart join, so a word is one box."
+        }
+      ],
+      "children": []
+    },
+    "rg-2": {
+      "id": "rg-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A group of pixels under 6 pt on both sides, none more than 16 per channel off the background, is dropped first as a movie speck."
+        }
+      ],
+      "children": []
+    },
+    "rg-3": {
+      "id": "rg-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each box gives up to 3 px per side whose pixels lean to the background. In a box under 12 pt on both sides, and in every point box, an edge line with 2 pixels that do not lean stays."
+        }
+      ],
+      "children": []
+    },
+    "rg-4": {
+      "id": "rg-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A box with a border on a page of another color comes with its border in both modes. A point adds the size of the fill alone, and on a page of the box's own color it gives the fill inside the border."
+        }
+      ],
+      "children": []
+    },
+    "g-rg-limits": {
+      "id": "g-rg-limits",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Limits and Gaps",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "rg-5",
+        "rg-6",
+        "rg-7"
+      ]
+    },
+    "rg-5": {
+      "id": "rg-5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Parts inside another part's box, parts under 6 pt on either side, and all but the 30 largest are dropped. Past 30, the output says how many smaller boxes it left out."
+        }
+      ],
+      "children": []
+    },
+    "rg-6": {
+      "id": "rg-6",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each shown box's nearest neighbour that overlaps it on the other axis gives one horizontal or vertical gap. A gap is given only when that neighbour is a shown box, so a gap never spans a box left out."
+        }
+      ],
+      "children": []
+    },
+    "rg-7": {
+      "id": "rg-7",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A part is tested for being inside another only against the parts over its own 64 px cell, so 50,000 parts take under 0.1 s."
+        }
+      ],
+      "children": []
+    },
+    "g-rg-msgs": {
+      "id": "g-rg-msgs",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Messages",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "rg-8",
+        "rg-9"
+      ]
+    },
+    "rg-8": {
+      "id": "rg-8",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "An empty region says "
+        },
+        {
+          "insert": "no boxes found: the region looks like one plain color",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and one with only parts under 6 pt says so instead."
+        }
+      ],
+      "children": []
+    },
+    "rg-9": {
+      "id": "rg-9",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A box that touches the region's edge says "
+        },
+        {
+          "insert": "box N touches the region edge and may be cut off there",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", because its size is only what the region holds."
+        }
+      ],
+      "children": []
+    },
+    "h-ms-notes": {
+      "id": "h-ms-notes",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Point Notes"
+        }
+      ],
+      "children": []
+    },
+    "nt-lead": {
+      "id": "nt-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A point's output adds a note when the box is unsure or special. Each row gives the start of one note in the order "
+        },
+        {
+          "insert": "Note::says",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " lists them:"
+        }
+      ],
+      "children": []
+    },
+    "nt-table": {
+      "id": "nt-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Note starts with",
+          "Means"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "the point was on text, a glyph or a thin line",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The point stepped from a mark to the surface round it"
+          ],
+          [
+            [
+              {
+                "insert": "this is a small part under the point",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A dot, a badge, an icon, or a word whose letters run together"
+          ],
+          [
+            [
+              {
+                "insert": "the box is a glyph or a thin line",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A mark with no surface found round it"
+          ],
+          [
+            [
+              {
+                "insert": "the box ends at lines",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The fill's own color is past the lines: a list row, a table cell"
+          ],
+          [
+            [
+              {
+                "insert": "more than one color borders this box",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A panel between others, or a gradient that gives a part"
+          ],
+          [
+            [
+              {
+                "insert": "the point is on text, an icon or a line inside this box",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The point's pixel is not the box's main color"
+          ],
+          [
+            [
+              {
+                "insert": "the box includes a border, a shadow or a part",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The note gives the fill alone as W×H"
+          ],
+          [
+            [
+              {
+                "insert": "the box is not a solid shape",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Its part covers under 0.65 of it"
+          ],
+          [
+            [
+              {
+                "insert": "no box: the point is on the page background",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The fill covered half the image"
+          ],
+          [
+            [
+              {
+                "insert": "no box: the point is on text or a thin line",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "No surface was found round the mark"
+          ],
+          [
+            [
+              {
+                "insert": "the box touches the image edge",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The box can run past the image"
+          ],
+          [
+            [
+              {
+                "insert": "the box is a thin strip",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Under 6 pt on one side and 4 times as long"
+          ],
+          [
+            [
+              {
+                "insert": "the box covers over half the image",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The edge is too faint to find, so draw a tight region"
+          ],
+          [
+            [
+              {
+                "insert": "points close to this one give other boxes",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The point is at an edge, or on text or a small part"
+          ],
+          [
+            [
+              {
+                "insert": "points close to this one give this box",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The neighbours outvoted the point, and the note gives its own size"
+          ]
+        ],
+        "title": "Notes that a point measurement can add"
+      },
+      "children": []
+    },
+    "h-ms-ppp": {
+      "id": "h-ms-ppp",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Points and Pixels"
+        }
+      ],
+      "children": []
+    },
+    "ppp-1": {
+      "id": "ppp-1",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Px per pt is the full-frame width of the measured image in px over the capture's width in pt. A cropped image counts at its full width. The capture's width is "
+        },
+        {
+          "insert": "target.frame.width",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " on the Mac and the device's "
+        },
+        {
+          "insert": "screen",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " width on an iPhone."
+        }
+      ],
+      "children": []
+    },
+    "ppp-2": {
+      "id": "ppp-2",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "An iPhone bundle without "
+        },
+        {
+          "insert": "screen",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which is every cabled capture, prints px only. Its size limits still need px per pt, so they take an estimate from the frame's shape. A frame 16:9 or taller is an iPhone's, and it gets its short side over 400, rounded. A wider frame is an iPad's, and it gets its short side over 834, never under 1."
+        }
+      ],
+      "children": []
+    },
+    "ppp-3": {
+      "id": "ppp-3",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The output then says the size limits used an estimate, and "
+        },
+        {
+          "insert": "--json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " has "
+        },
+        {
+          "insert": "limitsPxPerPt",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The estimate sets the limits only, never a size in pt. Positions are full-frame, in pt rounded to 0.5 and in whole px of the recording's pixels."
+        }
+      ],
+      "children": []
+    },
+    "h-ms-limits": {
+      "id": "h-ms-limits",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Known Limits"
+        }
+      ],
+      "children": []
+    },
+    "lim-lead": {
+      "id": "lim-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Some screens give a wrong or partial box. Each row is one known case, with what the tool gives:"
+        }
+      ],
+      "children": []
+    },
+    "lim-table": {
+      "id": "lim-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Case",
+          "Result"
+        ],
+        "rows": [
+          [
+            "An outlined box under 12 by 24 pt with one color inside and out",
+            "Reads as a hole or a pocket, so use a region"
+          ],
+          [
+            "Text over 20 pt tall, or a lone solid word under that",
+            "A point gives a letter or the word"
+          ],
+          [
+            "Two parts under 20 pt tall at most 1.5 pt apart",
+            "Read as one word, so a point gives the surface under them"
+          ],
+          [
+            "A lone word whose letters run together in the recording",
+            "Reads as a small part, with that note"
+          ],
+          [
+            "A border fainter than 10 per channel",
+            "Gives the area past it, with a lines or colors note"
+          ],
+          [
+            "A white card on a near-white page",
+            "Can give most of the window by point"
+          ],
+          [
+            "A small chip whose fill is close to the page",
+            "A region gives its text, and a point can give the window"
+          ],
+          [
+            "A round part over 12 pt",
+            "Can read 1 px smaller from a region than from a point"
+          ],
+          [
+            "A px-per-pt estimate that is too low",
+            "A point on a label can give a letter, and a region can split a word"
+          ]
+        ],
+        "title": "Known measure limits"
+      },
+      "children": []
+    },
+    "fx": {
+      "id": "fx",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Tests/fixtures/measure/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds one UI screen after libx264 and VideoToolbox, both 4:2:0, and a button labelled Load Docs in 17 pt Helvetica at 1, 2 and 3 px per pt. It also holds the 1x and 2x label frames after each encoder. "
+        },
+        {
+          "insert": "SCRAWL_MEASURE_FIXTURES=write cargo test measure",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " makes the encoded fixtures again with ffmpeg, and VideoToolbox never gives the same bytes twice."
+        }
+      ],
+      "children": []
+    },
+    "h-exp": {
+      "id": "h-exp",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Experiments"
+        }
+      ],
+      "children": []
+    },
+    "exp-lead": {
+      "id": "exp-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "No current experiment changes keyframe selection, the images or the summary text. "
+        },
+        {
+          "insert": "handoff::experiment",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads "
+        },
+        {
+          "insert": "\"experiments\": {\"<name>\": true}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and every experiment is off by default. Each row is one name the code asks for:"
+        }
+      ],
+      "children": []
+    },
+    "exp-table": {
+      "id": "exp-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Experiment",
+          "Changes",
+          "Owner page"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "liveTranscribe",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Transcribes Mac recordings while they record",
+            "Transcription"
+          ],
+          [
+            [
+              {
+                "insert": "clipboardImage",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Puts the contact sheet on the Windows clipboard with the text",
+            "Windows"
+          ],
+          [
+            [
+              {
+                "insert": "smartRouting",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Routes Mac captures of dev sites with the smart router",
+            "Routing and Delivery"
+          ],
+          [
+            [
+              {
+                "insert": "agentContext",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The older name of Save app state, which adds app state lines to the summary",
+            "App State and Privacy"
+          ]
+        ],
+        "title": "Current experiments"
+      },
+      "children": []
+    },
+    "exp-links": {
+      "id": "exp-links",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The owner pages are "
+        },
+        {
+          "insert": "Transcription",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/35-transcription"
+            }
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "Windows",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/90-windows"
+            }
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "Routing and Delivery",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/50-routing-and-delivery"
+            }
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "App State and Privacy",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/40-app-state-and-privacy"
+            }
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "Experiments and Feature Map",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "30-implementation/20-experiments-and-feature-map"
+            }
+          }
+        },
+        {
+          "insert": " says how an experiment ships."
+        }
+      ],
+      "children": []
+    },
+    "exp-eval": {
+      "id": "exp-eval",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scripts/agent-eval.sh [--experiment NAME] [--out DIR] [bundle…]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " compares a summary experiment on real captures. It reprocesses each bundle with and without the experiment, with the user's own "
+        },
+        {
+          "insert": "experiments",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " removed from the baseline's config. It writes "
+        },
+        {
+          "insert": "before.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "after.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", both contact sheets and the frames per bundle, and an "
+        },
+        {
+          "insert": "index.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", by default to "
+        },
+        {
+          "insert": "~/code/home/artifacts/scrawl-context/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "exp-eval2": {
+      "id": "exp-eval2",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Both summaries come from the baseline run's transcript. What a capture recorded live, such as Accessibility lookups and page events, stays as recorded, so it shows only on captures made with the experiment on."
+        }
+      ],
+      "children": []
+    }
+  }
+}

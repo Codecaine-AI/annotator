@@ -1,0 +1,2857 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-5920701503eea6576c50e171f12ccd8d",
+  "title": "Capture Bundle and Paste",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "open",
+        "h-where",
+        "where-lead",
+        "g-where-folder",
+        "g-where-name",
+        "h-files",
+        "files-lead",
+        "files-tree",
+        "h-paste",
+        "paste-lead",
+        "paste-template",
+        "paste-table-lead",
+        "paste-table",
+        "paste-bl-lead",
+        "g-paste-header",
+        "g-paste-optional",
+        "h-kf-lines",
+        "kf-lead",
+        "kf-template",
+        "kf-bl-lead",
+        "g-kf-markers",
+        "g-kf-words",
+        "kf-rules",
+        "h-appstate",
+        "as-lead",
+        "as-example",
+        "as-link",
+        "h-example",
+        "ex-lead",
+        "ex-code",
+        "h-clip",
+        "clip-lead",
+        "clip-table",
+        "clip-bl-lead",
+        "g-clip-text",
+        "g-clip-image",
+        "clip-session",
+        "h-dig",
+        "dig-lead",
+        "dig-table",
+        "dig-b1",
+        "h-manifest",
+        "man-lead",
+        "ss-bundle",
+        "ss-target",
+        "ss-transcript",
+        "ss-stroke",
+        "ss-mark",
+        "ss-event",
+        "ss-keyframe",
+        "ss-autocrop",
+        "ss-windows",
+        "ss-device",
+        "ss-dest"
+      ]
+    },
+    "open": {
+      "id": "open",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A capture is one "
+        },
+        {
+          "insert": ".scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " folder that holds the images, the text and the data of one recording. Its "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the paste, the plain text that the clipboard carries to an agent. Its "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the manifest, which stores every stroke, mark, event and keyframe. This page shows the folder, the paste template and the manifest shape."
+        }
+      ],
+      "children": []
+    },
+    "h-where": {
+      "id": "h-where",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Where Captures Live"
+        }
+      ],
+      "children": []
+    },
+    "where-lead": {
+      "id": "where-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Every capture is one folder inside the captures folder, named by its capture id."
+        }
+      ],
+      "children": []
+    },
+    "g-where-folder": {
+      "id": "g-where-folder",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Folder",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "where-1",
+        "where-2"
+      ]
+    },
+    "where-1": {
+      "id": "where-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The live app writes each capture to "
+        },
+        {
+          "insert": "~/Library/Application Support/scrawl/captures/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Annotator Dev writes to "
+        },
+        {
+          "insert": "~/Library/Application Support/scrawl-dev/captures/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "where-2": {
+      "id": "where-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "SCRAWL_CAPTURES_DIR",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " overrides that folder, and next comes "
+        },
+        {
+          "insert": "capturesDir",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (Settings › Storage). "
+        },
+        {
+          "insert": "handoff::default_captures_dir",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " uses the built-in folder when the chosen one is missing or not writable."
+        }
+      ],
+      "children": []
+    },
+    "g-where-name": {
+      "id": "g-where-name",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Name and Access",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "where-3",
+        "where-4"
+      ]
+    },
+    "where-3": {
+      "id": "where-3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The folder name is the capture id plus "
+        },
+        {
+          "insert": ".scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "make_bundle_id",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/main.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/main.rs"
+            }
+          }
+        },
+        {
+          "insert": " builds the id as "
+        },
+        {
+          "insert": "scrawl-<epoch ms>-<pid in hex>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and adds "
+        },
+        {
+          "insert": "-<n>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to every id after the first one a process makes."
+        }
+      ],
+      "children": []
+    },
+    "where-4": {
+      "id": "where-4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "write_bundle_artifacts",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " sets the folder to mode "
+        },
+        {
+          "insert": "0700",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", so only the user can read it."
+        }
+      ],
+      "children": []
+    },
+    "h-files": {
+      "id": "h-files",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Bundle Files"
+        }
+      ],
+      "children": []
+    },
+    "files-lead": {
+      "id": "files-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The finish step writes the keyframes, the contact sheet, "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " through "
+        },
+        {
+          "insert": "write_bundle_artifacts",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/capture.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/capture.rs"
+            }
+          }
+        },
+        {
+          "insert": ". Recording, auto-crop, app shots, routing and retention add the other files. Orange marks the heavy media ("
+        },
+        {
+          "insert": "handoff::HEAVY_MEDIA",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "zoom/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), which retention can remove while the rest of the folder stays."
+        }
+      ],
+      "children": []
+    },
+    "files-tree": {
+      "id": "files-tree",
+      "type": "file-tree",
+      "props": {
+        "entries": [
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/",
+            "note": "one capture"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/summary.md",
+            "note": "the paste: plain text that an agent reads first"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/scrawl.json",
+            "note": "the manifest, ScrawlBundle as pretty-printed JSON"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/contact-sheet.png",
+            "note": "every keyframe on one image, cropped when auto-crop ran"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/contact-sheet-full.png",
+            "note": "the uncropped contact sheet, auto-cropped Screen captures only",
+            "color": "orange"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/frames/",
+            "note": "one image per keyframe"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/frames/frame-01.png",
+            "note": "frame-XX.png, numbered from 01 like the keyframes"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/frames-full/",
+            "note": "the uncropped keyframes with the same file names, auto-crop only",
+            "color": "orange"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/recording.mp4",
+            "note": "the Mac screen recording",
+            "color": "orange"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/recording.mov",
+            "note": "a cabled iPhone recording. A ScrawlKit import keeps its movie's extension",
+            "color": "orange"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/audio.wav",
+            "note": "the microphone audio that the transcriber reads",
+            "color": "orange"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/appshots/",
+            "note": "app shots, only with Save app state on (macOS)"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/appshots/shot-01.json",
+            "note": "one file per distinct window state"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/appshots/timeline.json",
+            "note": "each time a shot was seen"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/appshots/.spool/",
+            "note": "shots written while recording. The finish step turns them into the files above"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/timeline.json",
+            "note": "the ScrawlKit timeline that an iPhone import came with"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/routing.json",
+            "note": "the dev-site routing evidence and decision, for scrawl route --explain"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/zoom/",
+            "note": "sheets from scrawl zoom and frame ranges from scrawl frames",
+            "color": "orange"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/unfinished.json",
+            "note": "the recovery journal while the build runs, removed when it ends"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/.recovering",
+            "note": "present while scrawl recover builds the capture"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/.transcript-pending",
+            "note": "waits for a speech model, then the bundle is transcribed again in place"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/.media-pending",
+            "note": "in a copy on another Mac while its heavy media still arrives"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/.media-sending",
+            "note": "on this Mac while the heavy media streams to another Mac"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/.media-cleaned",
+            "note": "when retention moved the heavy media to the Trash, and after how many days"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/.pinned",
+            "note": "keeps the capture forever"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/.deliver.json",
+            "note": "a forward to OpenCode that is still retried"
+          },
+          {
+            "path": "scrawl-1795022226471-4475.scrawl/.deliver-failed.json",
+            "note": "a forward that was given up on after 24 hours"
+          }
+        ]
+      },
+      "children": []
+    },
+    "h-paste": {
+      "id": "h-paste",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "The Paste"
+        }
+      ],
+      "children": []
+    },
+    "paste-lead": {
+      "id": "paste-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "summary_markdown_with",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/sketch.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/sketch.rs"
+            }
+          }
+        },
+        {
+          "insert": " builds the paste from the manifest. The finish step saves it as "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and the clipboard gets the same text. Only the header line is always there. The template below shows every line in its order:"
+        }
+      ],
+      "children": []
+    },
+    "paste-template": {
+      "id": "paste-template",
+      "type": "code",
+      "props": {
+        "language": "text"
+      },
+      "text": [
+        {
+          "insert": "[scrawl M:SS · <target> · <absolute bundle folder>]\nFor session: <title> (<session id>) · page <url>\nOpen contact-sheet.png and frames/ in that folder before changing anything: the marks and words only make sense on the images, which can show more than the text does.\nApp shots: scrawl appshot <capture id> --frame N (N is the keyframe number)\nScreen: <screen> · <key>: <value> · <key>: <value>\nNote: <note>\nCropped to: <label> (full frames in frames-full/)\nNo transcript: <reason>\n  · M:SS app: <label>\n- #1 (M:SS) “<words said>”\n  · M:SS app: <label>\n- #2 (M:SS) <event>"
+        }
+      ],
+      "children": []
+    },
+    "paste-table-lead": {
+      "id": "paste-table-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each row of this table is one line of the template, in the same order, with the manifest state that adds it:"
+        }
+      ],
+      "children": []
+    },
+    "paste-table": {
+      "id": "paste-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Line",
+          "Appears when"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "[scrawl M:SS · …]",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Always"
+          ],
+          [
+            [
+              {
+                "insert": "For session: …",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "destination",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " is set"
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "Open contact-sheet.png …",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The capture has at least one keyframe"
+          ],
+          [
+            [
+              {
+                "insert": "App shots: …",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "A keyframe has an "
+              },
+              {
+                "insert": "appshot",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "Screen: …",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "The app named a screen at 0:00 or set "
+              },
+              {
+                "insert": "context",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "Note: …",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "note",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " is not blank"
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "Cropped to: …",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "autocrop",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " is set"
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "No transcript: …",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "transcript.missing",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " is set and the text is empty"
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "- #N (M:SS) …",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Once for each keyframe"
+          ],
+          [
+            [
+              {
+                "insert": "  · M:SS …",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "An app event or a context change happened"
+          ]
+        ],
+        "title": "Summary lines and when each appears"
+      },
+      "children": []
+    },
+    "paste-bl-lead": {
+      "id": "paste-bl-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The header and the optional lines take their text from the manifest, with a privacy rule and a length rule."
+        }
+      ],
+      "children": []
+    },
+    "g-paste-header": {
+      "id": "g-paste-header",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Header",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "paste-b1",
+        "paste-b2"
+      ]
+    },
+    "paste-b1": {
+      "id": "paste-b1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The header's "
+        },
+        {
+          "insert": "<target>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the app, or "
+        },
+        {
+          "insert": "Display",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", then the window title in quotes when it differs from the app name. An iPhone capture shows the device name, then "
+        },
+        {
+          "insert": "· <app> <version> (<build>)",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "paste-b2": {
+      "id": "paste-b2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The header's window title goes through "
+        },
+        {
+          "insert": "privacy::window_title",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " first. The titles in the window log ("
+        },
+        {
+          "insert": "windows",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") stay in "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and never reach the paste."
+        }
+      ],
+      "children": []
+    },
+    "g-paste-optional": {
+      "id": "g-paste-optional",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Optional Lines",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "paste-b3",
+        "paste-b4",
+        "paste-b5"
+      ]
+    },
+    "paste-b3": {
+      "id": "paste-b3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The "
+        },
+        {
+          "insert": "App shots:",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " line names the command of the build that wrote it: "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or "
+        },
+        {
+          "insert": "scrawl-dev",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in Annotator Dev."
+        }
+      ],
+      "children": []
+    },
+    "paste-b4": {
+      "id": "paste-b4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A screen name or a "
+        },
+        {
+          "insert": "context",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " key or value from the app goes on one line and is cut to 60 characters, ending in "
+        },
+        {
+          "insert": "…",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "paste-b5": {
+      "id": "paste-b5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A capture with no keyframes lists its app events as "
+        },
+        {
+          "insert": "· M:SS <event>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " lines. With no app events either, it prints the whole transcript in quotes."
+        }
+      ],
+      "children": []
+    },
+    "h-kf-lines": {
+      "id": "h-kf-lines",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Keyframe Lines"
+        }
+      ],
+      "children": []
+    },
+    "kf-lead": {
+      "id": "kf-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A keyframe line starts with the keyframe number, which is the number in the corner chip of its image, and its time. A line takes one of these four forms:"
+        }
+      ],
+      "children": []
+    },
+    "kf-template": {
+      "id": "kf-template",
+      "type": "code",
+      "props": {
+        "language": "text"
+      },
+      "text": [
+        {
+          "insert": "- #N (M:SS) ⟨<screen>⟩ “<words said>”\n- #N (M:SS) ⟨<screen>⟩ [<click>] “<words said>”\n- #N (M:SS) ⟨<screen>⟩ ⚑ “<words said>”\n- #N (M:SS) ⟨<screen>⟩ ⚑ <event>\n  · M:SS app: <label>\n  · M:SS <key> → <value>\n  · M:SS <key> cleared"
+        }
+      ],
+      "children": []
+    },
+    "kf-bl-lead": {
+      "id": "kf-bl-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each part of a keyframe line comes from the keyframe itself or from the screens, marks and events around it."
+        }
+      ],
+      "children": []
+    },
+    "g-kf-markers": {
+      "id": "g-kf-markers",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Markers",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "kf-b1",
+        "kf-b2",
+        "kf-b3"
+      ]
+    },
+    "kf-b1": {
+      "id": "kf-b1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "⟨<screen>⟩",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " appears when the screen that the app named differs from the last screen the summary showed. ScrawlKit apps name their screens."
+        }
+      ],
+      "children": []
+    },
+    "kf-b2": {
+      "id": "kf-b2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "⚑",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " marks a keyframe cut on a flag, a marker of a moment with no ink."
+        }
+      ],
+      "children": []
+    },
+    "kf-b3": {
+      "id": "kf-b3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "[<click>]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " appears on a click keyframe that has words and no flag. It is the click's event text up to its coordinates, such as "
+        },
+        {
+          "insert": "[clicked]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "[tapped “Back”]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "g-kf-words": {
+      "id": "g-kf-words",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Words and Events",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "kf-b4",
+        "kf-b5"
+      ]
+    },
+    "kf-b4": {
+      "id": "kf-b4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "“<words said>”",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the keyframe's "
+        },
+        {
+          "insert": "said",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". A keyframe without words shows its "
+        },
+        {
+          "insert": "event",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " instead, such as "
+        },
+        {
+          "insert": "scene changed",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "tapped “Settings” (x 0.10, y 0.90)",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "kf-b5": {
+      "id": "kf-b5",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "An indented "
+        },
+        {
+          "insert": "·",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " line is an app event or a context change from the keyframe's time to the next keyframe. The last keyframe takes every later one, and the ones before the first keyframe go above it."
+        }
+      ],
+      "children": []
+    },
+    "kf-rules": {
+      "id": "kf-rules",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Keyframes and Images",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/30-keyframes-and-images"
+            }
+          }
+        },
+        {
+          "insert": " says how keyframes are chosen and which words each one owns."
+        }
+      ],
+      "children": []
+    },
+    "h-appstate": {
+      "id": "h-appstate",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "With Save App State On"
+        }
+      ],
+      "children": []
+    },
+    "as-lead": {
+      "id": "as-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "With Save app state on, "
+        },
+        {
+          "insert": "agent_context::keyframe_texts",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/agent_context.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/agent_context.rs"
+            }
+          }
+        },
+        {
+          "insert": " writes the text of each keyframe. The words before the first mark or event stay on the keyframe line. Each mark, or each run of events with no words between them, starts an indented line that the next words follow:"
+        }
+      ],
+      "children": []
+    },
+    "as-example": {
+      "id": "as-example",
+      "type": "code",
+      "props": {
+        "language": "text"
+      },
+      "text": [
+        {
+          "insert": "- #1 (0:01)\n  · 0:00 pressed ⌘K “Look here.”\n- #2 (0:09) “This one is wrong.”\n  ✎① 0:10 circled button “Area”\n  ✎② 0:12 underlined (2 strokes) “and so is this label.”\n  · 0:15 clicked ×3"
+        }
+      ],
+      "children": []
+    },
+    "as-link": {
+      "id": "as-link",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "App State and Privacy",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/40-app-state-and-privacy"
+            }
+          }
+        },
+        {
+          "insert": " owns the rules for these lines and what app state never keeps."
+        }
+      ],
+      "children": []
+    },
+    "h-example": {
+      "id": "h-example",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Example Paste"
+        }
+      ],
+      "children": []
+    },
+    "ex-lead": {
+      "id": "ex-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A Screen capture of Safari, with auto-crop, a circle and a click, gives a paste like this one. The words are made up, and the line shapes match real bundles."
+        }
+      ],
+      "children": []
+    },
+    "ex-code": {
+      "id": "ex-code",
+      "type": "code",
+      "props": {
+        "language": "text"
+      },
+      "text": [
+        {
+          "insert": "[scrawl 0:41 · Safari “Settings” · /Users/you/Library/Application Support/scrawl/captures/scrawl-1795011535201-44db-3.scrawl]\nOpen contact-sheet.png and frames/ in that folder before changing anything: the marks and words only make sense on the images, which can show more than the text does.\nCropped to: Safari (full frames in frames-full/)\n- #1 (0:03) “This header is too tall.”\n- #2 (0:12) [clicked] “And this button does nothing.”\n- #3 (0:27) scene changed"
+        }
+      ],
+      "children": []
+    },
+    "h-clip": {
+      "id": "h-clip",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Clipboard Versus Disk"
+        }
+      ],
+      "children": []
+    },
+    "clip-lead": {
+      "id": "clip-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The clipboard carries text, and the folder keeps everything else. The paste names the folder by its absolute path, so an agent can open the images and the manifest. Each row is one kind of content:"
+        }
+      ],
+      "children": []
+    },
+    "clip-table": {
+      "id": "clip-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Content",
+          "Clipboard",
+          "Disk"
+        ],
+        "rows": [
+          [
+            "The summary text",
+            "Yes, as plain text",
+            [
+              {
+                "insert": "summary.md",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "The contact sheet",
+            "Only through the Paste chip or the paste shortcut",
+            [
+              {
+                "insert": "contact-sheet.png",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Keyframe images",
+            "No",
+            [
+              {
+                "insert": "frames/",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "frames-full/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Video and audio",
+            "No",
+            [
+              {
+                "insert": "recording.mp4",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "recording.mov",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "audio.wav",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Strokes, events, cursor and window log",
+            "No",
+            [
+              {
+                "insert": "scrawl.json",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "App shots",
+            [
+              {
+                "insert": "One "
+              },
+              {
+                "insert": "App shots:",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " line"
+              }
+            ],
+            [
+              {
+                "insert": "appshots/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ]
+        ],
+        "title": "What the clipboard carries and what stays on disk"
+      },
+      "children": []
+    },
+    "clip-bl-lead": {
+      "id": "clip-bl-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A finished capture copies the text alone, through "
+        },
+        {
+          "insert": "copy_bundle_to_clipboard",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Only the paste commands add the image."
+        }
+      ],
+      "children": []
+    },
+    "g-clip-text": {
+      "id": "g-clip-text",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Text",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "clip-b1",
+        "clip-b2"
+      ]
+    },
+    "clip-b1": {
+      "id": "clip-b1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The text goes on the clipboard as plain text only ("
+        },
+        {
+          "insert": "NSPasteboardTypeString",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), with the transcript once. So ⌘V pastes cleanly into a terminal, such as Ghostty or the OpenCode TUI, and into a GUI composer, such as OpenCode Desktop."
+        }
+      ],
+      "children": []
+    },
+    "clip-b2": {
+      "id": "clip-b2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "copy_bundle_to_clipboard",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/handoff.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/handoff.rs"
+            }
+          }
+        },
+        {
+          "insert": " reads "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and builds the summary again with the current Save app state setting, so it matches "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " while that setting is unchanged."
+        }
+      ],
+      "children": []
+    },
+    "g-clip-image": {
+      "id": "g-clip-image",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Image",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "clip-b3",
+        "clip-b4"
+      ]
+    },
+    "clip-b3": {
+      "id": "clip-b3",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The Paste chip and the paste shortcut ("
+        },
+        {
+          "insert": "paste_bundle_image_and_text",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") paste twice."
+        }
+      ],
+      "children": [
+        "clip-b3a",
+        "clip-b3b"
+      ]
+    },
+    "clip-b3a": {
+      "id": "clip-b3a",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The first ⌘V gives a terminal the contact sheet's path as text and gives another app the PNG."
+        }
+      ],
+      "children": []
+    },
+    "clip-b3b": {
+      "id": "clip-b3b",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The second ⌘V pastes the summary."
+        }
+      ],
+      "children": []
+    },
+    "clip-b4": {
+      "id": "clip-b4",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "On Windows, the "
+        },
+        {
+          "insert": "clipboardImage",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " experiment puts the contact sheet and the text on the clipboard together, as "
+        },
+        {
+          "insert": "Windows",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/90-windows"
+            }
+          }
+        },
+        {
+          "insert": " describes."
+        }
+      ],
+      "children": []
+    },
+    "clip-session": {
+      "id": "clip-session",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A capture of a dev site can also go to an OpenCode session, as "
+        },
+        {
+          "insert": "Routing and Delivery",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/50-routing-and-delivery"
+            }
+          }
+        },
+        {
+          "insert": " describes. "
+        },
+        {
+          "insert": "routing::record_destination",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " then writes "
+        },
+        {
+          "insert": "destination",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " into "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and the "
+        },
+        {
+          "insert": "For session:",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " line into "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-dig": {
+      "id": "h-dig",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Digging Further"
+        }
+      ],
+      "children": []
+    },
+    "dig-lead": {
+      "id": "dig-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The paste stays short, and an agent runs a command when it needs more. Each row is one command, and "
+        },
+        {
+          "insert": "Command-Line Tool",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/20-command-line"
+            }
+          }
+        },
+        {
+          "insert": " lists every flag:"
+        }
+      ],
+      "children": []
+    },
+    "dig-table": {
+      "id": "dig-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Command",
+          "Gives"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "scrawl zoom <bundle> --at 0:12",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "A dense sheet of frames around a time or a spoken phrase, with the words said, in "
+              },
+              {
+                "insert": "zoom/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "scrawl zoom <bundle> --mark 2",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The same sheet centred on mark ✎②, with its ink drawn"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl frames <bundle> --from 0:02 --to 0:05",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Every frame of a range, 4 per second by default, in "
+              },
+              {
+                "insert": "zoom/range-<from>-<to>/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "scrawl appshot <id> --frame N",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The app, title, URL and Accessibility outline of the window that keyframe N shows"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl measure <bundle> --frame N --at X,Y",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Exact sizes and gaps from keyframe N"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl inspect <bundle> --json",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "The manifest. Without "
+              },
+              {
+                "insert": "--json",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", the summary"
+              }
+            ]
+          ]
+        ],
+        "title": "Commands that read a bundle"
+      },
+      "children": []
+    },
+    "dig-b1": {
+      "id": "dig-b1",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "App State and Privacy",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/40-app-state-and-privacy"
+            }
+          }
+        },
+        {
+          "insert": " says what an app shot holds. Keyframes and Images says how "
+        },
+        {
+          "insert": "scrawl measure",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads a keyframe."
+        }
+      ],
+      "children": []
+    },
+    "h-manifest": {
+      "id": "h-manifest",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "The Manifest"
+        }
+      ],
+      "children": []
+    },
+    "man-lead": {
+      "id": "man-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "ScrawlBundle",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/model.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/model.rs"
+            }
+          }
+        },
+        {
+          "insert": " is the manifest, and serde writes it with camelCase keys. The writer leaves out an empty list or map, a zero "
+        },
+        {
+          "insert": "videoOffsetMs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and a missing value. A coordinate is a fraction of the capture, from 0 to 1, unless its field says otherwise."
+        }
+      ],
+      "children": []
+    },
+    "ss-bundle": {
+      "id": "ss-bundle",
+      "type": "state-shape",
+      "props": {
+        "description": "The top level of scrawl.json.",
+        "example": "{\n  \"version\": 1,\n  \"id\": \"scrawl-1795022226471-4475\",\n  \"createdAtMs\": 1795022256282,\n  \"durationMs\": 29288,\n  \"target\": {\n    \"mode\": \"display\",\n    \"app\": \"Safari\",\n    \"displayId\": 5,\n    \"frame\": {\"x\": 0, \"y\": 0, \"width\": 1728, \"height\": 1117, \"scale\": 2}\n  },\n  \"transcript\": {\n    \"source\": \"deepgram:nova-3\",\n    \"text\": \"This header is too tall.\",\n    \"segments\": [{\"t0\": 828, \"t1\": 2300, \"text\": \"This header is too tall.\"}]\n  },\n  \"strokes\": [],\n  \"marks\": [],\n  \"events\": [],\n  \"keyframes\": [\n    {\"index\": 1, \"t\": 3631, \"reason\": \"speech\", \"file\": \"frames/frame-01.png\", \"event\": \"scene changed\"}\n  ],\n  \"contactSheet\": \"contact-sheet.png\",\n  \"video\": \"recording.mp4\",\n  \"videoOffsetMs\": 131,\n  \"audio\": \"audio.wav\"\n}",
+        "fields": [
+          {
+            "name": "version",
+            "type": "u32",
+            "description": "Manifest version. The capture and import code writes `1`."
+          },
+          {
+            "name": "id",
+            "type": "String",
+            "description": "The capture id, the folder name without `.scrawl`. `scrawl appshot` and `scrawl measure` accept it."
+          },
+          {
+            "name": "createdAtMs",
+            "type": "u64",
+            "description": "Unix time in milliseconds."
+          },
+          {
+            "name": "durationMs",
+            "type": "u64",
+            "description": "Length of the capture in milliseconds, with pauses cut out. Every other time in the manifest counts from its start."
+          },
+          {
+            "name": "target",
+            "type": "TargetInfo",
+            "description": "What was recorded: the mode, the app and the frame."
+          },
+          {
+            "name": "transcript",
+            "type": "TranscriptData",
+            "description": "The words, with segment and word times."
+          },
+          {
+            "name": "note",
+            "type": "String",
+            "required": false,
+            "description": "A note given at capture or import. The summary prints it as `Note:`."
+          },
+          {
+            "name": "strokes",
+            "type": "Vec<Stroke>",
+            "description": "Raw ink, laser and pin strokes."
+          },
+          {
+            "name": "marks",
+            "type": "Vec<Mark>",
+            "description": "Strokes grouped and classified by shape."
+          },
+          {
+            "name": "events",
+            "type": "Vec<InteractionEvent>",
+            "description": "Clicks, drags, scrolls, points, keys, app changes and app events."
+          },
+          {
+            "name": "keyframes",
+            "type": "Vec<Keyframe>",
+            "description": "The chosen frames in time order."
+          },
+          {
+            "name": "contactSheet",
+            "type": "String",
+            "description": "Relative path of the contact sheet, `contact-sheet.png`."
+          },
+          {
+            "name": "video",
+            "type": "String",
+            "required": false,
+            "description": "Relative path of the movie, such as `recording.mp4`."
+          },
+          {
+            "name": "videoOffsetMs",
+            "type": "u64",
+            "required": false,
+            "description": "When the movie starts on the bundle clock. Video time is bundle time minus this."
+          },
+          {
+            "name": "audio",
+            "type": "String",
+            "required": false,
+            "description": "Relative path of the audio, `audio.wav`."
+          },
+          {
+            "name": "source",
+            "type": "String",
+            "required": false,
+            "description": "Where the pictures came from when it is not this Mac's screen: `iphone`."
+          },
+          {
+            "name": "device",
+            "type": "DeviceInfo",
+            "required": false,
+            "description": "The phone behind an iPhone bundle."
+          },
+          {
+            "name": "context",
+            "type": "BTreeMap<String, String>",
+            "required": false,
+            "description": "Values a ScrawlKit app set with `Scrawl.context` when the recording started."
+          },
+          {
+            "name": "contextChanges",
+            "type": "Vec<ContextChange>",
+            "required": false,
+            "description": "Changes to `context` during the recording: `t`, `key` and `value`, which is null when the key was cleared."
+          },
+          {
+            "name": "screens",
+            "type": "Vec<ScreenSpan>",
+            "required": false,
+            "description": "The screen a ScrawlKit app said it was on, as `t0`, `t1` and `name` spans."
+          },
+          {
+            "name": "windows",
+            "type": "Vec<WindowSnapshot>",
+            "required": false,
+            "description": "Screen and Area modes: the on-screen windows over time, front to back, stored only when they change."
+          },
+          {
+            "name": "cursor",
+            "type": "Vec<CursorSample>",
+            "required": false,
+            "description": "Screen and Area modes: the cursor at up to 15 Hz while it moves, as `[t, x, y]`."
+          },
+          {
+            "name": "autocrop",
+            "type": "AutocropInfo",
+            "required": false,
+            "description": "Screen mode: how each keyframe was cropped."
+          },
+          {
+            "name": "destination",
+            "type": "Destination",
+            "required": false,
+            "description": "The OpenCode session that a dev-site capture went to, so `scrawl send` recovers to the same place."
+          }
+        ],
+        "name": "ScrawlBundle",
+        "source": {
+          "path": "src/model.rs",
+          "symbol": "ScrawlBundle"
+        }
+      },
+      "children": []
+    },
+    "ss-target": {
+      "id": "ss-target",
+      "type": "state-shape",
+      "props": {
+        "description": "What the capture recorded.",
+        "example": "{\n  \"mode\": \"display\",\n  \"app\": \"Electron\",\n  \"bundleId\": \"com.github.Electron\",\n  \"windowTitle\": \"Knowledge\",\n  \"displayId\": 5,\n  \"frame\": {\n    \"x\": 0.0,\n    \"y\": 0.0,\n    \"width\": 3008.0,\n    \"height\": 1692.0,\n    \"scale\": 2.0\n  }\n}",
+        "fields": [
+          {
+            "name": "mode",
+            "type": "CaptureMode",
+            "description": "One of `display` (Screen), `window`, `region` (Area) or `device`, a phone's own screen."
+          },
+          {
+            "name": "app",
+            "type": "String",
+            "required": false,
+            "description": "App name. The summary header shows it, else `Display`."
+          },
+          {
+            "name": "bundleId",
+            "type": "String",
+            "required": false,
+            "description": "The app's bundle id."
+          },
+          {
+            "name": "windowTitle",
+            "type": "String",
+            "required": false,
+            "description": "The captured window's title after the privacy policy. The summary header prints it."
+          },
+          {
+            "name": "windowId",
+            "type": "u32",
+            "required": false,
+            "description": "The window server's window id, for a Window capture."
+          },
+          {
+            "name": "displayId",
+            "type": "u32",
+            "description": "The display that was recorded. `0` for a phone."
+          },
+          {
+            "name": "frame",
+            "type": "TargetFrame",
+            "description": "`x`, `y`, `width` and `height` in points, and `scale` in pixels per point.",
+            "fields": [
+              {
+                "name": "x",
+                "type": "f64"
+              },
+              {
+                "name": "y",
+                "type": "f64"
+              },
+              {
+                "name": "width",
+                "type": "f64"
+              },
+              {
+                "name": "height",
+                "type": "f64"
+              },
+              {
+                "name": "scale",
+                "type": "f64"
+              }
+            ]
+          }
+        ],
+        "name": "TargetInfo",
+        "source": {
+          "path": "src/model.rs",
+          "symbol": "TargetInfo"
+        }
+      },
+      "children": []
+    },
+    "ss-transcript": {
+      "id": "ss-transcript",
+      "type": "state-shape",
+      "props": {
+        "description": "The transcript. Transcription owns how each transcriber fills it.",
+        "example": "{\n  \"source\": \"deepgram:nova-3\",\n  \"model\": \"nova-3\",\n  \"text\": \"Look here.\",\n  \"segments\": [{\"t0\": 500, \"t1\": 1100, \"text\": \"Look here.\"}],\n  \"words\": [\n    {\"t0\": 500, \"t1\": 760, \"text\": \"Look\"},\n    {\"t0\": 800, \"t1\": 1100, \"text\": \"here.\"}\n  ]\n}",
+        "fields": [
+          {
+            "name": "source",
+            "type": "String",
+            "description": "The transcriber, such as `deepgram:nova-3`, `hex:<model>` or `command:<name>`."
+          },
+          {
+            "name": "model",
+            "type": "String",
+            "required": false,
+            "description": "The model name, when the transcriber gives one."
+          },
+          {
+            "name": "text",
+            "type": "String",
+            "description": "All the words as one string."
+          },
+          {
+            "name": "segments",
+            "type": "Vec<TranscriptSegment>",
+            "description": "Utterances as `t0`, `t1` in ms and `text`."
+          },
+          {
+            "name": "words",
+            "type": "Vec<WordTiming>",
+            "required": false,
+            "description": "One entry per word: `t0`, `t1` in ms and `text`."
+          },
+          {
+            "name": "estimated",
+            "type": "bool",
+            "required": false,
+            "description": "`true` when word times were spread over detected speech, not measured. Keyframe selection then skips spoken cues."
+          },
+          {
+            "name": "missing",
+            "type": "MissingTranscript",
+            "required": false,
+            "description": "Why there is no transcript although there was audio.",
+            "fields": [
+              {
+                "name": "reason",
+                "type": "String",
+                "description": "One plain sentence. The summary prints it as `No transcript:`."
+              },
+              {
+                "name": "retry",
+                "type": "bool",
+                "required": false,
+                "description": "`true` when Scrawl transcribes the bundle again once the speech model is installed."
+              }
+            ]
+          }
+        ],
+        "name": "TranscriptData",
+        "source": {
+          "path": "src/model.rs",
+          "symbol": "TranscriptData"
+        }
+      },
+      "children": []
+    },
+    "ss-stroke": {
+      "id": "ss-stroke",
+      "type": "state-shape",
+      "props": {
+        "description": "One stroke of ink, laser or a pin, as recorded.",
+        "example": "{\n  \"t0\": 2492,\n  \"t1\": 3621,\n  \"fw\": 3008,\n  \"fh\": 1692,\n  \"pts\": [2901, 4043, 0, 2893, 4074, 20, 2892, 4088, 29]\n}",
+        "fields": [
+          {
+            "name": "t0",
+            "type": "u64",
+            "description": "Start in ms on the bundle clock."
+          },
+          {
+            "name": "t1",
+            "type": "u64",
+            "description": "End in ms on the bundle clock."
+          },
+          {
+            "name": "fw",
+            "type": "u32",
+            "description": "Width of the frame the stroke was drawn on."
+          },
+          {
+            "name": "fh",
+            "type": "u32",
+            "description": "Height of the frame the stroke was drawn on."
+          },
+          {
+            "name": "on",
+            "type": "String",
+            "required": false,
+            "description": "What the stroke was drawn on, from app state, such as `button “Area”`."
+          },
+          {
+            "name": "pin",
+            "type": "u32",
+            "required": false,
+            "description": "The pin number for a ⇧-click pin, 1, 2, 3 in drop order."
+          },
+          {
+            "name": "laser",
+            "type": "bool",
+            "required": false,
+            "description": "`true` for a laser trail."
+          },
+          {
+            "name": "pts",
+            "type": "Vec<i32>",
+            "description": "Flat triples `[x, y, dt_ms, …]`. `x` and `y` run from 0 to 10000 of the target, and `dt_ms` counts from `t0`."
+          }
+        ],
+        "name": "Stroke",
+        "source": {
+          "path": "src/model.rs",
+          "symbol": "Stroke"
+        }
+      },
+      "children": []
+    },
+    "ss-mark": {
+      "id": "ss-mark",
+      "type": "state-shape",
+      "props": {
+        "description": "Strokes grouped into one gesture. A pause over 1.2 s or a 7th stroke starts a new mark.",
+        "example": "{\n  \"id\": \"m1\",\n  \"strokes\": [0],\n  \"t0\": 2492,\n  \"t1\": 3621,\n  \"boxNorm\": [0.2826, 0.3853, 0.6925, 0.8391],\n  \"shape\": \"circle\",\n  \"description\": \"circled region x 0.28–0.69, y 0.39–0.84\",\n  \"frame\": \"frames/frame-01.png\"\n}",
+        "fields": [
+          {
+            "name": "id",
+            "type": "String",
+            "description": "`m1`, `m2` and on. `scrawl zoom --mark m2` takes it."
+          },
+          {
+            "name": "strokes",
+            "type": "Vec<usize>",
+            "description": "Indexes into `strokes`."
+          },
+          {
+            "name": "t0",
+            "type": "u64",
+            "description": "Start in ms."
+          },
+          {
+            "name": "t1",
+            "type": "u64",
+            "description": "End in ms."
+          },
+          {
+            "name": "boxNorm",
+            "type": "[f32; 4]",
+            "description": "Bounding box `[x0, y0, x1, y1]`. For a circle with a lead-in or tail, the loop alone."
+          },
+          {
+            "name": "shape",
+            "type": "Shape",
+            "description": "One of `circle`, `underline`, `line`, `arrow`, `tap`, `pin`, `mark` or `flag`."
+          },
+          {
+            "name": "from",
+            "type": "[f32; 2]",
+            "required": false,
+            "description": "An arrow's shaft start."
+          },
+          {
+            "name": "to",
+            "type": "[f32; 2]",
+            "required": false,
+            "description": "An arrow's tip."
+          },
+          {
+            "name": "pin",
+            "type": "u32",
+            "required": false,
+            "description": "The pin number that the images and the summary show."
+          },
+          {
+            "name": "on",
+            "type": "String",
+            "required": false,
+            "description": "What the mark was drawn on, from app state."
+          },
+          {
+            "name": "description",
+            "type": "String",
+            "description": "Plain words for the mark, such as `circled region x 0.28–0.69, y 0.39–0.84`."
+          },
+          {
+            "name": "frame",
+            "type": "String",
+            "required": false,
+            "description": "The keyframe image that draws this mark's ink."
+          }
+        ],
+        "name": "Mark",
+        "source": {
+          "path": "src/model.rs",
+          "symbol": "Mark"
+        }
+      },
+      "children": []
+    },
+    "ss-event": {
+      "id": "ss-event",
+      "type": "state-shape",
+      "props": {
+        "description": "A tagged union. `kind` names the variant, and each variant has its own fields.",
+        "example": "{\n  \"kind\": \"click\",\n  \"t\": 12040,\n  \"x\": 0.4254,\n  \"y\": 0.4725,\n  \"role\": \"button\",\n  \"label\": \"Save\"\n}",
+        "fields": [
+          {
+            "name": "kind",
+            "type": "\"click\" | \"drag\" | \"scroll\" | \"point\" | \"key\" | \"app_change\" | \"app_event\"",
+            "description": "The variant."
+          },
+          {
+            "name": "t",
+            "type": "u64",
+            "description": "Time in ms on the bundle clock. Every variant has it."
+          },
+          {
+            "name": "x",
+            "type": "f32",
+            "required": false,
+            "description": "Only for click, scroll and point. Horizontal position."
+          },
+          {
+            "name": "y",
+            "type": "f32",
+            "required": false,
+            "description": "Only for click, scroll and point. Vertical position."
+          },
+          {
+            "name": "button",
+            "type": "String",
+            "required": false,
+            "description": "Only for click and drag. `touch` for a finger on a phone."
+          },
+          {
+            "name": "label",
+            "type": "String",
+            "required": false,
+            "description": "Only for click, drag, scroll, point and app_event. What the input landed on, or the app's own text for app_event."
+          },
+          {
+            "name": "role",
+            "type": "String",
+            "required": false,
+            "description": "Only for click. The Accessibility role from app state."
+          },
+          {
+            "name": "t1",
+            "type": "u64",
+            "required": false,
+            "description": "Only for drag. End time in ms."
+          },
+          {
+            "name": "x0",
+            "type": "f32",
+            "required": false,
+            "description": "Only for drag. Start position, with `y0`, `x1` and `y1`."
+          },
+          {
+            "name": "path",
+            "type": "Vec<[f32; 2]>",
+            "required": false,
+            "description": "Only for drag. Positions between the ends, for drawing the trail."
+          },
+          {
+            "name": "dx",
+            "type": "f32",
+            "required": false,
+            "description": "Only for scroll. Scroll amount, with `dy`."
+          },
+          {
+            "name": "shortcut",
+            "type": "String",
+            "required": false,
+            "description": "Only for key. Such as `⌘K`."
+          },
+          {
+            "name": "app",
+            "type": "String",
+            "required": false,
+            "description": "Only for app_change. The app switched to, with an optional `windowTitle`."
+          }
+        ],
+        "name": "InteractionEvent",
+        "source": {
+          "path": "src/model.rs",
+          "symbol": "InteractionEvent"
+        }
+      },
+      "children": []
+    },
+    "ss-keyframe": {
+      "id": "ss-keyframe",
+      "type": "state-shape",
+      "props": {
+        "description": "One chosen frame, in time order.",
+        "example": "{\n  \"index\": 1,\n  \"t\": 3631,\n  \"reason\": \"mark\",\n  \"file\": \"frames/frame-01.png\",\n  \"event\": \"circled region x 0.28–0.69, y 0.39–0.84\",\n  \"said\": \"This header is too tall.\",\n  \"markId\": \"m1\"\n}",
+        "fields": [
+          {
+            "name": "index",
+            "type": "usize",
+            "description": "The number from 1 that the image chip and the summary's `#N` show."
+          },
+          {
+            "name": "t",
+            "type": "u64",
+            "description": "Time in ms on the bundle clock."
+          },
+          {
+            "name": "reason",
+            "type": "KeyframeReason",
+            "description": "Why it was cut: `mark`, `click`, `laser`, `scene_change`, `speech` or `initial`."
+          },
+          {
+            "name": "file",
+            "type": "String",
+            "description": "Relative path of the image, `frames/frame-XX.png`."
+          },
+          {
+            "name": "event",
+            "type": "String",
+            "description": "Plain words for the moment. The summary shows it when `said` is empty."
+          },
+          {
+            "name": "said",
+            "type": "String",
+            "required": false,
+            "description": "The words this keyframe owns."
+          },
+          {
+            "name": "markId",
+            "type": "String",
+            "required": false,
+            "description": "The mark it was cut for. A shared keyframe names its first mark."
+          },
+          {
+            "name": "cursor",
+            "type": "[f32; 2]",
+            "required": false,
+            "description": "Cursor position. In the top-left corner it moves the number chip to the top right."
+          },
+          {
+            "name": "appshot",
+            "type": "String",
+            "required": false,
+            "description": "The app shot file in `appshots/` of the window this keyframe shows."
+          }
+        ],
+        "name": "Keyframe",
+        "source": {
+          "path": "src/model.rs",
+          "symbol": "Keyframe"
+        }
+      },
+      "children": []
+    },
+    "ss-autocrop": {
+      "id": "ss-autocrop",
+      "type": "state-shape",
+      "props": {
+        "description": "How a Screen capture's keyframes were cropped.",
+        "example": "{\n  \"label\": \"Electron\",\n  \"fullFrames\": \"frames-full\",\n  \"fullContactSheet\": \"contact-sheet-full.png\",\n  \"crops\": [\n    {\n      \"index\": 1,\n      \"x\": 202.0,\n      \"kind\": \"window\",\n      \"reason\": \"Electron (100% of the activity)\",\n      \"apps\": [\"Electron\"]\n    }\n  ],\n  \"changes\": [[[0.25, 0.28, 0.56, 0.72]]]\n}",
+        "fields": [
+          {
+            "name": "label",
+            "type": "String",
+            "description": "App names for the `Cropped to:` line, never window titles."
+          },
+          {
+            "name": "fullFrames",
+            "type": "String",
+            "description": "The folder of uncropped keyframes, `frames-full`."
+          },
+          {
+            "name": "fullContactSheet",
+            "type": "String",
+            "description": "The uncropped sheet, `contact-sheet-full.png`."
+          },
+          {
+            "name": "crops",
+            "type": "Vec<KeyframeCrop>",
+            "description": "One per keyframe, in keyframe order.",
+            "fields": [
+              {
+                "name": "index",
+                "type": "usize",
+                "description": "The keyframe number."
+              },
+              {
+                "name": "x",
+                "type": "f64",
+                "description": "Crop left edge in capture points, with `y`, `width` and `height`."
+              },
+              {
+                "name": "kind",
+                "type": "CropKind",
+                "description": "One of `window`, `windows`, `focus`, `activity`, `fallback` or `full`."
+              },
+              {
+                "name": "reason",
+                "type": "String",
+                "description": "Plain words for the choice, such as `Electron (100% of the activity)`."
+              },
+              {
+                "name": "apps",
+                "type": "Vec<String>",
+                "required": false,
+                "description": "The apps inside the crop."
+              }
+            ]
+          },
+          {
+            "name": "changes",
+            "type": "Vec<Vec<[f32; 4]>>",
+            "required": false,
+            "description": "Per keyframe, the regions `[x0, y0, x1, y1]` that changed since the one before. They are one input to the crop."
+          }
+        ],
+        "name": "AutocropInfo",
+        "source": {
+          "path": "src/model.rs",
+          "symbol": "AutocropInfo"
+        }
+      },
+      "children": []
+    },
+    "ss-windows": {
+      "id": "ss-windows",
+      "type": "state-shape",
+      "props": {
+        "description": "One entry of the window log. Auto-crop and app shots read it.",
+        "example": "{\n  \"t\": 4,\n  \"windows\": [\n    {\n      \"id\": 9268,\n      \"app\": \"Electron\",\n      \"bundleId\": \"com.github.Electron\",\n      \"title\": \"Knowledge\",\n      \"bounds\": [202, 43, 1781, 1317],\n      \"layer\": 0,\n      \"frontmost\": true\n    }\n  ]\n}",
+        "fields": [
+          {
+            "name": "t",
+            "type": "u64",
+            "description": "Time in ms."
+          },
+          {
+            "name": "windows",
+            "type": "Vec<WindowEntry>",
+            "description": "The on-screen windows, front to back.",
+            "fields": [
+              {
+                "name": "id",
+                "type": "u32",
+                "description": "The window server's window id."
+              },
+              {
+                "name": "app",
+                "type": "String",
+                "description": "App name."
+              },
+              {
+                "name": "bundleId",
+                "type": "String",
+                "required": false
+              },
+              {
+                "name": "regular",
+                "type": "bool",
+                "required": false,
+                "description": "Written only as `false`, for agent apps such as menu-bar utilities and overlays."
+              },
+              {
+                "name": "title",
+                "type": "String",
+                "required": false,
+                "description": "Window title. It never goes into the summary or the clipboard."
+              },
+              {
+                "name": "bounds",
+                "type": "[i32; 4]",
+                "description": "`[x, y, width, height]` in points from the capture's top-left corner. Can be negative."
+              },
+              {
+                "name": "layer",
+                "type": "i32",
+                "description": "`0` for normal windows, `20` for the Dock, `24` for the menu bar, up to `101` for panels and pop-up menus."
+              },
+              {
+                "name": "frontmost",
+                "type": "bool",
+                "required": false,
+                "description": "`true` for the frontmost app's frontmost normal window."
+              }
+            ]
+          }
+        ],
+        "name": "WindowSnapshot",
+        "source": {
+          "path": "src/windows.rs",
+          "symbol": "WindowSnapshot"
+        }
+      },
+      "children": []
+    },
+    "ss-device": {
+      "id": "ss-device",
+      "type": "state-shape",
+      "props": {
+        "description": "The phone behind an iPhone bundle. iPhone and ScrawlKit owns how it is filled.",
+        "example": "{\n  \"name\": \"iPhone\",\n  \"capture\": \"scrawlkit\",\n  \"width\": 1206,\n  \"height\": 2622,\n  \"screen\": [402.0, 874.0, 3.0],\n  \"app\": \"OpenCode\",\n  \"appVersion\": \"354\",\n  \"appShortVersion\": \"1.4\"\n}",
+        "fields": [
+          {
+            "name": "name",
+            "type": "String",
+            "description": "Device name. It replaces the app in the summary header."
+          },
+          {
+            "name": "capture",
+            "type": "String",
+            "description": "`mirror` for a cabled capture, `scrawlkit` for an in-app SDK recording."
+          },
+          {
+            "name": "id",
+            "type": "String",
+            "required": false
+          },
+          {
+            "name": "model",
+            "type": "String",
+            "required": false
+          },
+          {
+            "name": "system",
+            "type": "String",
+            "required": false
+          },
+          {
+            "name": "width",
+            "type": "u32",
+            "description": "Native video width in pixels."
+          },
+          {
+            "name": "height",
+            "type": "u32",
+            "description": "Native video height in pixels."
+          },
+          {
+            "name": "screen",
+            "type": "[f64; 3]",
+            "required": false,
+            "description": "Screen width and height in points, and the scale, when the recording says."
+          },
+          {
+            "name": "app",
+            "type": "String",
+            "required": false,
+            "description": "The recorded app."
+          },
+          {
+            "name": "appVersion",
+            "type": "String",
+            "required": false,
+            "description": "The app's build."
+          },
+          {
+            "name": "appShortVersion",
+            "type": "String",
+            "required": false,
+            "description": "The marketing version, `CFBundleShortVersionString`."
+          }
+        ],
+        "name": "DeviceInfo",
+        "source": {
+          "path": "src/model.rs",
+          "symbol": "DeviceInfo"
+        }
+      },
+      "children": []
+    },
+    "ss-dest": {
+      "id": "ss-dest",
+      "type": "state-shape",
+      "props": {
+        "description": "The OpenCode session a dev-site capture went to. Delivery recovery reads it before any resend.",
+        "example": "{\n  \"session\": \"ses_4f2a91c0\",\n  \"title\": \"Fix the header\",\n  \"via\": \"localhost\",\n  \"url\": \"http://localhost:5173/settings\",\n  \"directory\": \"/Users/you/code/app\"\n}",
+        "fields": [
+          {
+            "name": "session",
+            "type": "String",
+            "description": "The session id."
+          },
+          {
+            "name": "title",
+            "type": "String",
+            "description": "The session title. The `For session:` line shows the id when it is empty."
+          },
+          {
+            "name": "via",
+            "type": "String",
+            "description": "`sdk` when the page registered through `/sdk.js`, `localhost` when the port's process directory matched."
+          },
+          {
+            "name": "url",
+            "type": "CleanUrl",
+            "required": false,
+            "description": "The browser tab, without its query, fragment and login."
+          },
+          {
+            "name": "directory",
+            "type": "String",
+            "required": false,
+            "description": "The project directory that chose the session."
+          }
+        ],
+        "name": "Destination",
+        "source": {
+          "path": "src/model.rs",
+          "symbol": "Destination"
+        }
+      },
+      "children": []
+    }
+  }
+}

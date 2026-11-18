@@ -1,0 +1,1983 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-f8b540e7911ef9c15b482cf9742184f0",
+  "title": "Experiments and Feature Map",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "intro",
+        "gov-h",
+        "gov-1",
+        "exp-h",
+        "exp-p",
+        "exp-outline",
+        "exp-enable",
+        "val-h",
+        "val-p",
+        "val-table",
+        "val-other",
+        "cur-h",
+        "cur-p",
+        "cur-table",
+        "cur-links-p",
+        "cur-video",
+        "cur-agent",
+        "eval-p",
+        "map-h",
+        "map-p",
+        "map-shape",
+        "st-h",
+        "st-p",
+        "st-table",
+        "chk-h",
+        "chk-p",
+        "chk-1",
+        "chk-2",
+        "chk-2b",
+        "chk-3",
+        "site-p",
+        "site-1",
+        "site-2",
+        "site-3",
+        "dec-h",
+        "d1-h",
+        "d1-d",
+        "d1-w",
+        "d1-a",
+        "d2-h",
+        "d2-d",
+        "d2-w",
+        "d2-a",
+        "d3-h",
+        "d3-d",
+        "d3-w",
+        "d3-a"
+      ]
+    },
+    "intro": {
+      "id": "intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "An experiment is a named flag that keeps a change to what users get off until it is turned on in "
+        },
+        {
+          "insert": "config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The feature map is the list of every user-facing feature with its status, and a test keeps it in step with the code. This page records how both work, in "
+        },
+        {
+          "insert": "src/handoff.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/handoff.rs"
+            }
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "src/feature_map.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/feature_map.rs"
+            }
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "site/src/features.json",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "site/src/features.json"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "gov-h": {
+      "id": "gov-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Governed By"
+        }
+      ],
+      "children": []
+    },
+    "gov-1": {
+      "id": "gov-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Product Intent",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "00-foundation/10-product-intent"
+            }
+          }
+        },
+        {
+          "insert": " sets which outputs count as what users get: the paste, "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", the images and routing."
+        }
+      ],
+      "children": []
+    },
+    "exp-h": {
+      "id": "exp-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "How an Experiment Turns On"
+        }
+      ],
+      "children": []
+    },
+    "exp-p": {
+      "id": "exp-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Code asks "
+        },
+        {
+          "insert": "handoff::experiment(\"<name>\")",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Every experiment is off unless one of the two sources below turns it on. The config file is "
+        },
+        {
+          "insert": "~/.config/scrawl/config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for the live app and "
+        },
+        {
+          "insert": "~/.config/scrawl-dev/config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for Annotator Dev."
+        }
+      ],
+      "children": []
+    },
+    "exp-outline": {
+      "id": "exp-outline",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Experiment Lookup",
+            "steps": [
+              {
+                "text": "If `enable_experiment` Named the Flag in This Process",
+                "steps": [
+                  {
+                    "text": "Return on"
+                  }
+                ]
+              },
+              {
+                "text": "If the Code Runs in a Test",
+                "steps": [
+                  {
+                    "text": "tests never read the config file",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "Return off"
+                  }
+                ]
+              },
+              {
+                "text": "Read `\"experiments\"` from the config file"
+              },
+              {
+                "text": "Return the flag's value, or off when it is absent"
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "exp-enable": {
+      "id": "exp-enable",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "To turn one on for every capture, add it under "
+        },
+        {
+          "insert": "\"experiments\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", such as "
+        },
+        {
+          "insert": "\"experiments\": {\"liveTranscribe\": true}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". To try one on a single bundle, pass "
+        },
+        {
+          "insert": "--experiment <name>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to "
+        },
+        {
+          "insert": "scrawl reprocess",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "scrawl inspect",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The flag is repeatable, and each one calls "
+        },
+        {
+          "insert": "enable_experiment",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for that run only."
+        }
+      ],
+      "children": []
+    },
+    "val-h": {
+      "id": "val-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Values the Config Accepts"
+        }
+      ],
+      "children": []
+    },
+    "val-p": {
+      "id": "val-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "lenient_experiments",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads each value as below. A string is trimmed and matched without case. A value it skips is logged once per process, and the other experiments still load."
+        }
+      ],
+      "children": []
+    },
+    "val-table": {
+      "id": "val-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Value",
+          "Result"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "true",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "false",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "On or off"
+          ],
+          [
+            "A number",
+            "On when it is not 0"
+          ],
+          [
+            [
+              {
+                "insert": "\"true\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "\"yes\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "\"on\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "\"1\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "On"
+          ],
+          [
+            [
+              {
+                "insert": "\"false\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "\"no\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "\"off\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "\"0\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "\"\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Off"
+          ],
+          [
+            "Any other string, an array or an object",
+            "Skipped and logged"
+          ],
+          [
+            [
+              {
+                "insert": "\"experiments\"",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " that is not an object"
+              }
+            ],
+            "Every experiment off, and logged unless it is null"
+          ]
+        ]
+      },
+      "children": []
+    },
+    "val-other": {
+      "id": "val-other",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The rest of "
+        },
+        {
+          "insert": "config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is just as tolerant. When the whole file does not parse as "
+        },
+        {
+          "insert": "handoff::Config",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "config_from_value",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " drops and logs only each key with a bad value. A file that is not a JSON object gives the defaults."
+        }
+      ],
+      "children": []
+    },
+    "cur-h": {
+      "id": "cur-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Current Experiments"
+        }
+      ],
+      "children": []
+    },
+    "cur-p": {
+      "id": "cur-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The code asks about three experiments, and the feature map lists one more flag with an experiment status. All four are off by default. The rows follow the order of the feature map."
+        }
+      ],
+      "children": []
+    },
+    "cur-table": {
+      "id": "cur-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Flag",
+          "Platform",
+          "What it turns on",
+          "Where it is set",
+          "Documented in"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "liveTranscribe",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "macOS",
+            "Streams the microphone to SpeechAnalyzer while the capture records, when Apple Speech is the transcriber",
+            [
+              {
+                "insert": "\"experiments\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Transcription"
+          ],
+          [
+            [
+              {
+                "insert": "clipboardImage",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Windows",
+            "Copies the contact sheet and the text together, so one Ctrl+V pastes both",
+            [
+              {
+                "insert": "\"experiments\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Capture Bundle and Paste"
+          ],
+          [
+            [
+              {
+                "insert": "smartRouting",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "macOS",
+            "Routes a Mac capture from more clues with a confidence threshold",
+            [
+              {
+                "insert": "\"experiments\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Routing and Delivery"
+          ],
+          [
+            [
+              {
+                "insert": "videoExport",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "macOS",
+            [
+              {
+                "insert": "Shows "
+              },
+              {
+                "insert": "Export Last Capture as Video…",
+                "attributes": {
+                  "bold": true
+                }
+              },
+              {
+                "insert": " in the menu"
+              }
+            ],
+            [
+              {
+                "insert": "Top-level ",
+                "attributes": {}
+              },
+              {
+                "insert": "\"videoExport\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Export and Retention"
+          ]
+        ]
+      },
+      "children": []
+    },
+    "cur-links-p": {
+      "id": "cur-links-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Transcription",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/35-transcription"
+            }
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "Capture Bundle and Paste",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/20-capture-bundle"
+            }
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "Routing and Delivery",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/50-routing-and-delivery"
+            }
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "Export and Retention",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/80-export-and-retention"
+            }
+          }
+        },
+        {
+          "insert": " hold the behavior of each flag. Two flag names do not work like the other three experiments."
+        }
+      ],
+      "children": []
+    },
+    "cur-video": {
+      "id": "cur-video",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "videoExport",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is a top-level config key, set by Settings › Recording › Experimental, and "
+        },
+        {
+          "insert": "handoff::experiment",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " never reads it. "
+        },
+        {
+          "insert": "scrawl export",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " works without it."
+        }
+      ],
+      "children": []
+    },
+    "cur-agent": {
+      "id": "cur-agent",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "agentContext",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is no longer an experiment. "
+        },
+        {
+          "insert": "App State and Privacy",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/40-app-state-and-privacy"
+            }
+          }
+        },
+        {
+          "insert": " owns the "
+        },
+        {
+          "insert": "\"appState\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " setting that replaced it."
+        }
+      ],
+      "children": [
+        "cur-agent-1",
+        "cur-agent-2"
+      ]
+    },
+    "cur-agent-1": {
+      "id": "cur-agent-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "An old "
+        },
+        {
+          "insert": "experiments.agentContext",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " value counts only while "
+        },
+        {
+          "insert": "\"appState\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is not set."
+        }
+      ],
+      "children": []
+    },
+    "cur-agent-2": {
+      "id": "cur-agent-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--experiment agentContext",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " still turns app state on for one run."
+        }
+      ],
+      "children": []
+    },
+    "eval-p": {
+      "id": "eval-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "To compare a summary experiment on real captures, run "
+        },
+        {
+          "insert": "scripts/agent-eval.sh [--experiment NAME] [--out DIR] [bundle…]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". It reprocesses each bundle with and without the flag and writes "
+        },
+        {
+          "insert": "before.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "after.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", both contact sheets and the frames for each bundle, plus an "
+        },
+        {
+          "insert": "index.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Both summaries use the baseline run's transcript. Data that a capture recorded live, such as Accessibility lookups and page events, shows only on captures made with the flag on."
+        }
+      ],
+      "children": []
+    },
+    "map-h": {
+      "id": "map-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "The Feature Map"
+        }
+      ],
+      "children": []
+    },
+    "map-p": {
+      "id": "map-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "site/src/features.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds "
+        },
+        {
+          "insert": "groups",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", a five-step "
+        },
+        {
+          "insert": "flow",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and one "
+        },
+        {
+          "insert": "features",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " entry per user-facing feature. "
+        },
+        {
+          "insert": "site/src/features.ts",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "site/src/features.ts"
+            }
+          }
+        },
+        {
+          "insert": " types each entry as below."
+        }
+      ],
+      "children": []
+    },
+    "map-shape": {
+      "id": "map-shape",
+      "type": "state-shape",
+      "props": {
+        "example": "{\n  \"id\": \"live-transcribe\",\n  \"group\": \"record\",\n  \"name\": \"Transcribe while recording\",\n  \"says\": \"Streams the microphone to Apple Speech during the capture.\",\n  \"status\": \"experiment:liveTranscribe\",\n  \"platforms\": [\"mac\"],\n  \"added\": \"2026-10-19\",\n  \"docs\": [\"docs/10-system-design/35-transcription\"]\n}",
+        "fields": [
+          {
+            "name": "id",
+            "type": "string",
+            "description": "Kebab-case and unique across the map. `shapeErrors` fails the site build on a duplicate."
+          },
+          {
+            "name": "group",
+            "type": "string",
+            "description": "One of the `groups` ids, such as `record` or `delivery`."
+          },
+          {
+            "name": "name",
+            "type": "string",
+            "description": "The title on the map page. The build needs it."
+          },
+          {
+            "name": "says",
+            "type": "string",
+            "description": "One sentence on what the user gets. The build needs it."
+          },
+          {
+            "name": "status",
+            "type": "string",
+            "description": "`stable@<version>`, `main`, `experiment:<flag>`, `branch:<name>` or `review:#<pr>`."
+          },
+          {
+            "name": "platforms",
+            "type": "Platform[]",
+            "description": "At least one of `mac`, `windows` and `linux`."
+          },
+          {
+            "name": "added",
+            "type": "string",
+            "required": false,
+            "description": "Landing day as `YYYY-MM-DD`. Required for every status except stable."
+          },
+          {
+            "name": "note",
+            "type": "string",
+            "required": false,
+            "description": "Why a platform is missing, or another caveat."
+          },
+          {
+            "name": "flag",
+            "type": "string",
+            "required": false,
+            "description": "The experiment flags of a feature that is only on a branch."
+          },
+          {
+            "name": "pr",
+            "type": "number",
+            "required": false,
+            "description": "Must equal the number in a `review:#<pr>` status."
+          },
+          {
+            "name": "shortcuts",
+            "type": "Shortcut[]",
+            "required": false,
+            "description": "Each `keys` with what it `does`."
+          },
+          {
+            "name": "config",
+            "type": "ConfigKey[]",
+            "required": false,
+            "description": "Each config `key` with an example `value` and what it `does`. A dotted key counts by its first part."
+          },
+          {
+            "name": "docs",
+            "type": "string[]",
+            "required": false,
+            "description": "Repo paths, each with an optional `#heading` anchor."
+          }
+        ],
+        "name": "Feature",
+        "source": {
+          "path": "site/src/features.ts",
+          "symbol": "Feature"
+        }
+      },
+      "children": []
+    },
+    "st-h": {
+      "id": "st-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Status Values"
+        }
+      ],
+      "children": []
+    },
+    "st-p": {
+      "id": "st-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "parseStatus",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " accepts five forms and fails the site build on any other. The first three count as code on main, so their config keys and flags must exist."
+        }
+      ],
+      "children": []
+    },
+    "st-table": {
+      "id": "st-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Status",
+          "Means",
+          "On main"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "stable@<version>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Shipped in that release",
+            "Yes"
+          ],
+          [
+            [
+              {
+                "insert": "main",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Merged, not yet in a release",
+            "Yes"
+          ],
+          [
+            [
+              {
+                "insert": "experiment:<flag>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Merged behind a flag that is off by default",
+            "Yes"
+          ],
+          [
+            [
+              {
+                "insert": "branch:<name>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Only on that branch",
+            "No"
+          ],
+          [
+            [
+              {
+                "insert": "review:#<pr>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "In that open pull request",
+            "No"
+          ]
+        ]
+      },
+      "children": []
+    },
+    "chk-h": {
+      "id": "chk-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Checks"
+        }
+      ],
+      "children": []
+    },
+    "chk-p": {
+      "id": "chk-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "cargo test feature_map",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " runs two tests in "
+        },
+        {
+          "insert": "src/feature_map.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The scan reads every "
+        },
+        {
+          "insert": ".rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " file under "
+        },
+        {
+          "insert": "src/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " without comment lines or the trailing test module."
+        }
+      ],
+      "children": []
+    },
+    "chk-1": {
+      "id": "chk-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "the_feature_map_covers_every_config_key_and_experiment",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " fails when a config key or an experiment that the code reads has no on-main entry."
+        }
+      ],
+      "children": []
+    },
+    "chk-2": {
+      "id": "chk-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The same test fails when an on-main entry names a key or flag the code no longer reads."
+        }
+      ],
+      "children": []
+    },
+    "chk-2b": {
+      "id": "chk-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It also fails when an on-main entry links a doc path that is not in the repo."
+        }
+      ],
+      "children": []
+    },
+    "chk-3": {
+      "id": "chk-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The scan reads names from the source text only."
+        }
+      ],
+      "children": [
+        "chk-3a",
+        "chk-3b",
+        "chk-3c"
+      ]
+    },
+    "chk-3a": {
+      "id": "chk-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A key is a field of "
+        },
+        {
+          "insert": "handoff::Config",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or a literal in "
+        },
+        {
+          "insert": "set_config_value_in",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "config.get",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "chk-3b": {
+      "id": "chk-3b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A flag is a literal or a "
+        },
+        {
+          "insert": "const",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " passed to "
+        },
+        {
+          "insert": "experiment(",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "chk-3c": {
+      "id": "chk-3c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It does not check nested keys, shortcuts, platforms or whether a status is still true."
+        }
+      ],
+      "children": []
+    },
+    "site-p": {
+      "id": "site-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The site build renders the map at the unlinked path "
+        },
+        {
+          "insert": "/map-tyyxsf5b/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", from "
+        },
+        {
+          "insert": "MAP_DIR",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "site/scripts/feature-audit.ts",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "site/scripts/feature-audit.ts"
+            }
+          }
+        },
+        {
+          "insert": ". The path is in no sitemap, "
+        },
+        {
+          "insert": "llms.txt",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or nav. The page shows a status board and a Needs a look list from "
+        },
+        {
+          "insert": "audit",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ":"
+        }
+      ],
+      "children": []
+    },
+    "site-1": {
+      "id": "site-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A doc link to a missing file or a missing heading anchor."
+        }
+      ],
+      "children": []
+    },
+    "site-2": {
+      "id": "site-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A "
+        },
+        {
+          "insert": "stable@",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " version newer than the newest item in "
+        },
+        {
+          "insert": "site/public/appcast.xml",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or a stable feature without Windows and with no "
+        },
+        {
+          "insert": "note",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "site-3": {
+      "id": "site-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A "
+        },
+        {
+          "insert": "main",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " entry added before the newest release, an experiment older than 6 weeks, or a review open longer than 14 days."
+        }
+      ],
+      "children": []
+    },
+    "dec-h": {
+      "id": "dec-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Decisions"
+        }
+      ],
+      "children": []
+    },
+    "d1-h": {
+      "id": "d1-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "User-Facing Changes Ship Behind an Experiment"
+        }
+      ],
+      "children": []
+    },
+    "d1-d": {
+      "id": "d1-d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Decision",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d1-d1"
+      ]
+    },
+    "d1-d1": {
+      "id": "d1-d1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A change to the paste, "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", the images or routing ships behind an experiment that is off by default, until it is turned on for everyone. A bug fix ships without one."
+        }
+      ],
+      "children": []
+    },
+    "d1-w": {
+      "id": "d1-w",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Why",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d1-w1"
+      ]
+    },
+    "d1-w1": {
+      "id": "d1-w1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "These outputs are what agents read every day. A flag lets one machine try a change on real captures, and "
+        },
+        {
+          "insert": "--experiment",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " compares it on old bundles first."
+        }
+      ],
+      "children": []
+    },
+    "d1-a": {
+      "id": "d1-a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Applies to",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d1-a1"
+      ]
+    },
+    "d1-a1": {
+      "id": "d1-a1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "All code under "
+        },
+        {
+          "insert": "src/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that changes what a capture delivers, read through "
+        },
+        {
+          "insert": "handoff::experiment",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "d2-h": {
+      "id": "d2-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Tests Never Read the Config File"
+        }
+      ],
+      "children": []
+    },
+    "d2-d": {
+      "id": "d2-d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Decision",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d2-d1"
+      ]
+    },
+    "d2-d1": {
+      "id": "d2-d1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Under "
+        },
+        {
+          "insert": "cfg(test)",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "experiment",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "app_state",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " see only flags that the test turned on with "
+        },
+        {
+          "insert": "handoff::enable_experiment",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "d2-w": {
+      "id": "d2-w",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Why",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d2-w1"
+      ]
+    },
+    "d2-w1": {
+      "id": "d2-w1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A developer's own "
+        },
+        {
+          "insert": "config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " must not change test results."
+        }
+      ],
+      "children": []
+    },
+    "d2-a": {
+      "id": "d2-a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Applies to",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d2-a1"
+      ]
+    },
+    "d2-a1": {
+      "id": "d2-a1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "src/handoff.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and every test that covers an experiment."
+        }
+      ],
+      "children": []
+    },
+    "d3-h": {
+      "id": "d3-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "The Feature Map Changes in the Same Pull Request"
+        }
+      ],
+      "children": []
+    },
+    "d3-d": {
+      "id": "d3-d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Decision",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d3-d1"
+      ]
+    },
+    "d3-d1": {
+      "id": "d3-d1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A pull request that adds, removes, renames or changes the status of a user-facing feature updates "
+        },
+        {
+          "insert": "site/src/features.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". A release moves each "
+        },
+        {
+          "insert": "main",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " entry to "
+        },
+        {
+          "insert": "stable@<version>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "d3-w": {
+      "id": "d3-w",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Why",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d3-w1"
+      ]
+    },
+    "d3-w1": {
+      "id": "d3-w1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The key and flag check runs in "
+        },
+        {
+          "insert": "cargo test",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", where CI sees it, so a stale map fails the pull request. The site build checks only the shape."
+        }
+      ],
+      "children": []
+    },
+    "d3-a": {
+      "id": "d3-a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Applies to",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d3-a1"
+      ]
+    },
+    "d3-a1": {
+      "id": "d3-a1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "site/src/features.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "src/feature_map.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and every new config key or experiment. "
+        },
+        {
+          "insert": "Release",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/40-release"
+            }
+          }
+        },
+        {
+          "insert": " has the release step."
+        }
+      ],
+      "children": []
+    }
+  }
+}

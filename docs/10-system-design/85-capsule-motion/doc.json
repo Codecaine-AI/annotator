@@ -1,0 +1,1488 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-ef8b4d02795dc47478fa3364ff54c158",
+  "title": "Capsule Motion",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "intro",
+        "h-clock",
+        "p-clock",
+        "lc-scale",
+        "lc-step",
+        "lc-trace",
+        "h-tune",
+        "p-tune",
+        "lt-path",
+        "lt-reload",
+        "lt-layers",
+        "p-keys",
+        "t-keys",
+        "p-tunecmd",
+        "t-tunecmd",
+        "p-presets",
+        "h-lab",
+        "p-lab",
+        "t-scenes",
+        "p-labflags",
+        "li-flag-1",
+        "li-flag-2",
+        "li-flag-3",
+        "li-flag-4",
+        "code-lab",
+        "h-record",
+        "p-record",
+        "po-record",
+        "callout-screen",
+        "p-compare",
+        "li-cmp-1",
+        "li-cmp-2",
+        "p-look"
+      ]
+    },
+    "intro": {
+      "id": "intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The capsule is the pill under the menu bar that shows the picker, the recording controls and the finished capture. Its springs, fades and blur all run on one animation clock that you can slow down, trace and tune while it plays. This page covers the clock and the tune file, the motion lab that replays the capsule's states, and the script that films and lints them. What the capsule shows during a recording is on "
+        },
+        {
+          "insert": "Capture and Recording",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/10-capture"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-clock": {
+      "id": "h-clock",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "One Animation Clock"
+        }
+      ],
+      "children": []
+    },
+    "p-clock": {
+      "id": "p-clock",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Every capsule age reads "
+        },
+        {
+          "insert": "motion::now()",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/ui/motion.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/ui/motion.rs"
+            }
+          }
+        },
+        {
+          "insert": ", so one time scale slows every animation at once."
+        }
+      ],
+      "children": []
+    },
+    "lc-scale": {
+      "id": "lc-scale",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Time scale",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "lc-scale-1",
+        "lc-scale-2"
+      ]
+    },
+    "lc-scale-1": {
+      "id": "lc-scale-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The scale comes from "
+        },
+        {
+          "insert": "timeScale",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in the tune file, or from "
+        },
+        {
+          "insert": "--time-scale",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in the lab."
+        }
+      ],
+      "children": []
+    },
+    "lc-scale-2": {
+      "id": "lc-scale-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The clock clamps it to 0.02 to 4.0 and re-anchors, so an animation already running continues from where it is."
+        }
+      ],
+      "children": []
+    },
+    "lc-step": {
+      "id": "lc-step",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Spring steps",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "lc-step-1",
+        "lc-step-2",
+        "lc-step-3"
+      ]
+    },
+    "lc-step-1": {
+      "id": "lc-step-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Springs advance to the current clock time as each capsule frame draws."
+        }
+      ],
+      "children": []
+    },
+    "lc-step-2": {
+      "id": "lc-step-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The GPUI capsule steps them in "
+        },
+        {
+          "insert": "ScrawlCoordinator::step_island",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/ui.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/ui.rs"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "lc-step-3": {
+      "id": "lc-step-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The native AppKit and Metal pill in "
+        },
+        {
+          "insert": "src/native/pill/mod.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/native/pill/mod.rs"
+            }
+          }
+        },
+        {
+          "insert": " reads the same clock and the same tune values."
+        }
+      ],
+      "children": []
+    },
+    "lc-trace": {
+      "id": "lc-trace",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Trace",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "lc-trace-1",
+        "lc-trace-2",
+        "lc-trace-3"
+      ]
+    },
+    "lc-trace-1": {
+      "id": "lc-trace-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "With "
+        },
+        {
+          "insert": "SCRAWL_MOTION_TRACE=<file>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " set, each capsule frame is written as one line of motion-lint JSONL."
+        }
+      ],
+      "children": []
+    },
+    "lc-trace-2": {
+      "id": "lc-trace-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A frame holds the capsule box, the child boxes (such as "
+        },
+        {
+          "insert": "chip:Area",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "lead",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "close",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), "
+        },
+        {
+          "insert": "content.blur",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "content.alpha",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "shell.width",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and the "
+        },
+        {
+          "insert": "phase:*",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " events."
+        }
+      ],
+      "children": []
+    },
+    "lc-trace-3": {
+      "id": "lc-trace-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "With the variable unset, nothing is traced and the trace costs nothing."
+        }
+      ],
+      "children": []
+    },
+    "h-tune": {
+      "id": "h-tune",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Tune File"
+        }
+      ],
+      "children": []
+    },
+    "p-tune": {
+      "id": "p-tune",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "motion::Tune",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds every spring and fade value judged by eye. "
+        },
+        {
+          "insert": "Tune::DEFAULT",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is what ships, and "
+        },
+        {
+          "insert": "tune.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " overrides it while the app runs."
+        }
+      ],
+      "children": []
+    },
+    "lt-path": {
+      "id": "lt-path",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Path",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "lt-path-1",
+        "lt-path-2"
+      ]
+    },
+    "lt-path-1": {
+      "id": "lt-path-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The live app reads "
+        },
+        {
+          "insert": "~/.config/scrawl/tune.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and Annotator Dev.app reads "
+        },
+        {
+          "insert": "~/.config/scrawl-dev/tune.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "lt-path-2": {
+      "id": "lt-path-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "$SCRAWL_TUNE",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " names another path."
+        }
+      ],
+      "children": []
+    },
+    "lt-reload": {
+      "id": "lt-reload",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Reload",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "lt-reload-1",
+        "lt-reload-2"
+      ]
+    },
+    "lt-reload-1": {
+      "id": "lt-reload-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Only debug builds read the file, and "
+        },
+        {
+          "insert": "motion::poll_tune",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " checks it for a change at most once every 250 ms."
+        }
+      ],
+      "children": []
+    },
+    "lt-reload-2": {
+      "id": "lt-reload-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The lab and both installed apps are debug builds, because "
+        },
+        {
+          "insert": "scripts/install-app.sh",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "scripts/install-app.sh"
+            }
+          }
+        },
+        {
+          "insert": " copies "
+        },
+        {
+          "insert": "target/debug/scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "lt-layers": {
+      "id": "lt-layers",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Layers",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "lt-layers-1"
+      ]
+    },
+    "lt-layers-1": {
+      "id": "lt-layers-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The values start from "
+        },
+        {
+          "insert": "Tune::DEFAULT",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", then take the numbered preset the file names, then the file's own keys."
+        }
+      ],
+      "children": []
+    },
+    "p-keys": {
+      "id": "p-keys",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The table lists the 17 tune keys in the order "
+        },
+        {
+          "insert": "scrawl tune list",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints them, with each shipped default. A duration is in seconds."
+        }
+      ],
+      "children": []
+    },
+    "t-keys": {
+      "id": "t-keys",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Key",
+          "Tunes",
+          "Default"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "island.duration",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Width spring for a phase change (picker, recording, processing, done)",
+            "0.32"
+          ],
+          [
+            [
+              {
+                "insert": "island.bounce",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Bounce of that width spring",
+            "0"
+          ],
+          [
+            [
+              {
+                "insert": "scale.duration",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Open and close scale spring of the whole capsule",
+            "0.22"
+          ],
+          [
+            [
+              {
+                "insert": "scale.bounce",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Bounce of the open and close scale",
+            "0"
+          ],
+          [
+            [
+              {
+                "insert": "reveal.open.duration",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Width spring as the switch chips open",
+            "0.36"
+          ],
+          [
+            [
+              {
+                "insert": "reveal.open.bounce",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Bounce as the switch chips open",
+            "0.16"
+          ],
+          [
+            [
+              {
+                "insert": "reveal.close.duration",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Width spring as the chips fold into the recording pill",
+            "0.32"
+          ],
+          [
+            [
+              {
+                "insert": "reveal.close.bounce",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Bounce as the chips fold",
+            "0.08"
+          ],
+          [
+            [
+              {
+                "insert": "switch.width.duration",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Width spring when a chip turns the recording into the picker",
+            "0.30"
+          ],
+          [
+            [
+              {
+                "insert": "switch.width.bounce",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Bounce of that width spring",
+            "0"
+          ],
+          [
+            [
+              {
+                "insert": "switch.slide.duration",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Slide of the chips to their place in the picker",
+            "0.36"
+          ],
+          [
+            [
+              {
+                "insert": "switch.slide.bounce",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Bounce of that slide",
+            "0"
+          ],
+          [
+            [
+              {
+                "insert": "reveal.enter",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Fade in when chips and controls swap",
+            "0.16"
+          ],
+          [
+            [
+              {
+                "insert": "reveal.exit",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Fade out when chips and controls swap",
+            "0.13"
+          ],
+          [
+            [
+              {
+                "insert": "reveal.blur",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Peak blur of that swap, in px",
+            "2.5"
+          ],
+          [
+            [
+              {
+                "insert": "timeScale",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Animation time scale, 0.25 is slow motion",
+            "1.0"
+          ],
+          [
+            [
+              {
+                "insert": "pill.glass",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Capsule style: -1 uses the config, 0 is black, 1 is glass",
+            "-1"
+          ]
+        ],
+        "title": "Tune keys"
+      },
+      "children": []
+    },
+    "p-tunecmd": {
+      "id": "p-tunecmd",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The hidden "
+        },
+        {
+          "insert": "scrawl tune",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " command edits the tune file. With no subcommand it runs "
+        },
+        {
+          "insert": "list",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "t-tunecmd": {
+      "id": "t-tunecmd",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Command",
+          "What it does"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "scrawl tune list",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Prints every key with its live and default value, and the presets"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl tune set <key> <value>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Sets one key, such as `switch.slide.duration 0.4`"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl tune preset <1-6>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Applies a preset and clears the individual keys, except `timeScale`"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl tune reset",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Deletes the tune file, back to the defaults"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl tune rust",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Prints the live values as Rust to paste into `Tune::DEFAULT`"
+          ]
+        ],
+        "title": "scrawl tune subcommands"
+      },
+      "children": []
+    },
+    "p-presets": {
+      "id": "p-presets",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The six presets are 1 Today (what ships), 2 Before, 3 Calm, 4 Brisk, 5 Shape and 6 Glass. Glass only sets "
+        },
+        {
+          "insert": "pill.glass",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to 1."
+        }
+      ],
+      "children": []
+    },
+    "h-lab": {
+      "id": "h-lab",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Motion Lab"
+        }
+      ],
+      "children": []
+    },
+    "p-lab": {
+      "id": "p-lab",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The hidden "
+        },
+        {
+          "insert": "scrawl lab pill <scene>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " command in "
+        },
+        {
+          "insert": "src/ui/lab.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/ui/lab.rs"
+            }
+          }
+        },
+        {
+          "insert": " plays the capsule through one scene on a fixed timeline over a plain backdrop, then quits. Its pretend recording uses no capture, microphone, files, overlay, hotkeys or ingest server, and sends nothing."
+        }
+      ],
+      "children": []
+    },
+    "t-scenes": {
+      "id": "t-scenes",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Scene",
+          "What plays"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "tap-then-area",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A tap starts a recording with chips, then the Area chip turns it into the picker"
+          ],
+          [
+            [
+              {
+                "insert": "tap-then-window",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A tap starts a recording with chips, then the Window chip turns it into the picker"
+          ],
+          [
+            [
+              {
+                "insert": "tap-then-screen",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A tap starts a recording with chips, then the Screen chip folds them back"
+          ],
+          [
+            [
+              {
+                "insert": "picker",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The picker opens on Screen, a click on Area, then Screen, then Screen again records"
+          ],
+          [
+            [
+              {
+                "insert": "finish",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A tap, the chips fold, finish, processing, done, then dismissed"
+          ],
+          [
+            [
+              {
+                "insert": "cancel",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A tap, then cancel straight from the recording"
+          ],
+          [
+            [
+              {
+                "insert": "dismiss",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The picker opens, then is dismissed"
+          ]
+        ],
+        "title": "Lab scenes"
+      },
+      "children": []
+    },
+    "p-labflags": {
+      "id": "p-labflags",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The lab takes four options:"
+        }
+      ],
+      "children": []
+    },
+    "li-flag-1": {
+      "id": "li-flag-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--trace <file>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " writes the motion-lint trace, the same as "
+        },
+        {
+          "insert": "SCRAWL_MOTION_TRACE",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "li-flag-2": {
+      "id": "li-flag-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--repeat <n>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " plays the scene n times, default 1. A value of 0 repeats until you stop it, so you can tune while it loops."
+        }
+      ],
+      "children": []
+    },
+    "li-flag-3": {
+      "id": "li-flag-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--time-scale <s>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " sets the animation time scale and overrides "
+        },
+        {
+          "insert": "timeScale",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in the tune file."
+        }
+      ],
+      "children": []
+    },
+    "li-flag-4": {
+      "id": "li-flag-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--no-backdrop",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " leaves out the plain backdrop behind the capsule."
+        }
+      ],
+      "children": []
+    },
+    "code-lab": {
+      "id": "code-lab",
+      "type": "code",
+      "props": {
+        "language": "bash"
+      },
+      "text": [
+        {
+          "insert": "scrawl lab pill tap-then-area --repeat 0 --time-scale 0.25 --trace /tmp/pill.jsonl"
+        }
+      ],
+      "children": []
+    },
+    "h-record": {
+      "id": "h-record",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Film and Lint the Capsule"
+        }
+      ],
+      "children": []
+    },
+    "p-record": {
+      "id": "p-record",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "perf/pill/record.sh <binary> <dir> [--time-scale 0.25] [scene…]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " films each lab scene and runs motion-lint over the traces. With no scene it films all seven. The outline shows one run."
+        }
+      ],
+      "children": []
+    },
+    "po-record": {
+      "id": "po-record",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Record the Pill Scenes",
+            "steps": [
+              {
+                "text": "Check the Screen",
+                "steps": [
+                  {
+                    "text": "Run `perf/screen-guard.sh`"
+                  },
+                  {
+                    "text": "The guard refuses on the Studio, so a run never wakes a desk display",
+                    "kind": "note"
+                  }
+                ]
+              },
+              {
+                "text": "For Each Scene",
+                "steps": [
+                  {
+                    "text": "Start `scrawl lab pill <scene> --trace <dir>/runs/<scene>/trace/<scene>.jsonl`",
+                    "trace": true
+                  },
+                  {
+                    "text": "Read the capsule region from the lab's log for up to 1.5 s"
+                  },
+                  {
+                    "text": "If neither the log nor `$REGION` gives a region",
+                    "steps": [
+                      {
+                        "text": "Stop the lab"
+                      },
+                      {
+                        "text": "Exit with an error"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "Start `screencapture -v` on that region into `<dir>/<scene>.mov`",
+                    "trace": true
+                  },
+                  {
+                    "text": "Wait for the lab to quit"
+                  },
+                  {
+                    "text": "Stop the screen recording"
+                  }
+                ]
+              },
+              {
+                "text": "Lint the Traces",
+                "steps": [
+                  {
+                    "text": "Run `motion-lint analyze <dir>` with `perf/pill/motion-lint.config.json`",
+                    "trace": true
+                  },
+                  {
+                    "text": "The config sets `launchSettleMs` to 0, because the lab already waits 0.85 s before its first step",
+                    "kind": "note"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "callout-screen": {
+      "id": "callout-screen",
+      "type": "callout",
+      "props": {
+        "tone": "warning"
+      },
+      "text": [
+        {
+          "insert": "record.sh records the real screen. Run it only on the MacBook Pro under "
+        },
+        {
+          "insert": "/tmp/pro-gui.lock",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", never on the Studio, and never wake a display with "
+        },
+        {
+          "insert": "caffeinate -d",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "-u",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "p-compare": {
+      "id": "p-compare",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Two tools compare a run before a change with a run after it:"
+        }
+      ],
+      "children": []
+    },
+    "li-cmp-1": {
+      "id": "li-cmp-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "bun ~/code/open-source/motion-lint/cli/motion-lint.ts baseline <before> <after> --config perf/pill/motion-lint.config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " diffs the two traces. "
+        },
+        {
+          "insert": "$MOTION_LINT",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " names another motion-lint path for record.sh."
+        }
+      ],
+      "children": []
+    },
+    "li-cmp-2": {
+      "id": "li-cmp-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "uv run perf/pill/clips.py before.mov after.mov <out> [--slow 4] [--strip-at <s>]",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " aligns both films on the capsule's first frame and stacks them, labeled, before on top. It writes "
+        },
+        {
+          "insert": "<out>.mp4",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "<out>-slow.mp4",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and a 12-frame strip "
+        },
+        {
+          "insert": "<out>-strip.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "p-look": {
+      "id": "p-look",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Look at the frames too. A capsule that never shows has no motion for motion-lint to flag."
+        }
+      ],
+      "children": []
+    }
+  }
+}

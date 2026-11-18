@@ -1,0 +1,1917 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-1b04886bfa3d788003d2062d4e05265f",
+  "title": "Command-Line Tool",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "intro",
+        "get-h",
+        "get-p",
+        "get-table",
+        "get-1",
+        "get-2",
+        "cmd-h",
+        "cmd-p",
+        "cmd-table",
+        "cmd-n-h",
+        "cmd-n-p",
+        "n-1",
+        "n-2",
+        "n-3",
+        "n-4",
+        "ex-h",
+        "ex-p",
+        "ex-code",
+        "hid-h",
+        "hid-p",
+        "hid-table",
+        "hid-n"
+      ]
+    },
+    "intro": {
+      "id": "intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The installed "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " command is a link to the binary inside Annotator.app, so the command and the app are the same version. This guide shows where the command comes from and lists every subcommand that "
+        },
+        {
+          "insert": "src/main.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/main.rs"
+            }
+          }
+        },
+        {
+          "insert": " parses, with its main flags."
+        }
+      ],
+      "children": []
+    },
+    "get-h": {
+      "id": "get-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Get the Command"
+        }
+      ],
+      "children": []
+    },
+    "get-p": {
+      "id": "get-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each way to get the command runs the binary of one app. A link always runs the app's current copy, so it updates with the app."
+        }
+      ],
+      "children": []
+    },
+    "get-table": {
+      "id": "get-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Way",
+          "Command",
+          "Uses the state of"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "./scripts/install-app.sh",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "scrawl",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " in "
+              },
+              {
+                "insert": "~/bin",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " and "
+              },
+              {
+                "insert": "/usr/local/bin",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Annotator.app"
+          ],
+          [
+            [
+              {
+                "insert": "./scripts/install-dev-app.sh",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "scrawl-dev",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " in "
+              },
+              {
+                "insert": "~/bin",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Annotator Dev.app"
+          ],
+          [
+            [
+              {
+                "insert": "Install",
+                "attributes": {
+                  "bold": true
+                }
+              },
+              {
+                "insert": " in Settings › Agents"
+              }
+            ],
+            [
+              {
+                "insert": "scrawl",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "scrawl-dev",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " in the first writable of "
+              },
+              {
+                "insert": "/opt/homebrew/bin",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " and "
+              },
+              {
+                "insert": "/usr/local/bin",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", else "
+              },
+              {
+                "insert": "~/.local/bin",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The app that made the link"
+          ],
+          [
+            [
+              {
+                "insert": "cargo run -- <subcommand>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "target/debug/scrawl",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Annotator Dev.app"
+          ]
+        ]
+      },
+      "children": []
+    },
+    "get-1": {
+      "id": "get-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "In a terminal, "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with no subcommand prints help, so it never starts a second menu-bar app."
+        }
+      ],
+      "children": []
+    },
+    "get-2": {
+      "id": "get-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "scrawl skill",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints this repo's agent skill, "
+        },
+        {
+          "insert": "skills/scrawl/SKILL.md",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "skills/scrawl/SKILL.md"
+            }
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "bunx skills add kitlangton/scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " installs upstream's copy instead."
+        }
+      ],
+      "children": []
+    },
+    "cmd-h": {
+      "id": "cmd-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Subcommands"
+        }
+      ],
+      "children": []
+    },
+    "cmd-p": {
+      "id": "cmd-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The 25 rows below are the subcommands that "
+        },
+        {
+          "insert": "scrawl --help",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " shows, in parser order. A bundle argument is a "
+        },
+        {
+          "insert": ".scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " folder or "
+        },
+        {
+          "insert": "latest",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and it defaults to "
+        },
+        {
+          "insert": "latest",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " unless the row marks it required. A time is "
+        },
+        {
+          "insert": "M:SS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or seconds."
+        }
+      ],
+      "children": []
+    },
+    "cmd-table": {
+      "id": "cmd-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Command",
+          "What it does",
+          "Key flags"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "app",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Starts the menu-bar and review app",
+            [
+              {
+                "insert": "--record",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--iphone",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "demo",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Makes a demo bundle and prints its summary",
+            [
+              {
+                "insert": "--out <dir>",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--clipboard",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "record",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Records the screen or a cabled iPhone for a fixed time",
+            [
+              {
+                "insert": "--window <title>",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--iphone",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--duration 5",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--note",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--out",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "import",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Builds a bundle from a ScrawlKit recording, by default the newest pair in ~/Downloads",
+            [
+              {
+                "insert": "--timeline <json>",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--note",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--out",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--clipboard",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--transcriber",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "devices",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Lists cabled iPhones and iPads",
+            "None"
+          ],
+          [
+            [
+              {
+                "insert": "retranscribe <bundle>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Transcribes a bundle again with Apple Speech, in place",
+            "Bundle required"
+          ],
+          [
+            [
+              {
+                "insert": "reprocess <bundle>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Rebuilds a bundle into a new folder with the current rules",
+            [
+              {
+                "insert": "--out <dir>",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " required, "
+              },
+              {
+                "insert": "--transcriber",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--experiment <name>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "recover",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Builds bundles whose build died with the app, in place",
+            [
+              {
+                "insert": "[bundle]",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--captures <dir>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "mic list|set <id>|watch",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Lists microphones or picks the one Mac captures use",
+            [
+              {
+                "insert": "set default",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " follows macOS"
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "hex status",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Shows Hex's connection, ready models and the next transcriber",
+            "None"
+          ],
+          [
+            [
+              {
+                "insert": "inspect",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Prints "
+              },
+              {
+                "insert": "summary.md",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", or "
+              },
+              {
+                "insert": "scrawl.json",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " with "
+              },
+              {
+                "insert": "--json",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "--json",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--marks",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--experiment <name>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "frames <bundle>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Extracts a dense burst of frames in a time range",
+            [
+              {
+                "insert": "--from",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " and "
+              },
+              {
+                "insert": "--to",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " required, "
+              },
+              {
+                "insert": "--fps 4",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "zoom",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Makes a dense sheet around a time, a phrase or a mark",
+            [
+              {
+                "insert": "--at <time|phrase>",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "--mark <n>",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--frame",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--span 2",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--frames 12",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--full",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "measure",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Measures boxes and gaps on a keyframe in pt and px",
+            [
+              {
+                "insert": "--frame <n>",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " required, "
+              },
+              {
+                "insert": "--at X,Y",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "--region X0,Y0,X1,Y1",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--json",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "appshot",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Prints the app state saved with each keyframe",
+            [
+              {
+                "insert": "--frame <n>",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--json",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "export",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Writes one shareable .mp4 with ink and audio",
+            [
+              {
+                "insert": "--out",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--crop auto",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--size",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--zoom",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--no-ink",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--no-clicks",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--hevc",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--fps",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "clean",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Runs one cleanup pass on old captures now",
+            [
+              {
+                "insert": "--dry-run",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "pin",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Keeps a bundle out of cleanup",
+            [
+              {
+                "insert": "--off",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " lets it go again"
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "autocrop",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Opens the auto-crop playground for a Screen capture",
+            [
+              {
+                "insert": "--open",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--serve",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--port",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "send",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Sends a bundle to an OpenCode session or the clipboard",
+            [
+              {
+                "insert": "--session <ses_…>",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--reroute",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--clipboard",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "route",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Prints which session a browser tab capture goes to, without sending",
+            [
+              {
+                "insert": "--url",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "--browser <bundle id>",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--explain <bundle>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "preview",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Opens a bundle in the GPUI review window",
+            [
+              {
+                "insert": "--capture-screenshot <png>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "link",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Prints a ScrawlKit setup link and QR code",
+            [
+              {
+                "insert": "--scheme",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " required, "
+              },
+              {
+                "insert": "--url",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--session",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--port",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "serve",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Runs the headless ScrawlKit ingest server",
+            [
+              {
+                "insert": "--port",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--usb",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "--no-opencode",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "skill",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Prints the agent skill",
+            "None"
+          ]
+        ]
+      },
+      "children": []
+    },
+    "cmd-n-h": {
+      "id": "cmd-n-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Details That Change a Result"
+        }
+      ],
+      "children": []
+    },
+    "cmd-n-p": {
+      "id": "cmd-n-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Four groups of flags change a result in a way that the table cannot show:"
+        }
+      ],
+      "children": []
+    },
+    "n-1": {
+      "id": "n-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "send",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "n-1a",
+        "n-1b",
+        "n-1c"
+      ]
+    },
+    "n-1a": {
+      "id": "n-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Without "
+        },
+        {
+          "insert": "--session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", an iPhone recording goes to the session it was addressed to, and a Mac capture of a dev site goes to the session it was routed to."
+        }
+      ],
+      "children": []
+    },
+    "n-1b": {
+      "id": "n-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Any other capture goes to the most recent active session."
+        }
+      ],
+      "children": []
+    },
+    "n-1c": {
+      "id": "n-1c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--reroute",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is needed to send an iPhone recording to a "
+        },
+        {
+          "insert": "--session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " other than its recorded one. "
+        },
+        {
+          "insert": "Safety and Recovery",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/30-safety-and-recovery"
+            }
+          }
+        },
+        {
+          "insert": " covers when to reroute."
+        }
+      ],
+      "children": []
+    },
+    "n-2": {
+      "id": "n-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Transcriber and experiments",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "n-2a",
+        "n-2b"
+      ]
+    },
+    "n-2a": {
+      "id": "n-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--transcriber",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " takes "
+        },
+        {
+          "insert": "deepgram",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "apple",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "hex",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "command",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in place of the configured transcriber."
+        }
+      ],
+      "children": []
+    },
+    "n-2b": {
+      "id": "n-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--experiment",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is repeatable and turns a flag on for that run only. "
+        },
+        {
+          "insert": "Experiments and Feature Map",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "30-implementation/20-experiments-and-feature-map"
+            }
+          }
+        },
+        {
+          "insert": " lists the flags."
+        }
+      ],
+      "children": []
+    },
+    "n-3": {
+      "id": "n-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "export",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "n-3a",
+        "n-3b",
+        "n-3c"
+      ]
+    },
+    "n-3a": {
+      "id": "n-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--crop",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " takes "
+        },
+        {
+          "insert": "full",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "auto",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for the activity region, or "
+        },
+        {
+          "insert": "x,y,w,h",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " as fractions or pixels."
+        }
+      ],
+      "children": []
+    },
+    "n-3b": {
+      "id": "n-3b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The output goes to "
+        },
+        {
+          "insert": "~/Movies/Scrawl/<bundle>.mp4",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " by default."
+        }
+      ],
+      "children": []
+    },
+    "n-3c": {
+      "id": "n-3c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--size",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " sets the longest side in pixels and never scales the video up."
+        }
+      ],
+      "children": []
+    },
+    "n-4": {
+      "id": "n-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Ports and cleanup",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "n-4a",
+        "n-4b"
+      ]
+    },
+    "n-4a": {
+      "id": "n-4a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "link",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "serve",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " default to port "
+        },
+        {
+          "insert": "47777",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in the live app and "
+        },
+        {
+          "insert": "47778",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in Dev. "
+        },
+        {
+          "insert": "link",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " also answers to "
+        },
+        {
+          "insert": "tether-link",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "n-4b": {
+      "id": "n-4b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The app runs the same cleanup pass as "
+        },
+        {
+          "insert": "clean",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " about 90 s after launch and then hourly."
+        }
+      ],
+      "children": []
+    },
+    "ex-h": {
+      "id": "ex-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Examples"
+        }
+      ],
+      "children": []
+    },
+    "ex-p": {
+      "id": "ex-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each line is one complete command. Replace "
+        },
+        {
+          "insert": "<ses_id>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with a real OpenCode session ID."
+        }
+      ],
+      "children": []
+    },
+    "ex-code": {
+      "id": "ex-code",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "scrawl demo --out /tmp/demo.scrawl\nscrawl preview /tmp/demo.scrawl\nscrawl inspect /tmp/demo.scrawl --json\nscrawl frames /tmp/demo.scrawl --from 0:02 --to 0:07\nscrawl zoom latest --at 0:12\nscrawl inspect latest --marks\nscrawl zoom latest --mark 2\nscrawl send /tmp/demo.scrawl --clipboard\nscrawl send /tmp/demo.scrawl --session <ses_id>\nscrawl route --url http://localhost:5173/\nscrawl record --iphone --duration 8\nscrawl import ~/Downloads/20261013T164000.mp4 --timeline ~/Downloads/20261013T164000.json\nscrawl reprocess latest --out /tmp/again.scrawl\nscrawl autocrop latest --serve --open\nscrawl export latest --zoom --out /tmp/demo.mp4\nscrawl appshot latest --frame 2\nscrawl clean --dry-run\nscrawl pin latest"
+        }
+      ],
+      "children": []
+    },
+    "hid-h": {
+      "id": "hid-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Hidden Subcommands"
+        }
+      ],
+      "children": []
+    },
+    "hid-p": {
+      "id": "hid-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Seven more subcommands are hidden from "
+        },
+        {
+          "insert": "--help",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". They are tools for diagnostics, motion tuning and auto-crop work, in parser order."
+        }
+      ],
+      "children": []
+    },
+    "hid-table": {
+      "id": "hid-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Command",
+          "What it does"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "sck-probe [--watch <s>]",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Tries a one-frame ScreenCaptureKit capture and prints JSON"
+          ],
+          [
+            [
+              {
+                "insert": "lab pill <scene>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Replays a capsule scene for traces and tuning"
+          ],
+          [
+            [
+              {
+                "insert": "tune list|set|preset|reset|rust",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Edits the capsule springs in "
+              },
+              {
+                "insert": "~/.config/scrawl/tune.json",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "fixture <scenario>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Builds a bundle from a simulated Screen capture"
+          ],
+          [
+            [
+              {
+                "insert": "capture-sim <scenario>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Drives a simulated Screen capture headless and prints timings"
+          ],
+          [
+            [
+              {
+                "insert": "autocrop-eval <bundles>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Scores auto-crop against simulated captures with ground truth"
+          ],
+          [
+            [
+              {
+                "insert": "windows [--repeat <n>]",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Prints the window list that Screen mode would store, and its cost"
+          ]
+        ]
+      },
+      "children": []
+    },
+    "hid-n": {
+      "id": "hid-n",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Some public subcommands also have hidden flags: "
+        },
+        {
+          "insert": "reprocess --bench <n> --live-speed <x>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " benchmarks the finish, and "
+        },
+        {
+          "insert": "clean --captures <dir> --days-ahead <n>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " plans a cleanup for another folder or a later day."
+        }
+      ],
+      "children": []
+    }
+  }
+}

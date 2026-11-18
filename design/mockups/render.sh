@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# Render docs/mockups/out/*.html to docs/images/mockups/*.png at 2x, cropped to the content.
+# Render design/mockups/out/*.html to design/mockups/images/*.png at 2x, cropped to the content.
 # Renders the light theme. Needs Google Chrome, python3 with Pillow, and pngquant (optional, shrinks each PNG).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
 chrome="${CHROME:-/Applications/Google Chrome.app/Contents/MacOS/Google Chrome}"
-out=docs/images/mockups
+out=design/mockups/images
 mkdir -p "$out"
-for html in docs/mockups/out/*.html; do
+for html in design/mockups/out/*.html; do
   name="$(basename "$html" .html)"
   png="$out/$name.png"
   "$chrome" --headless=new --disable-gpu --hide-scrollbars --force-device-scale-factor=2 \

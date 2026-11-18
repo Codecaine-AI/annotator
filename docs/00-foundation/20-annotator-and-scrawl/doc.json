@@ -1,0 +1,799 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-e200bad8b848671d5f0d3bf76ef14c45",
+  "title": "Annotator and Scrawl",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "intro",
+        "fork-h",
+        "fork-p",
+        "fg1",
+        "fg2",
+        "names-h",
+        "names-p",
+        "names-table",
+        "n1",
+        "id-h",
+        "id-p",
+        "id-table",
+        "d1",
+        "d2",
+        "d3",
+        "d4"
+      ]
+    },
+    "intro": {
+      "id": "intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator is Codecaine's fork of kitlangton/scrawl by Kit Langton, forked at v0.3.14. The app shows the name Annotator, but the command, the bundle format, and the data folders keep the Scrawl name. Two copies run on one Mac: the live Annotator.app that Ford uses every day and Annotator Dev.app for agent tests. This page lists the names kept from Scrawl and the identity of each app."
+        }
+      ],
+      "children": []
+    },
+    "fork-h": {
+      "id": "fork-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "The Fork"
+        }
+      ],
+      "children": []
+    },
+    "fork-p": {
+      "id": "fork-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The fork ships only as a local build from this repo. Upstream's app can stay installed beside it."
+        }
+      ],
+      "children": []
+    },
+    "fg1": {
+      "id": "fg1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Distribution",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "f1",
+        "f2"
+      ]
+    },
+    "f1": {
+      "id": "f1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The fork has no DMG, no Homebrew cask, and no Sparkle update. "
+        },
+        {
+          "insert": "Build, Test, and Install",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/10-build-test-and-install"
+            }
+          }
+        },
+        {
+          "insert": " gives the install steps."
+        }
+      ],
+      "children": []
+    },
+    "f2": {
+      "id": "f2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The Windows build is upstream's. The fork does not publish Windows releases."
+        }
+      ],
+      "children": []
+    },
+    "fg2": {
+      "id": "fg2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Upstream Scrawl.app",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "f3",
+        "f4"
+      ]
+    },
+    "f3": {
+      "id": "f3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Upstream's "
+        },
+        {
+          "insert": "/Applications/Scrawl.app",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and its data stay on disk. "
+        },
+        {
+          "insert": "scripts/install-app.sh",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "scripts/install-app.sh"
+            }
+          }
+        },
+        {
+          "insert": " never deletes them."
+        }
+      ],
+      "children": []
+    },
+    "f4": {
+      "id": "f4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Scrawl.app and the live Annotator.app share the shortcut and the captures folder, so only one can run. The live install quits a running Scrawl.app."
+        }
+      ],
+      "children": []
+    },
+    "names-h": {
+      "id": "names-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Names Kept From Scrawl"
+        }
+      ],
+      "children": []
+    },
+    "names-p": {
+      "id": "names-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Five names stay Scrawl, so the scrawl agent skill and old captures keep working. The table lists them from the command to the helper."
+        }
+      ],
+      "children": []
+    },
+    "names-table": {
+      "id": "names-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Name",
+          "What it is"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "scrawl",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "The command, the binary inside Annotator.app. "
+              },
+              {
+                "insert": "scrawl skill",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " prints the agent skill."
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": ".scrawl",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The capture bundle folder"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " and "
+              },
+              {
+                "insert": "Scrawl",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " folders"
+              }
+            ],
+            "The config, captures, logs, and exports folders of the live app"
+          ],
+          [
+            [
+              {
+                "insert": "skills/scrawl/SKILL.md",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The repo copy of the agent skill"
+          ],
+          [
+            [
+              {
+                "insert": "scrawl-helper",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The Swift helper binary inside each app"
+          ]
+        ],
+        "title": "Names kept from Scrawl"
+      },
+      "children": []
+    },
+    "n1": {
+      "id": "n1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "bunx skills add kitlangton/scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " installs upstream's copy of the skill, not the repo copy."
+        }
+      ],
+      "children": []
+    },
+    "id-h": {
+      "id": "id-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Live App and Annotator Dev"
+        }
+      ],
+      "children": []
+    },
+    "id-p": {
+      "id": "id-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each app takes its paths, port, shortcuts, and command name from its bundle id, so both apps run at the same time without shared state. "
+        },
+        {
+          "insert": "Variant::current",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/app_identity.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/app_identity.rs"
+            }
+          }
+        },
+        {
+          "insert": " reads the id once, from the "
+        },
+        {
+          "insert": "Info.plist",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of the "
+        },
+        {
+          "insert": ".app",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that holds the executable. The table compares the two apps."
+        }
+      ],
+      "children": []
+    },
+    "id-table": {
+      "id": "id-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Property",
+          "Live app",
+          "Annotator Dev"
+        ],
+        "rows": [
+          [
+            "App",
+            [
+              {
+                "insert": "/Applications/Annotator.app",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "~/Applications/Annotator Dev.app",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Bundle id",
+            [
+              {
+                "insert": "ai.codecaine.annotator",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "ai.codecaine.annotator.dev",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Helper id",
+            [
+              {
+                "insert": "ai.codecaine.annotator.helper",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "ai.codecaine.annotator.dev.helper",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Config",
+            [
+              {
+                "insert": "~/.config/scrawl/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "~/.config/scrawl-dev/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Captures",
+            [
+              {
+                "insert": "~/Library/Application Support/scrawl/captures/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "~/Library/Application Support/scrawl-dev/captures/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Logs",
+            [
+              {
+                "insert": "~/Library/Logs/Scrawl/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "~/Library/Logs/Scrawl Dev/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Exports",
+            [
+              {
+                "insert": "~/Movies/Scrawl/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "~/Movies/Scrawl Dev/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Ingest port",
+            [
+              {
+                "insert": "47777",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "47778",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Record and Paste",
+            [
+              {
+                "insert": "⌥⇧S",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "⌥⇧V",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "⌃⌥S",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "⌃⌥V",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Default shortcut aliases",
+            [
+              {
+                "insert": "⌃⌥⇧",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "⌘⌥⇧",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "⌃⌥⌘",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "None"
+          ],
+          [
+            "Command",
+            [
+              {
+                "insert": "scrawl",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "scrawl-dev",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Command links",
+            [
+              {
+                "insert": "/usr/local/bin/scrawl",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "~/bin/scrawl",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "~/bin/scrawl-dev",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Install script",
+            [
+              {
+                "insert": "./scripts/install-app.sh",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "./scripts/install-dev-app.sh",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ]
+        ],
+        "title": "Live app and Annotator Dev"
+      },
+      "children": []
+    },
+    "d1": {
+      "id": "d1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Only the live bundle id gives the live app."
+        }
+      ],
+      "children": [
+        "d1a",
+        "d1b"
+      ]
+    },
+    "d1a": {
+      "id": "d1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Annotator Dev.app, "
+        },
+        {
+          "insert": "target/debug/scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and every other build use the Dev state."
+        }
+      ],
+      "children": []
+    },
+    "d1b": {
+      "id": "d1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A development build never reads or writes the live app's state."
+        }
+      ],
+      "children": []
+    },
+    "d2": {
+      "id": "d2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Dev's shortcuts use "
+        },
+        {
+          "insert": "⌃⌥",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " because the live app's default Record and Paste shortcuts also answer to the three aliases. Dev has no aliases, since they would be the live app's keys."
+        }
+      ],
+      "children": []
+    },
+    "d3": {
+      "id": "d3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Agents test in Annotator Dev.app and never in the live app. Open it with "
+        },
+        {
+          "insert": "open -a \"$HOME/Applications/Annotator Dev.app\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "d4": {
+      "id": "d4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Annotator Dev.app asks for Screen Recording, Microphone, and Accessibility once. The pinned signing identity keeps these grants across rebuilds, as it does for the live app."
+        }
+      ],
+      "children": []
+    }
+  }
+}
