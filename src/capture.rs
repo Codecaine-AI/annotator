@@ -598,7 +598,7 @@ struct PinPress {
     by_tap: bool,
 }
 
-/// What is under a global point, from one read of the window list (`window_hit`).
+/// What is under a global point, from one read of the window list (`window_hit_in`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 struct WindowHit {
     /// One of Annotator's own windows (`scrawl_window_in`).
@@ -961,9 +961,10 @@ pub struct SharedCaptureTelemetry {
     capture_source_pid: AtomicI32,
     /// The window a Window capture records (`TargetInfo::window_id`), 0 when there is none.
     target_window_id: AtomicU32,
-    /// The last `window_hit` answer (when, where, what), reused for a burst of scrolls and by
-    /// everything that asks about one press.
-    scrawl_hit: Mutex<Option<(Instant, f64, f64, WindowHit)>>,
+    /// The last `on_scrawl_window` answer (when, where, what), reused for a burst of scrolls.
+    /// The mouse monitor, the polled buttons and scrolls ask it. The key tap never reads or
+    /// writes it: each press it judges gets an answer of its own (`press_misses_target`).
+    scrawl_hit: Mutex<Option<(Instant, f64, f64, bool)>>,
     /// macOS's key event tap (`CFMachPortRef`), made once Accessibility is on (`check_key_tap`).
     #[cfg_attr(target_os = "windows", allow(dead_code))]
     tap_port: AtomicU64,
@@ -985,7 +986,8 @@ pub struct SharedCaptureTelemetry {
     /// the tap delivers.
     tap_takes_presses: AtomicBool,
     /// Held while the key tap is turned on or off, so `tap_takes_presses` and the tap change
-    /// together.
+    /// together, and while a tap that macOS turned off is brought back (`recover_tap`), so a
+    /// look at the tap, the forgetting of its kept press and its enabling are one step.
     tap_gate: Mutex<()>,
     /// When the cancel key went down, for each press since the UI loop last looked
     /// (`take_escape`, `take_cancel_presses`).
@@ -1013,7 +1015,8 @@ pub struct SharedCaptureTelemetry {
     /// The chord latch (bit `DRAW_LATCHED`): the draw modifier came down with another one and
     /// doesn't draw until it is let go, so a press then is not a draw-press either. The bits
     /// above count the key tap's modifier events, so a polled sample taken before the tap's
-    /// last one never replaces it (`note_tap_modifiers`, `note_polled_modifiers`).
+    /// last one never replaces it, and while the tap is on only its own events clear the
+    /// latch (`note_tap_modifiers`, `note_polled_modifiers`).
     draw_latch: AtomicU64,
     /// The left button is down on a press the key tap kept from the app: its drags and its
     /// release are kept too, even if the recording pauses or finishes before the release.
@@ -1241,11 +1244,6 @@ impl SharedCaptureTelemetry {
         self.capture_mode.store(code, Ordering::Release);
         self.target_window_id
             .store(window_id.unwrap_or(0), Ordering::Release);
-        // An answer for the last target says nothing about this one.
-        *self
-            .scrawl_hit
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = None;
     }
 
     pub fn begin_picker_session(&self) {
@@ -1566,11 +1564,21 @@ impl SharedCaptureTelemetry {
     /// The poller read the modifiers `held` (Carbon bits) after taking `mark`. Returns whether
     /// the draw modifier is latched. The sample counts only if the key tap has seen no modifier
     /// change since `mark`: otherwise the sample may be from before that change, and the tap's
-    /// answer stands. Without a tap every sample counts, as there is no other writer.
+    /// answer stands. While the tap is on (`tap_presses_on`) a sample may set the latch but
+    /// never clears it: the flags are read as the keys are now, which can be later than a
+    /// press still waiting at the tap, and that press must be judged by the keys as they were.
+    /// Only the tap's own event, in the order of its presses, says the draw modifier is up
+    /// (`note_tap_modifiers`). A change the tap never sees leaves the latch on until it sees
+    /// the next one, and a latched press passes. Without a tap every sample counts, as there
+    /// is no other writer.
     #[cfg_attr(target_os = "windows", allow(dead_code))]
     pub(crate) fn note_polled_modifiers(&self, mark: LatchMark, held: u32) -> bool {
         let LatchMark(mark) = mark;
-        let latched = latch_after(mark & DRAW_LATCHED != 0, self.draw_mask(), held);
+        let was = mark & DRAW_LATCHED != 0;
+        let latched = latch_after(was, self.draw_mask(), held);
+        if was && !latched && self.tap_takes_presses.load(Ordering::Acquire) {
+            return self.draw_latch.load(Ordering::Acquire) & DRAW_LATCHED != 0;
+        }
         let next = (mark & !DRAW_LATCHED) | u64::from(latched);
         match self
             .draw_latch
@@ -1606,12 +1614,45 @@ impl SharedCaptureTelemetry {
             .tap_gate
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
+        self.publish_tap_presses(turn_on)
+    }
+
+    /// `tap_presses_on` for a caller that holds `tap_gate`.
+    fn publish_tap_presses(&self, turn_on: impl FnOnce() -> bool) -> bool {
         self.tap_takes_presses.store(true, Ordering::Release);
         let on = turn_on();
         if !on {
             self.tap_takes_presses.store(false, Ordering::Release);
         }
         on
+    }
+
+    /// Brings the key tap back after macOS may have turned it off, as one step under the lock
+    /// every enabling of the tap takes: a look at the tap (`is_on`), the forgetting of a kept
+    /// press whose release may have gone by (`forget_press`), and `turn_on`, which enables the
+    /// tap as `tap_presses_on` would. Returns whether the tap is on.
+    ///
+    /// `notified` is the tap's own notice that macOS disabled it. It comes in the order of the
+    /// tap's events, so every press the tap kept before it is over, also when the tap is on
+    /// again by then: that press may be the one the tap timed out on, which the app got. The
+    /// poller's look every 500 ms has no such order and can come long after the tap was
+    /// brought back. So it forgets only for a tap that is still off here, under the lock: a
+    /// press the tap kept since it came back is not that outage's to forget.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    pub(crate) fn recover_tap(
+        &self,
+        notified: bool,
+        is_on: impl FnOnce() -> bool,
+        turn_on: impl FnOnce() -> bool,
+    ) -> bool {
+        let _gate = self
+            .tap_gate
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if notified || !is_on() {
+            self.forget_press();
+        }
+        self.publish_tap_presses(turn_on)
     }
 
     /// Turns the key tap off with `turn_off`, and only then hands draw-presses back to the mouse
@@ -1855,57 +1896,83 @@ impl SharedCaptureTelemetry {
     }
 
     /// Whether the topmost window at a global point is Scrawl's own or a `scrawl-helper`'s other
-    /// than the capture source (ignoring the click-through ink overlay). Asked once per press, and
-    /// for scrolls, which come in bursts at one point, at most every 250 ms.
+    /// than the capture source (ignoring the click-through ink overlay). The mouse monitor and
+    /// the polled buttons ask once per press, and for scrolls, which come in bursts at one
+    /// point, at most every 250 ms.
     fn on_scrawl_window(&self, x: f64, y: f64) -> bool {
-        self.window_hit(x, y).scrawl
+        self.on_scrawl_window_in(x, y, platform::raw_windows_now, platform::is_helper_process)
+    }
+
+    /// `on_scrawl_window` with `windows` to read the window list (front to back). The answer
+    /// is kept for 250 ms for the same point. Nothing but this reads it: it decides what is
+    /// recorded, never what is kept from an app.
+    fn on_scrawl_window_in(
+        &self,
+        x: f64,
+        y: f64,
+        windows: impl FnOnce() -> Vec<crate::windows::RawWindow>,
+        is_helper: impl Fn(i32) -> bool,
+    ) -> bool {
+        let last = *self
+            .scrawl_hit
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner);
+        if let Some((at, hx, hy, on)) = last
+            && at.elapsed() < Duration::from_millis(250)
+            && (hx - x).abs() <= 2.0
+            && (hy - y).abs() <= 2.0
+        {
+            return on;
+        }
+        // The window list is read with no lock held: the main thread and the poller both ask.
+        let on = self.scrawl_window_in(&windows(), x, y, is_helper);
+        *self
+            .scrawl_hit
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((Instant::now(), x, y, on));
+        on
     }
 
     /// Whether a press at a global point inside the target's rectangle lands on something that
     /// is not being recorded, so it goes there and is no draw-press: one of Annotator's own
     /// windows, a macOS prompt, or for a Window or iPhone capture any window but the recorded
-    /// one. The key tap asks only for a press that is otherwise a draw-press.
+    /// one. The key tap asks only for a press that is otherwise a draw-press, and reads the
+    /// window list for each one: an answer for another press, however near in time and place,
+    /// says nothing about this one (another window starts a point away, a prompt or a menu
+    /// has just opened under the pointer).
     #[cfg_attr(target_os = "windows", allow(dead_code))]
     pub(crate) fn press_misses_target(&self, x: f64, y: f64) -> bool {
-        self.window_hit(x, y).misses_target()
-    }
-
-    /// What is under a global point (`WindowHit`), from the window list, kept for 250 ms for
-    /// the same point: a press is asked about by the key tap and then by the mouse monitor.
-    fn window_hit(&self, x: f64, y: f64) -> WindowHit {
-        let last = *self
-            .scrawl_hit
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        if let Some((at, hx, hy, hit)) = last
-            && at.elapsed() < Duration::from_millis(250)
-            && (hx - x).abs() <= 2.0
-            && (hy - y).abs() <= 2.0
-        {
-            return hit;
-        }
-        // The window list is read with no lock held: the key tap asks too, and must not wait
-        // for another thread's read.
         #[cfg(target_os = "macos")]
         let pressed = || platform::window_taking_press(x, y);
         #[cfg(not(target_os = "macos"))]
         let pressed = || None;
-        let hit = self.window_hit_in(
-            &platform::raw_windows_now(),
+        self.press_misses_target_in(
             x,
             y,
+            platform::raw_windows_now,
             platform::is_helper_process,
             pressed,
-        );
-        *self
-            .scrawl_hit
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner) = Some((Instant::now(), x, y, hit));
-        hit
+        )
     }
 
-    /// `window_hit` for a window list (front to back). `pressed` asks the window server which
-    /// window a press at the point goes to (`windows::press_goes_to`).
+    /// `press_misses_target` with `windows` to read the window list (front to back) and
+    /// `pressed` to ask the window server which window a press at the point goes to.
+    #[cfg_attr(target_os = "windows", allow(dead_code))]
+    fn press_misses_target_in(
+        &self,
+        x: f64,
+        y: f64,
+        windows: impl FnOnce() -> Vec<crate::windows::RawWindow>,
+        is_helper: impl Fn(i32) -> bool,
+        pressed: impl FnOnce() -> Option<u32>,
+    ) -> bool {
+        self.window_hit_in(&windows(), x, y, is_helper, pressed)
+            .misses_target()
+    }
+
+    /// What is under a global point (`WindowHit`), going by a window list (front to back).
+    /// `pressed` asks the window server which window a press at the point goes to
+    /// (`windows::press_goes_to`).
     fn window_hit_in(
         &self,
         windows: &[crate::windows::RawWindow],
@@ -3314,6 +3381,95 @@ mod tests {
         assert_eq!(pins(&telemetry), vec![1]);
     }
 
+    /// Review r3-s4-2: the poller reads the keys as they are now, which can be later than a
+    /// press still waiting at the key tap. ⌘⇧, ⌘ let go, a click, ⇧ let go: the poller saw no
+    /// modifier before the tap got to the click and cleared the latch, and the tap then kept a
+    /// click that was left over from the chord. While the tap is on a polled sample sets the
+    /// latch and never clears it. The tap's own ⇧-up does, after the click.
+    #[test]
+    fn a_polled_sample_never_clears_the_latch_while_the_tap_is_on() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        let chord = draw | CARBON_CMD_KEY;
+        let polled = |held| telemetry.note_polled_modifiers(telemetry.draw_latch_mark(), held);
+        assert!(telemetry.tap_presses_on(|| true));
+
+        // The tap has seen ⌘⇧ and ⌘ let go. The click and the ⇧-up still wait at it.
+        telemetry.note_tap_modifiers(chord);
+        assert!(telemetry.note_tap_modifiers(draw));
+        assert!(polled(0), "the keys are up by now, the latch stays");
+        assert!(!telemetry.draws_now(draw));
+        assert!(
+            !telemetry.block_press(200.0, 300.0, draw, || false),
+            "left over from the chord"
+        );
+        // The tap gets to the ⇧-up: the next hold draws, and its click is kept.
+        assert!(!telemetry.note_tap_modifiers(0));
+        assert!(!telemetry.note_tap_modifiers(draw));
+        assert!(telemetry.block_press(200.0, 300.0, draw, || false));
+        assert!(telemetry.release_press(200.0, 300.0));
+        telemetry.note_tap_modifiers(0);
+
+        // A chord the tap never saw (Secure Input, a tap that was off for a moment) latches
+        // from a poll, and stays latched until the tap sees the modifier up: presses pass.
+        assert!(polled(chord));
+        assert!(polled(0));
+        assert!(polled(draw), "a new hold, and the tap saw none of it");
+        assert!(!telemetry.block_press(200.0, 300.0, draw, || false));
+        assert!(!telemetry.note_tap_modifiers(0));
+
+        // Without a tap the poller is the only writer, and its sample clears the latch.
+        assert!(polled(chord));
+        telemetry.tap_presses_off(|| {});
+        assert!(!polled(0));
+        assert_eq!(pins(&telemetry), vec![1]);
+    }
+
+    /// Review r3-s4-3: the poller found the tap disabled and was held up before it forgot the
+    /// kept press. The tap's own notice brought the tap back meanwhile, and the tap kept a new
+    /// press. The poller then forgot that one: its drags and release reached the app, and no
+    /// pin dropped. The poller forgets only for a tap that is still off when it looks, in one
+    /// step with enabling it. The tap's notice always forgets: a press kept before it may be
+    /// the one the tap timed out on, which the app got.
+    #[test]
+    fn a_late_look_at_the_tap_does_not_forget_a_press_kept_since_it_came_back() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        assert!(telemetry.tap_presses_on(|| true));
+
+        // A kept press, and macOS disables the tap. Its notice brings it back.
+        assert!(telemetry.block_press(200.0, 200.0, draw, || false));
+        assert!(telemetry.recover_tap(
+            true,
+            || false,
+            || {
+                assert!(!telemetry.press_blocked(), "forgotten before the tap is on");
+                true
+            }
+        ));
+        assert!(!telemetry.release_press(200.0, 200.0), "its release passes");
+        // The tap keeps a new press. The poller's look comes now and finds the tap on.
+        assert!(telemetry.block_press(600.0, 600.0, draw, || false));
+        assert!(telemetry.recover_tap(false, || true, || true));
+        assert!(telemetry.press_blocked(), "its drags are still kept");
+        assert!(telemetry.release_press(600.0, 600.0));
+
+        // The poller finds the tap off: the kept press is over.
+        assert!(telemetry.block_press(400.0, 400.0, draw, || false));
+        assert!(telemetry.recover_tap(false, || false, || true));
+        assert!(!telemetry.release_press(400.0, 400.0));
+        // The tap timed out on a press and the app got it. The poller brought the tap back,
+        // and only then did the slow callback keep the press. The notice comes next.
+        assert!(telemetry.block_press(400.0, 400.0, draw, || false));
+        assert!(telemetry.recover_tap(true, || true, || true));
+        assert!(!telemetry.release_press(400.0, 400.0), "it passes too");
+
+        // A tap that does not come back owns no press.
+        assert!(!telemetry.recover_tap(false, || false, || false));
+        assert!(!telemetry.tap_owns_draw_presses());
+        assert_eq!(pins(&telemetry), vec![1]);
+    }
+
     /// Review r2-s3 #1: "inside the target" was its rectangle only, so a ⇧-click on a macOS
     /// prompt, or on another app's window floating over a recorded window, was kept from it and
     /// dropped a pin on content nobody pointed at. Such a press passes. One on the recorded
@@ -3410,6 +3566,77 @@ mod tests {
         assert!(!kept(on_safari.0, on_safari.1), "beside the mirror");
 
         assert_eq!(pins(&telemetry), vec![1, 2, 3, 4, 5]);
+    }
+
+    /// Review r3-s4-1: what a press lands on was kept for 250 ms and 2 pt, so a ⇧-click got
+    /// the answer of another press. One a point away, on Slack floating over the recorded
+    /// Safari, was kept from Slack. So was one on a prompt that had just opened there, and one
+    /// on a menu that a plain click (asked about by the mouse monitor) had opened under the
+    /// pointer. The key tap reads the windows for each press it judges.
+    #[test]
+    fn each_draw_press_is_judged_by_the_windows_as_they_are_then() {
+        let telemetry = session(1000.0, 1000.0);
+        let draw = telemetry.draw_mask();
+        let window = |id, pid, owner: &str, bounds, layer| crate::windows::RawWindow {
+            id,
+            pid,
+            owner: owner.into(),
+            title: String::new(),
+            bounds,
+            layer,
+            alpha: 1.0,
+        };
+        let own = std::process::id() as i32;
+        let safari = window(5, own + 1, "Safari", [0.0, 0.0, 1000.0, 1000.0], 0);
+        let slack = window(4, own + 2, "Slack", [600.0, 0.0, 400.0, 300.0], 0);
+        let prompt = window(
+            2,
+            own + 3,
+            "SecurityAgent",
+            [400.0, 400.0, 200.0, 100.0],
+            1000,
+        );
+        let menu = window(7, own + 1, "Safari", [100.0, 700.0, 200.0, 200.0], 101);
+        telemetry.set_capture_target(CaptureMode::Window, Some(5));
+        let reads = std::cell::Cell::new(0);
+        let kept = |windows: &[crate::windows::RawWindow], x: f64, y: f64| {
+            // The window server's answer: the frontmost window at the point.
+            let pressed = || {
+                windows
+                    .iter()
+                    .find(|w| {
+                        let [wx, wy, ww, wh] = w.bounds;
+                        x >= wx && x <= wx + ww && y >= wy && y <= wy + wh
+                    })
+                    .map(|w| w.id)
+            };
+            let read = || {
+                reads.set(reads.get() + 1);
+                windows.to_vec()
+            };
+            let kept = telemetry.block_press(x, y, draw, || {
+                telemetry.press_misses_target_in(x, y, read, |_| false, pressed)
+            });
+            assert_eq!(telemetry.release_press(x, y), kept);
+            kept
+        };
+
+        // Slack's left edge is at x = 600.
+        let over_safari = [slack.clone(), safari.clone()];
+        assert!(kept(&over_safari, 599.0, 200.0));
+        assert!(!kept(&over_safari, 601.0, 200.0), "on Slack, 2 pt on");
+        // A prompt opens where the last press went.
+        assert!(kept(std::slice::from_ref(&safari), 500.0, 450.0));
+        assert!(
+            !kept(&[prompt, safari.clone()], 500.0, 450.0),
+            "answering macOS"
+        );
+        // A plain click reaches the mouse monitor and opens a menu under the pointer.
+        assert!(!telemetry.on_scrawl_window_in(150.0, 750.0, || vec![safari.clone()], |_| false));
+        assert!(!kept(&[menu, safari.clone()], 150.0, 750.0), "on the menu");
+
+        assert_eq!(reads.get(), 5, "one read of the windows for each press");
+        assert_eq!(pins(&telemetry), vec![1, 2]);
     }
 
     /// Holding ⇧ and clicking three places drops three pins, and the lines the poller draws on
