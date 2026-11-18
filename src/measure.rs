@@ -176,12 +176,14 @@ fn flood(frame: &RgbaFrame, seed: (u32, u32), color: [u8; 3], tolerance: u8, cap
 }
 
 /// Whether a fill is only a mark on a surface, such as one glyph of a button's label or a thin
-/// line: 2 px thin or less, or under `min_side` px on both sides and covering under 3/4 of its
-/// box (a solid part, even with rounded corners, covers more).
+/// line: 2 px thin or less, at most half of `min_side` px on both sides (a speck such as a solid
+/// piece of a letter, smaller than region mode keeps), or under `min_side` px on both sides and
+/// covering under 3/4 of its box (a solid part, even with rounded corners, covers more).
 fn is_mark(fill: &Fill, min_side: u32) -> bool {
     let b = fill.bbox;
     !fill.capped
         && (b.width.min(b.height) <= 2
+            || (b.width <= min_side / 2 && b.height <= min_side / 2)
             || (b.width < min_side
                 && b.height < min_side
                 && (fill.pixels as u64) * 4 < b.area() * 3))
@@ -223,9 +225,49 @@ fn around(frame: &RgbaFrame, fill: &Fill, x: u32, y: u32) -> Option<((u32, u32),
         .map(|(c, _, at, _)| (at, c))
 }
 
+/// The fill of the main color within `radius` of the point that is not a mark, trying that
+/// color's pixels nearest first (at most 24 fills).
+fn surface_near(frame: &RgbaFrame, x: u32, y: u32, radius: u32, cap: usize) -> Option<Fill> {
+    let (_, color) = seed_at(frame, x, y, radius);
+    let (x0, x1) = (x.saturating_sub(radius), (x + radius).min(frame.width - 1));
+    let (y0, y1) = (y.saturating_sub(radius), (y + radius).min(frame.height - 1));
+    let mut candidates: Vec<(u64, u32, u32)> = Vec::new();
+    for py in y0..=y1 {
+        for px in x0..=x1 {
+            if near(rgb(frame, px, py), color, 3) {
+                let d = u64::from(px.abs_diff(x)).pow(2) + u64::from(py.abs_diff(y)).pow(2);
+                candidates.push((d, px, py));
+            }
+        }
+    }
+    candidates.sort_unstable();
+    let mut tried: Vec<PxBox> = Vec::new();
+    for (_, px, py) in candidates {
+        let at = PxBox {
+            x: px,
+            y: py,
+            width: 1,
+            height: 1,
+        };
+        if tried.iter().any(|b| b.contains(&at)) {
+            continue;
+        }
+        if tried.len() == 24 {
+            break;
+        }
+        let fill = flood(frame, (px, py), color, FILL_TOLERANCE, cap);
+        if !is_mark(&fill, radius) {
+            return Some(fill);
+        }
+        tried.push(fill.bbox);
+    }
+    None
+}
+
 /// The component that holds a point, as `fill_at` finds it, except that a point on a mark (a
-/// glyph of a label, a thin line) measures the surface around the mark. Returns whether it
-/// stepped out of a mark.
+/// glyph of a label, a thin line) measures the surface around the mark: first the color on a
+/// ring around it, then the main color of a `min_side` px window (`surface_near`). Returns
+/// whether it stepped out of a mark.
 pub fn component_at(
     frame: &RgbaFrame,
     x: u32,
@@ -245,6 +287,15 @@ pub fn component_at(
         };
         fill = flood(frame, seed, color, FILL_TOLERANCE, cap);
         stepped = true;
+    }
+    if is_mark(&fill, min_side) {
+        // Antialiased text can ring a letter with more letter shades: take the main color of a
+        // wider window, the surface the text sits on, and fill from the nearest pixel of it that
+        // is not shut inside a letter (the hole of an "o").
+        if let Some(wide) = surface_near(frame, x, y, min_side, cap) {
+            fill = wide;
+            stepped = true;
+        }
     }
     (fill, stepped)
 }
@@ -1171,11 +1222,16 @@ mod tests {
         let (fill, stepped) = component_at(&f, 310, 185, 3, 24, cap);
         assert!(!stepped);
         assert_box(fill.bbox, 300, 180, 188, 44);
-        // A small solid part (an 8 px icon) is a component, not a mark.
-        rect(&mut f, 600, 100, 8, 8, BLUE);
-        let (fill, stepped) = component_at(&f, 603, 103, 1, 24, cap);
+        // A small solid part (a 14 px icon, 7 pt) is a component, not a mark.
+        rect(&mut f, 600, 100, 14, 14, BLUE);
+        let (fill, stepped) = component_at(&f, 605, 105, 1, 24, cap);
         assert!(!stepped);
-        assert_box(fill.bbox, 600, 100, 8, 8);
+        assert_box(fill.bbox, 600, 100, 14, 14);
+        // A solid 3×5 px piece of a dark letter on the button is a mark.
+        rect(&mut f, 460, 200, 3, 5, [0x10, 0x20, 0x40]);
+        let (fill, stepped) = component_at(&f, 461, 202, 1, 24, cap);
+        assert!(stepped);
+        assert_box(fill.bbox, 300, 180, 188, 44);
     }
 
     /// A card with a 2 px border reads its distance to the next card, not 1 px to its own border.
