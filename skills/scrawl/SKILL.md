@@ -81,10 +81,10 @@ scrawl measure <bundle> --frame 3 --at 0.42,0.31 --json
 
 A point gives one box and no gaps. For a gap, a padding or the distance between two parts, draw a region around both and read `gap`. A region over text gives one box per word (a one-letter word can join the next), so draw the region tight around the parts you compare.
 
-Put a point on the component's fill, not on its text. A point is measured with four pixels close to it, so one noisy pixel of the recording does not decide the box. Every `note:` line says what the box is, so read them before you use the size:
+Put a point on the component's fill, not on its text. A point is measured with four pixels close to it, so one noisy pixel of the recording does not decide the box. Every `note:` line says what the box is, so read them before you use the size. The notes flag the known traps, not every wrong box: check each box against the keyframe image before you use it.
 
 - `the point was on text, a glyph or a thin line: this is the surface around it`: the point was on a label, in the hole of a letter such as "o", or on a divider. The box is the surface next to it. A point on a faint 1 px border can get the `more than one color` or `not a solid shape` note instead.
-- `this is a small part under the point`: a part under 12 pt on a side, such as a 3 to 8 pt status dot, a count badge, an icon or a pill, measures itself. For the surface it sits on, move the point off it.
+- `this is a small part under the point`: a part under 12 pt on a side, such as a 3 to 8 pt status dot, a count badge, an icon or a pill, measures itself. For the surface it sits on, move the point off it. A dot that sits on an icon or an avatar can give the surface round them instead: then measure it with a tight region.
 - `the point is on text, an icon or a line inside this box`: the box is the component. The point was not on its fill.
 - `the box ends at lines`: a list row between dividers, a table cell or an outlined card. The box is the fill between the lines. A faint line lets it run on, so check it against the image.
 - `more than one color borders this box`: a panel between other panels, or a gradient fill, which gives only a part of the component. Check it with a tight region.
@@ -99,7 +99,9 @@ Put a point on the component's fill, not on its text. A point is measured with f
 
 How to read the output:
 
-- On a part with a clear edge, a point and a region give the same box, within 1 px, with and without the movie. With a border, both give the box with its border when the page has another color. On a white card on a near-white page, or one with a faint 1 px border, a point can give the whole window: then trust a tight region.
+- On a part with a clear edge, a point and a region usually give the same box within 1 to 2 px, with and without the movie. With a border, both give the box with its border when the page has another color. They can differ:
+  - On a white card on a near-white page, or one with a faint 1 px border, a point can give the whole window. Then trust a tight region.
+  - A region over a chip or tag whose fill is close to the page color can give its text, not its fill. Then trust a point on the fill.
 - A region joins parts up to 1.5 pt apart into one box, so two boxes that close show as one. A point on each gives each box.
 - Rows split by clear dividers: a point in a row gives that row. A region over the rows gives the whole list as one box, because the dividers join them. With faint dividers, a point in a row can give the whole window, and a region gives the parts inside the rows: measure a row's height from the gap between the parts of two rows.
 - A region shows at most 30 boxes and says how many it left out. A shown box next to a left-out one gets no gap, so draw a tighter region.
