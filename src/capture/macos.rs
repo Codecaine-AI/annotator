@@ -1574,8 +1574,8 @@ fn turn_key_tap_on(telemetry: &SharedCaptureTelemetry) -> bool {
 /// Brings the key tap back after macOS may have turned it off (a slow callback, user input),
 /// and says whether it is on. A tap that was off may have missed the release of the press it
 /// kept, so that press is forgotten, in one step with the look at the tap and its enabling
-/// (`recover_tap`). `notified` is the tap's own notice that it was disabled: whatever it kept
-/// before is over. The poller's look (`check_key_tap`) can come long after the tap was brought
+/// (`recover_tap`), unless an event came after it, so it was kept in time. `notified` is the
+/// tap's own notice that it was disabled. The poller's look (`check_key_tap`) can come long after the tap was brought
 /// back, so it forgets only for a tap it finds off.
 fn recover_key_tap(telemetry: &SharedCaptureTelemetry, notified: bool) -> bool {
     telemetry.recover_tap(
@@ -1756,6 +1756,7 @@ unsafe extern "C" fn key_tap_callback(
         recover_key_tap(telemetry, true);
         return event;
     }
+    telemetry.note_tap_event();
     if event_type == EVENT_FLAGS_CHANGED {
         telemetry.note_tap_modifiers(carbon_flags(unsafe { CGEventGetFlags(event) }));
         return event;
