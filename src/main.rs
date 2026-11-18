@@ -436,10 +436,10 @@ enum Command {
         #[arg(long)]
         full: bool,
     },
-    /// Measure a keyframe exactly: the size of the component under a point and the distance to
-    /// the next color change on each side, or every box in a region and the gaps between
-    /// neighbors, in pt and px. Coordinates are fractions (0 to 1) of the keyframe image
-    /// (`frames/frame-NN.png`); the pixels come from the ink-free movie frame when there is one.
+    /// Measure a keyframe exactly: the box that holds a point, or every box in a region and the
+    /// gaps between neighbors, in pt and px. Coordinates are fractions (0 to 1) of the keyframe
+    /// image (`frames/frame-NN.png`); the pixels come from the ink-free movie frame when there
+    /// is one.
     Measure {
         /// A capture's id, the path to its `.scrawl` folder, or `latest`.
         #[arg(default_value = "latest")]
