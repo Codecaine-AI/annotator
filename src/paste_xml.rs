@@ -163,23 +163,6 @@ fn moments(bundle: &ScrawlBundle, agent_context: bool) -> String {
         let i = frames.iter().rposition(|k| k.t <= t).unwrap_or(0);
         events[i].push((t, line));
     }
-    // A click keyframe is cut just after its click, which is its <action>: that click's own event
-    // line (the last click up to `CLICK_ANCHOR_MS` before the keyframe) goes.
-    for (i, frame) in frames.iter().enumerate() {
-        if frame.reason != KeyframeReason::Click {
-            continue;
-        }
-        // Events before a keyframe sit with the moment before it (the first moment for #1).
-        let owner = i.saturating_sub(1);
-        let own = events[owner].iter().rposition(|(t, line)| {
-            *t <= frame.t
-                && *t + CLICK_ANCHOR_MS >= frame.t
-                && (line.starts_with("clicked") || line.starts_with("tapped"))
-        });
-        if let Some(own) = own {
-            events[owner].remove(own);
-        }
-    }
     let mut out = format!("    <moments count=\"{}\">\n", frames.len());
     let mut shown_screen = bundle.screen_at(0);
     for (i, frame) in frames.iter().enumerate() {
@@ -310,7 +293,41 @@ fn touches(a: [f32; 4], b: [f32; 4]) -> bool {
 /// App events and context changes; with app state on, also clicks, keys, drags and windows.
 fn event_lines(bundle: &ScrawlBundle, agent_context: bool) -> Vec<(u64, String)> {
     if agent_context {
-        return event_line_texts(bundle);
+        // The click that cut a click keyframe is that moment's <action>, so it is not an event
+        // too: the last click at most `CLICK_ANCHOR_MS` before each click keyframe goes before
+        // `agent_context::events` folds repeats.
+        let mut cut: Vec<usize> = Vec::new();
+        for frame in &bundle.keyframes {
+            // A drag or swipe keyframe has reason Click too, but no click of its own.
+            let clicked = frame.event.starts_with("clicked") || frame.event.starts_with("tapped");
+            if frame.reason != KeyframeReason::Click || !clicked {
+                continue;
+            }
+            let own = bundle
+                .events
+                .iter()
+                .enumerate()
+                .filter(|(i, event)| {
+                    matches!(event, InteractionEvent::Click { t, .. }
+                        if *t <= frame.t && *t + CLICK_ANCHOR_MS >= frame.t)
+                        && !cut.contains(i)
+                })
+                .max_by_key(|(_, event)| event.timestamp_ms())
+                .map(|(i, _)| i);
+            cut.extend(own);
+        }
+        if cut.is_empty() {
+            return event_line_texts(bundle);
+        }
+        let mut trimmed = bundle.clone();
+        trimmed.events = bundle
+            .events
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| !cut.contains(i))
+            .map(|(_, event)| event.clone())
+            .collect();
+        return event_line_texts(&trimmed);
     }
     let mut lines: Vec<(u64, String)> = bundle
         .events

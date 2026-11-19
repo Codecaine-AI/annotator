@@ -387,8 +387,8 @@ enum Command {
         /// Emit raw `scrawl.json` instead of `summary.md` (with `--marks`, the marks as JSON).
         #[arg(long)]
         json: bool,
-        /// List the marks: keyframe, number as the summary shows it (✎②), time, shape, what it
-        /// was drawn on, and id, for `scrawl zoom --mark`.
+        /// List the marks: keyframe, number in drawing order on that keyframe (✎②), time, shape,
+        /// what it was drawn on, and id, for `scrawl zoom --mark`.
         #[arg(long)]
         marks: bool,
         /// Turn an experiment on for this summary (`agentContext` turns app state on).
