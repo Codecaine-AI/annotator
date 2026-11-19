@@ -7,7 +7,7 @@ use std::fmt::Write as _;
 
 use crate::agent_context::{events as event_line_texts, mark_text, without_positions};
 use crate::model::*;
-use crate::sketch::{context_value, marks_on};
+use crate::sketch::{context_value, describe_event, marks_on};
 
 /// Read first: one wording for the paste shortcut (the sheet is attached above the text) and for
 /// `summary.md` and the automatic copy (text only), so all three stay the same text.
@@ -294,8 +294,8 @@ fn touches(a: [f32; 4], b: [f32; 4]) -> bool {
 fn event_lines(bundle: &ScrawlBundle, agent_context: bool) -> Vec<(u64, String)> {
     if agent_context {
         // The click that cut a click keyframe is that moment's <action>, so it is not an event
-        // too: the last click at most `CLICK_ANCHOR_MS` before each click keyframe goes before
-        // `agent_context::events` folds repeats.
+        // too: the last click at most `CLICK_ANCHOR_MS` before the keyframe that its `event`
+        // describes goes, before `agent_context::events` folds repeats.
         let mut cut: Vec<usize> = Vec::new();
         for frame in &bundle.keyframes {
             // A drag or swipe keyframe has reason Click too, but no click of its own.
@@ -311,6 +311,8 @@ fn event_lines(bundle: &ScrawlBundle, agent_context: bool) -> Vec<(u64, String)>
                     matches!(event, InteractionEvent::Click { t, .. }
                         if *t <= frame.t && *t + CLICK_ANCHOR_MS >= frame.t)
                         && !cut.contains(i)
+                        // `keyframes` describes a click keyframe by its own click.
+                        && describe_event(event) == frame.event
                 })
                 .max_by_key(|(_, event)| event.timestamp_ms())
                 .map(|(i, _)| i);

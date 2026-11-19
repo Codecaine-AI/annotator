@@ -787,6 +787,38 @@ mod tests {
         );
     }
 
+    #[test]
+    fn a_click_keyframe_drops_its_own_click_not_a_later_one() {
+        let click = |t, x, label: &str| InteractionEvent::Click {
+            t,
+            x,
+            y: 0.5,
+            button: None,
+            label: Some(format!("“{label}”")),
+            role: Some("button".into()),
+        };
+        let mut b = bundle(
+            Vec::new(),
+            vec![
+                keyframe(1, 500, KeyframeReason::SceneChange, ""),
+                keyframe(2, 1_250, KeyframeReason::Click, ""),
+            ],
+        );
+        b.keyframes[1].event = "clicked button “Alpha” (x 0.10, y 0.50)".into();
+        b.events = vec![click(1_000, 0.1, "Alpha"), click(1_100, 0.6, "Beta")];
+        let all = paste(&b);
+        assert!(all.contains("- 0:01 clicked button “Beta”"), "{all}");
+        assert_eq!(
+            all.matches("“Alpha”").count(),
+            1,
+            "Alpha only as #2's action: {all}"
+        );
+        assert!(
+            all.contains("<action>clicked button “Alpha”</action>"),
+            "{all}"
+        );
+    }
+
     fn paste(b: &ScrawlBundle) -> String {
         crate::paste_xml::summary_xml(b, std::path::Path::new("/b"), true)
     }
