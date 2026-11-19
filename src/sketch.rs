@@ -709,7 +709,7 @@ pub fn timeline(bundle: &ScrawlBundle) -> Vec<String> {
 const CONTEXT_VALUE_CHARS: usize = 60;
 
 /// An app-provided string on one line, cut to `CONTEXT_VALUE_CHARS`.
-fn context_value(raw: &str) -> String {
+pub(crate) fn context_value(raw: &str) -> String {
     let compact = raw.split_whitespace().collect::<Vec<_>>().join(" ");
     if compact.chars().count() <= CONTEXT_VALUE_CHARS {
         compact
@@ -732,6 +732,9 @@ pub fn summary_markdown_with(
     bundle_dir: &std::path::Path,
     agent_context: bool,
 ) -> String {
+    if crate::handoff::experiment("xmlPaste") {
+        return crate::paste_xml::summary_xml(bundle, bundle_dir, agent_context);
+    }
     let mut target = bundle
         .target
         .app
