@@ -182,17 +182,13 @@ fn moments(bundle: &ScrawlBundle, agent_context: bool) -> String {
             .as_deref()
             .map(str::trim)
             .filter(|s| !s.is_empty());
-        let mut moment_events = std::mem::take(&mut events[i]);
+        let moment_events = std::mem::take(&mut events[i]);
         let action = action(
             bundle,
             frame,
             said.is_none() && marks.is_empty() && moment_events.is_empty(),
         );
         if let Some(action) = &action {
-            // The click that cut the keyframe is the action; don't list it again.
-            if let Some(pos) = moment_events.iter().position(|(_, l)| l == action) {
-                moment_events.remove(pos);
-            }
             let _ = writeln!(out, "            <action>{}</action>", text(action));
         }
         if !marks.is_empty() {
