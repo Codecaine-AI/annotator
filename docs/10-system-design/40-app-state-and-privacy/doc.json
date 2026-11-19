@@ -1063,7 +1063,43 @@
           }
         },
         {
-          "insert": " and the clipboard get one line near the top, after the line that points the agent at the images. The command is "
+          "insert": " and the clipboard get one "
+        },
+        {
+          "insert": "<app_shots>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " tag after the "
+        },
+        {
+          "insert": "<bundle>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " tag, and after "
+        },
+        {
+          "insert": "<destination>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " when the capture has one. Its "
+        },
+        {
+          "insert": "command",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " attribute is the command to run, with the keyframe number for N. The command starts with "
         },
         {
           "insert": "scrawl",
@@ -1090,11 +1126,11 @@
       "id": "shots-line",
       "type": "code",
       "props": {
-        "language": "text"
+        "language": "xml"
       },
       "text": [
         {
-          "insert": "App shots: scrawl appshot <capture id> --frame N (N is the keyframe number)"
+          "insert": "<app_shots command=\"scrawl appshot <capture id> --frame N\" />"
         }
       ],
       "children": []
@@ -1103,8 +1139,8 @@
       "id": "shots-img",
       "type": "image",
       "props": {
-        "alt": "Mockup of a pasted capture with its App shots line, then scrawl appshot listing three keyframes' windows and printing keyframe 1's outline, where the text field shows only its name.",
-        "caption": "Approved design mockup of the paste and of scrawl appshot. The real App shots line ends with --frame N (N is the keyframe number), as in the block above.",
+        "alt": "Mockup of a pasted capture with its app shots command, then scrawl appshot listing three keyframes' windows and printing keyframe 1's outline, where the text field shows only its name.",
+        "caption": "Approved design mockup of the paste and of scrawl appshot. The real paste gives the command in the <app_shots> tag, as in the block above.",
         "src": "./assets/images/appshot-cli.jpg"
       },
       "children": []
@@ -2787,7 +2823,16 @@
       "props": {},
       "text": [
         {
-          "insert": "The app state summary shows a Mac capture's app events without the "
+          "insert": "With app state on, the "
+        },
+        {
+          "insert": "<events>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of a moment show a Mac capture's app events without the "
         },
         {
           "insert": "app:",
@@ -2809,7 +2854,7 @@
       },
       "text": [
         {
-          "insert": "Keyframe Text With App State"
+          "insert": "Moment Events With App State"
         }
       ],
       "children": []
@@ -2823,27 +2868,63 @@
           "insert": "With app state on, "
         },
         {
-          "insert": "sketch::summary_markdown",
+          "insert": "paste_xml::summary_xml",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " hands each keyframe to "
+          "insert": " adds the lines of "
         },
         {
-          "insert": "agent_context::keyframe_texts",
+          "insert": "agent_context::events",
           "attributes": {
             "code": true,
             "reference": {
               "kind": "source",
               "path": "src/agent_context.rs",
-              "symbol": "keyframe_texts"
+              "symbol": "events"
             }
           }
         },
         {
-          "insert": ". It breaks the keyframe's words up by what happened while they were said, so the agent reads \"this part\" next to the mark drawn as it was said."
+          "insert": " to the "
+        },
+        {
+          "insert": "<events>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of each "
+        },
+        {
+          "insert": "<moment>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Each line starts with its time, such as "
+        },
+        {
+          "insert": "- 0:12 clicked button “Save”",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The words stay whole in "
+        },
+        {
+          "insert": "<said>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", so the time ties an event to the words said with it."
         }
       ],
       "children": []
@@ -2854,7 +2935,7 @@
       "props": {},
       "text": [
         {
-          "insert": "What breaks the speech",
+          "insert": "What becomes an event line",
           "attributes": {
             "bold": true
           }
@@ -2872,7 +2953,7 @@
       "props": {},
       "text": [
         {
-          "insert": "Marks, clicks, drags, scrolls, and shortcuts break it. Repeats of one item within 3 s fold into "
+          "insert": "Clicks, taps, drags, scrolls, key presses, and points at a named element become lines. Repeats of one line within 3 s fold into "
         },
         {
           "insert": "×N",
@@ -2901,7 +2982,16 @@
       "props": {},
       "text": [
         {
-          "insert": "Ordinary windows opening and closing break it, by app name. More than 4 windows changing at once is one line, "
+          "insert": "In a Screen capture, ordinary windows opening and closing become lines by app name, such as "
+        },
+        {
+          "insert": "Safari window opened",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". More than 4 windows changing at once is one line, "
         },
         {
           "insert": "on-screen windows changed (N opened, N closed)",
@@ -2921,16 +3011,16 @@
       "props": {},
       "text": [
         {
-          "insert": "App switches by app name, ScrawlKit app events, and context changes break it too. Titles never leave "
+          "insert": "App switches, app events, and context changes become lines too. An app switch reads "
         },
         {
-          "insert": "scrawl.json",
+          "insert": "switched to",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": "."
+          "insert": " and the app name, never a window title."
         }
       ],
       "children": []
@@ -2972,16 +3062,25 @@
       "props": {},
       "text": [
         {
-          "insert": "A mark is its shape, then its target, then its stroke count when more than 1, such as "
+          "insert": "A line in "
         },
         {
-          "insert": "✎② 0:19 circled button “Window” (2 strokes)",
+          "insert": "<marks>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": "."
+          "insert": " is the mark's time, its shape, its target, and its stroke count when more than 1, such as "
+        },
+        {
+          "insert": "- 0:19 circled button “Window” (2 strokes)",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The target shows only when a lookup named it."
         }
       ],
       "children": []
@@ -3001,7 +3100,16 @@
           }
         },
         {
-          "insert": " plus its role and label when known. A point shows only with a label."
+          "insert": ", or "
+        },
+        {
+          "insert": "tapped",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for a touch, plus its role and label when known. A point shows only with a label."
         }
       ],
       "children": []
@@ -3043,7 +3151,7 @@
       "props": {},
       "text": [
         {
-          "insert": "Where items go",
+          "insert": "Where lines go",
           "attributes": {
             "bold": true
           }
@@ -3062,7 +3170,7 @@
       "props": {},
       "text": [
         {
-          "insert": "Speech before the first item stays on the bullet line. Each mark, or run of events with no speech between, starts an indented line followed by the words until the next one."
+          "insert": "Each event line goes to the last moment at or before its time. An event before the first keyframe goes to moment 1."
         }
       ],
       "children": []
@@ -3073,7 +3181,25 @@
       "props": {},
       "text": [
         {
-          "insert": "An item moves back to the start of its clause when that began within 3 s. Otherwise it moves forward past the clause's last word when that ends within 1.2 s."
+          "insert": "A click keyframe's "
+        },
+        {
+          "insert": "<action>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is its own click. So the last click or tap up to 1.5 s before that keyframe gets no line in "
+        },
+        {
+          "insert": "<events>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
         }
       ],
       "children": []
@@ -3084,7 +3210,25 @@
       "props": {},
       "text": [
         {
-          "insert": "Events belong to the keyframe whose stretch they fall in. A stretch starts at the keyframe's first word, first mark, own moment, or its click up to 1.5 s before."
+          "insert": "Marks always go to the "
+        },
+        {
+          "insert": "<marks>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of the keyframe that draws them, never to "
+        },
+        {
+          "insert": "<events>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
         }
       ],
       "children": []
@@ -3095,7 +3239,25 @@
       "props": {},
       "text": [
         {
-          "insert": "Marks always belong to their own keyframe. Without word times, the speech stays whole and the items follow it."
+          "insert": "An event line never splits the words. The "
+        },
+        {
+          "insert": "<said>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of a moment is the keyframe's whole "
+        },
+        {
+          "insert": "said",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
         }
       ],
       "children": []
@@ -3106,7 +3268,7 @@
       "props": {},
       "text": [
         {
-          "insert": "Scene changes",
+          "insert": "Actions",
           "attributes": {
             "bold": true
           }
@@ -3123,25 +3285,25 @@
       "props": {},
       "text": [
         {
-          "insert": "A scene-change keyframe says "
+          "insert": "A click or scene-change keyframe always shows what cut it as its "
         },
         {
-          "insert": "[changed: the whole screen]",
+          "insert": "<action>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " when its merged "
+          "insert": ", without positions, such as "
         },
         {
-          "insert": "autocrop.changes",
+          "insert": "scene changed",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " boxes include one covering 90%. Smaller regions are left to the image."
+          "insert": "."
         }
       ],
       "children": []
@@ -3152,16 +3314,16 @@
       "props": {},
       "text": [
         {
-          "insert": "A keyframe with no speech or items falls back to its own description without positions, such as "
+          "insert": "A mark, speech, or first keyframe shows an "
         },
         {
-          "insert": "scene changed",
+          "insert": "<action>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": "."
+          "insert": " only when its moment has no words, marks, or events."
         }
       ],
       "children": []
@@ -3194,16 +3356,34 @@
           }
         },
         {
-          "insert": ") in the text and "
+          "insert": ") in "
         },
         {
-          "insert": "scrawl.json",
+          "insert": "scrawl inspect --marks",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": ". The numbers never go on an image, which shows only the red ink."
+          "insert": " and "
+        },
+        {
+          "insert": "scrawl zoom --mark",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The numbers never go on an image, which shows only the red ink. The paste gives each mark its own line in "
+        },
+        {
+          "insert": "<marks>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", with no number."
         }
       ],
       "children": []
@@ -3255,7 +3435,7 @@
           }
         },
         {
-          "insert": " and its "
+          "insert": " and the "
         },
         {
           "insert": "pin N",
@@ -3264,7 +3444,16 @@
           }
         },
         {
-          "insert": " in "
+          "insert": " line in the "
+        },
+        {
+          "insert": "<marks>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of its moment in "
         },
         {
           "insert": "summary.md",

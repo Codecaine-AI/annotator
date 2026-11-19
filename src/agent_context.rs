@@ -1,34 +1,13 @@
-//! The `agentContext` experiment's text: each keyframe's speech broken up by what happened while
-//! it was said (marks, clicks, drags, shortcuts, windows opening and closing, app events), so the
-//! agent reads "this part" next to the mark drawn as it was said. Marks sharing a keyframe are
-//! numbered ①②③ in drawing order (the images show only the ink; `scrawl zoom --mark` and
-//! `scrawl inspect --marks` look marks up by these numbers).
-//! Nothing here gives raw coordinates: the images show where, so a place is only written when
-//! something names it (an Accessibility label, the dev page's element).
+//! The app-state text of the paste (`paste_xml`): what happened during a capture as event lines
+//! (clicks, drags, shortcuts, windows opening and closing, app events), and what each mark is.
+//! Marks sharing a keyframe are numbered ①②③ in drawing order for `scrawl zoom --mark` and
+//! `scrawl inspect --marks`. Nothing here gives raw coordinates: the images show where, so a
+//! place is only written when something names it (an Accessibility label, the dev page's element).
 
 use crate::model::*;
 use crate::sketch::{
     describe_event, direction, mark_on_keyframe, marks_on, quote_label, settled_events,
 };
-
-/// One keyframe's text: `head` follows `- #N (M:SS)` on the bullet line, `lines` go under it.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct FrameText {
-    pub head: String,
-    pub lines: Vec<String>,
-}
-
-/// How far back an item's place in the speech moves to the start of its clause.
-const CLAUSE_SNAP_MS: u64 = 3_000;
-
-/// How far forward an item's place moves to the end of its clause when the start is too far back.
-const CLAUSE_SNAP_AFTER_MS: u64 = 1_200;
-
-/// A pause this long ends a clause (`keyframes::CLAUSE_GAP_MS`).
-const CLAUSE_GAP_MS: u64 = 1_500;
-
-/// How long before a click keyframe its click can be.
-const CLICK_ANCHOR_MS: u64 = 1_500;
 
 /// An unnamed drag shorter than this (normalized) says nothing the images don't.
 const MIN_DRAG: f32 = 0.15;
@@ -42,23 +21,6 @@ const REPEAT_MS: u64 = 3_000;
 /// More on-screen windows than this changing at once (a Space switch) is one line.
 const WINDOW_BURST: usize = 4;
 
-#[derive(Clone, Debug)]
-enum Item<'a> {
-    Mark {
-        mark: &'a Mark,
-        number: Option<usize>,
-    },
-    Event {
-        text: String,
-    },
-}
-
-#[derive(Clone, Debug)]
-struct Timed<'a> {
-    t: u64,
-    item: Item<'a>,
-}
-
 /// The circled number for the `n`th mark (1-based) on a shared keyframe.
 pub fn circled(n: usize) -> String {
     const DIGITS: [char; 20] = [
@@ -68,61 +30,6 @@ pub fn circled(n: usize) -> String {
     DIGITS
         .get(n.wrapping_sub(1))
         .map_or_else(|| format!("({n})"), char::to_string)
-}
-
-pub fn keyframe_texts(bundle: &ScrawlBundle) -> Vec<FrameText> {
-    let frames = &bundle.keyframes;
-    if frames.is_empty() {
-        return Vec::new();
-    }
-    let words = frame_words(bundle);
-    let starts = frame_starts(bundle, words.as_deref());
-    let owner = |t: u64| starts.iter().rposition(|&s| s <= t).unwrap_or(0);
-
-    let mut items: Vec<Vec<Timed>> = vec![Vec::new(); frames.len()];
-    for (i, frame) in frames.iter().enumerate() {
-        let shared = marks_on(frame, &bundle.marks);
-        let numbered = shared.len() >= 2;
-        for (n, mark) in shared.into_iter().enumerate() {
-            items[i].push(Timed {
-                t: mark.t0,
-                item: Item::Mark {
-                    mark,
-                    number: numbered.then_some(n + 1),
-                },
-            });
-        }
-    }
-    for (t, text) in events(bundle) {
-        items[owner(t)].push(Timed {
-            t,
-            item: Item::Event { text },
-        });
-    }
-
-    frames
-        .iter()
-        .enumerate()
-        .map(|(i, frame)| {
-            let mut timed = std::mem::take(&mut items[i]);
-            timed.sort_by_key(|item| item.t);
-            let mut text = match &words {
-                Some(words) => interleave(&words[i], &timed),
-                None => interleave_unsplit(frame.said.as_deref(), &timed),
-            };
-            if let Some(changed) = changed_regions(bundle, i) {
-                text.head = if text.head.is_empty() {
-                    format!("[changed: {changed}]")
-                } else {
-                    format!("[changed: {changed}] {}", text.head)
-                };
-            }
-            if text.head.is_empty() && text.lines.is_empty() {
-                text.head = without_positions(&frame.event);
-            }
-            text
-        })
-        .collect()
 }
 
 /// A mark as the text names it: on keyframe `#keyframe`, the `number`th of its marks in drawing
@@ -221,81 +128,6 @@ pub fn find_mark<'a>(
             many.iter().map(|e| e.line()).collect::<Vec<_>>().join("; ")
         )),
     }
-}
-
-fn normalized(text: &str) -> String {
-    text.chars()
-        .filter(|c| c.is_alphanumeric())
-        .flat_map(char::to_lowercase)
-        .collect()
-}
-
-/// Recovers which timed words each keyframe's `said` was built from (`keyframes::align_transcript`
-/// gives every frame a run of the time-sorted words). `None` when the transcript has no word
-/// times or the text doesn't line up, and the speech is then shown whole.
-fn frame_words(bundle: &ScrawlBundle) -> Option<Vec<Vec<&WordTiming>>> {
-    let mut words: Vec<&WordTiming> = bundle
-        .transcript
-        .words
-        .iter()
-        .filter(|w| !w.text.trim().is_empty())
-        .collect();
-    if words.is_empty() {
-        return None;
-    }
-    words.sort_by_key(|w| w.t0);
-    let mut next = 0;
-    let mut out = Vec::with_capacity(bundle.keyframes.len());
-    for frame in &bundle.keyframes {
-        let target = normalized(frame.said.as_deref().unwrap_or(""));
-        let mut acc = String::new();
-        let mut taken = Vec::new();
-        while acc.len() < target.len() && next < words.len() {
-            acc.push_str(&normalized(&words[next].text));
-            taken.push(words[next]);
-            next += 1;
-        }
-        if acc != target {
-            return None;
-        }
-        out.push(taken);
-    }
-    Some(out)
-}
-
-/// When each keyframe's stretch of the recording starts: its first word, first mark or own moment,
-/// whichever is earliest, and never before the previous one. The first frame owns the lead-in.
-fn frame_starts(bundle: &ScrawlBundle, words: Option<&[Vec<&WordTiming>]>) -> Vec<u64> {
-    let mut starts: Vec<u64> = Vec::with_capacity(bundle.keyframes.len());
-    for (i, frame) in bundle.keyframes.iter().enumerate() {
-        let first_word = words.and_then(|w| w[i].first().map(|w| w.t0));
-        let first_mark = marks_on(frame, &bundle.marks).first().map(|m| m.t0);
-        // A click keyframe is cut a moment after its click.
-        let click = (frame.reason == KeyframeReason::Click)
-            .then(|| {
-                bundle
-                    .events
-                    .iter()
-                    .filter(|e| {
-                        matches!(
-                            e,
-                            InteractionEvent::Click { .. } | InteractionEvent::Drag { .. }
-                        )
-                    })
-                    .map(InteractionEvent::timestamp_ms)
-                    .filter(|&t| t <= frame.t + 200 && frame.t.saturating_sub(t) <= CLICK_ANCHOR_MS)
-                    .max()
-            })
-            .flatten();
-        let start = [Some(frame.t), first_word, first_mark, click]
-            .into_iter()
-            .flatten()
-            .min()
-            .unwrap_or(frame.t);
-        let start = if i == 0 { 0 } else { start.max(starts[i - 1]) };
-        starts.push(start);
-    }
-    starts
 }
 
 /// Everything besides marks that the summary shows inline, in time order, with repeats of one
@@ -623,193 +455,9 @@ fn window_changes(snapshots: &[WindowSnapshot]) -> Vec<(u64, String)> {
     out
 }
 
-/// Joins recognizer words the way `keyframes::align_transcript` does.
-fn join_words(words: &[&WordTiming]) -> String {
-    let mut text = String::new();
-    for word in words {
-        let unit = word.text.trim();
-        let attached = unit.starts_with([',', '.', '!', '?', ';', ':', '’', '\'', ')', ']', '”']);
-        let open = text.ends_with(['(', '[', '“']);
-        if !text.is_empty() && !attached && !open {
-            text.push(' ');
-        }
-        text.push_str(unit);
-    }
-    text
-}
-
-fn quoted(text: &str) -> String {
-    let text = text.trim();
-    if text.is_empty() {
-        String::new()
-    } else {
-        format!("“{text}”")
-    }
-}
-
 fn mark_label(mark: &Mark, number: Option<usize>) -> String {
     let n = number.map(circled).unwrap_or_default();
     format!("✎{n} {} {}", format_clock(mark.t0), mark_text(mark))
-}
-
-fn label(item: &Timed) -> String {
-    match &item.item {
-        Item::Mark { mark, number } => mark_label(mark, *number),
-        Item::Event { text } => format!("· {} {text}", format_clock(item.t)),
-    }
-}
-
-/// Indexes of the words that start a clause: after clause punctuation (a comma once the clause
-/// has three words), or after a pause of `CLAUSE_GAP_MS`, as `keyframes` breaks clauses.
-fn clause_starts(words: &[&WordTiming]) -> Vec<usize> {
-    let mut starts = Vec::new();
-    let mut clause_words = 0;
-    for (i, word) in words.iter().enumerate() {
-        let new_clause = i == 0 || {
-            let prev = words[i - 1];
-            let text = prev.text.trim_end_matches(['"', '\'', '”', '’', ')', ']']);
-            text.ends_with(['.', '!', '?', ';', ':'])
-                || (clause_words >= 3 && text.ends_with(','))
-                || word.t0.saturating_sub(prev.t1) >= CLAUSE_GAP_MS
-        };
-        if new_clause {
-            starts.push(i);
-            clause_words = 0;
-        }
-        clause_words += 1;
-    }
-    starts
-}
-
-/// Where the words split for an item. Speech isn't cut mid-clause when it can be helped: an item
-/// moves back to the start of the clause in progress if that began within `CLAUSE_SNAP_MS`,
-/// else forward to the clause's end if that comes within `CLAUSE_SNAP_AFTER_MS`.
-fn split_point(t: u64, words: &[&WordTiming], clauses: &[usize]) -> u64 {
-    let Some(inside) = words.iter().position(|w| w.t0 >= t) else {
-        return t;
-    };
-    if clauses.contains(&inside) {
-        return t.min(words[inside].t0);
-    }
-    let start = clauses
-        .iter()
-        .rev()
-        .find(|&&c| c < inside)
-        .copied()
-        .unwrap_or(0);
-    if t.saturating_sub(words[start].t0) <= CLAUSE_SNAP_MS {
-        return words[start].t0;
-    }
-    // Forward to just after the clause's last word, if it ends soon.
-    let end = clauses
-        .iter()
-        .find(|&&c| c > inside)
-        .copied()
-        .unwrap_or(words.len());
-    if words[end - 1].t1.saturating_sub(t) <= CLAUSE_SNAP_AFTER_MS {
-        words.get(end).map_or(words[end - 1].t1 + 1, |w| w.t0)
-    } else {
-        t
-    }
-}
-
-/// Speech before the first item goes on the bullet; each mark, or run of events with no speech
-/// between them, starts a line followed by the words said until the next one.
-fn interleave(words: &[&WordTiming], items: &[Timed]) -> FrameText {
-    let clauses = clause_starts(words);
-    let mut splits: Vec<u64> = items
-        .iter()
-        .map(|item| split_point(item.t, words, &clauses))
-        .collect();
-    for i in 1..splits.len() {
-        splits[i] = splits[i].max(splits[i - 1]);
-    }
-    let said_between = |from: Option<u64>, to: Option<u64>| -> String {
-        let run: Vec<&WordTiming> = words
-            .iter()
-            .filter(|w| from.is_none_or(|f| w.t0 >= f) && to.is_none_or(|t| w.t0 < t))
-            .copied()
-            .collect();
-        quoted(&join_words(&run))
-    };
-    let head = said_between(None, splits.first().copied());
-    let mut lines: Vec<String> = Vec::new();
-    let mut open: Option<String> = None;
-    for (i, item) in items.iter().enumerate() {
-        let is_mark = matches!(item.item, Item::Mark { .. });
-        let line = match open.take() {
-            Some(line) if !is_mark => format!("{line} {}", label(item)),
-            previous => {
-                lines.extend(previous);
-                label(item)
-            }
-        };
-        let said = said_between(Some(splits[i]), splits.get(i + 1).copied());
-        if said.is_empty() && !is_mark {
-            open = Some(line);
-        } else if said.is_empty() {
-            lines.push(line);
-        } else {
-            lines.push(format!("{line} {said}"));
-        }
-    }
-    lines.extend(open);
-    FrameText { head, lines }
-}
-
-/// Without word times the speech stays whole on the bullet and the items follow it.
-fn interleave_unsplit(said: Option<&str>, items: &[Timed]) -> FrameText {
-    FrameText {
-        head: quoted(said.unwrap_or("")),
-        lines: items.iter().map(label).collect(),
-    }
-}
-
-/// What changed on a scene-change keyframe, when it can be named: for now only a change of the
-/// whole screen (autocrop's change boxes). Smaller regions have no names yet and the image shows
-/// them.
-fn changed_regions(bundle: &ScrawlBundle, index: usize) -> Option<String> {
-    let frame = bundle.keyframes.get(index)?;
-    if frame.reason != KeyframeReason::SceneChange {
-        return None;
-    }
-    let boxes = bundle.autocrop.as_ref()?.changes.get(index)?;
-    let area = |b: &[f32; 4]| (b[2] - b[0]) * (b[3] - b[1]);
-    merge_boxes(boxes)
-        .iter()
-        .any(|b| area(b) >= 0.9)
-        .then(|| "the whole screen".into())
-}
-
-fn merge_boxes(boxes: &[[f32; 4]]) -> Vec<[f32; 4]> {
-    const TOUCH: f32 = 0.02;
-    let mut out: Vec<[f32; 4]> = boxes.to_vec();
-    loop {
-        let mut joined = false;
-        'outer: for i in 0..out.len() {
-            for j in i + 1..out.len() {
-                let (a, b) = (out[i], out[j]);
-                if a[0] - TOUCH <= b[2]
-                    && b[0] - TOUCH <= a[2]
-                    && a[1] - TOUCH <= b[3]
-                    && b[1] - TOUCH <= a[3]
-                {
-                    out[i] = [
-                        a[0].min(b[0]),
-                        a[1].min(b[1]),
-                        a[2].max(b[2]),
-                        a[3].max(b[3]),
-                    ];
-                    out.remove(j);
-                    joined = true;
-                    break 'outer;
-                }
-            }
-        }
-        if !joined {
-            return out;
-        }
-    }
 }
 
 #[cfg(test)]
@@ -903,51 +551,6 @@ mod tests {
     }
 
     #[test]
-    fn marks_sharing_a_frame_are_numbered_and_take_the_speech_drawn_over() {
-        let said =
-            "These should stay put. Maybe this hover part can move. And drop these dividers.";
-        let mut b = bundle(
-            words(&[
-                (1_000, "These"),
-                (1_300, "should"),
-                (1_600, "stay"),
-                (1_900, "put."),
-                (4_000, "Maybe"),
-                (4_300, "this"),
-                (4_600, "hover"),
-                (4_900, "part"),
-                (5_200, "can"),
-                (5_500, "move."),
-                (8_000, "And"),
-                (8_300, "drop"),
-                (8_600, "these"),
-                (8_900, "dividers."),
-            ]),
-            vec![keyframe(1, 9_500, KeyframeReason::Mark, said)],
-        );
-        // The second mark starts mid-clause ("hover"), so its speech starts with "Maybe".
-        b.strokes = vec![
-            stroke(1_200, 0.1, 0.2),
-            stroke(4_700, 0.4, 0.5),
-            stroke(8_400, 0.6, 0.1),
-        ];
-        b.marks = crate::sketch::marks_of(&b.strokes);
-        for mark in &mut b.marks {
-            mark.frame = Some("frames/frame-01.png".into());
-        }
-        b.keyframes[0].mark_id = Some(b.marks[0].id.clone());
-        let text = &keyframe_texts(&b)[0];
-        assert_eq!(text.head, "");
-        assert_eq!(text.lines.len(), 3, "{text:?}");
-        assert!(text.lines[0].starts_with("✎① 0:01 "));
-        assert!(text.lines[0].ends_with("“These should stay put.”"));
-        assert!(text.lines[1].starts_with("✎② 0:04 "));
-        assert!(text.lines[1].ends_with("“Maybe this hover part can move.”"));
-        assert!(text.lines[2].starts_with("✎③ 0:08 "));
-        assert!(text.lines[2].ends_with("“And drop these dividers.”"));
-    }
-
-    #[test]
     fn marks_are_found_by_their_number_in_the_text_or_their_id() {
         let mut b = bundle(
             Vec::new(),
@@ -988,7 +591,7 @@ mod tests {
     }
 
     #[test]
-    fn shortcuts_drags_and_windows_appear_inline_without_titles_or_jitter() {
+    fn shortcuts_drags_and_windows_are_events_without_titles_or_jitter() {
         let said = "Okay, I hit command shift B. The whole window closes.";
         let mut b = bundle(
             words(&[
@@ -1053,55 +656,17 @@ mod tests {
                 windows: Vec::new(),
             },
         ];
-        let text = &keyframe_texts(&b)[0];
-        let all = format!("{}\n{}", text.head, text.lines.join("\n"));
-        assert!(all.contains("pressed ⇧⌘B ×3"), "{all}");
-        assert!(all.contains("0:03 dragged right ×2"), "{all}");
+        let all = paste(&b);
+        assert!(all.contains("- 0:02 pressed ⇧⌘B ×3"), "{all}");
+        assert!(all.contains("- 0:03 dragged right ×2"), "{all}");
         assert_eq!(
             all.matches("dragged").count(),
             1,
             "short drags are dropped and a run is one line: {all}"
         );
         assert!(!all.contains("x 0."), "no coordinates: {all}");
-        assert!(
-            all.contains("· 0:04 OpenCode window closed “The whole window closes.”"),
-            "{all}"
-        );
+        assert!(all.contains("- 0:04 OpenCode window closed"), "{all}");
         assert!(!all.contains("Secret") && !all.contains("Hex"), "{all}");
-    }
-
-    #[test]
-    fn scene_changes_say_where_the_screen_changed() {
-        let mut b = bundle(
-            Vec::new(),
-            vec![
-                keyframe(1, 1_000, KeyframeReason::SceneChange, ""),
-                keyframe(2, 3_000, KeyframeReason::SceneChange, ""),
-                keyframe(3, 5_000, KeyframeReason::Click, ""),
-            ],
-        );
-        b.autocrop = Some(AutocropInfo {
-            changes: vec![
-                vec![[0.0, 0.0, 1.0, 0.95]],
-                vec![
-                    [0.70, 0.02, 0.80, 0.10],
-                    [0.80, 0.02, 0.96, 0.12],
-                    [0.10, 0.50, 0.12, 0.52],
-                ],
-                vec![[0.0, 0.0, 0.5, 0.5]],
-            ],
-            ..Default::default()
-        });
-        let texts = keyframe_texts(&b);
-        assert_eq!(texts[0].head, "[changed: the whole screen]");
-        assert_eq!(
-            texts[1].head, "scene changed",
-            "unnamed regions aren't listed"
-        );
-        assert_eq!(
-            texts[2].head, "scene changed",
-            "clicks don't describe changes"
-        );
     }
 
     #[test]
@@ -1152,45 +717,26 @@ mod tests {
                 label: None,
             },
         ];
-        let text = &keyframe_texts(&b)[0];
-        let marks: Vec<&str> = text.lines.iter().map(String::as_str).collect();
-        assert_eq!(
-            marks,
-            [
-                "✎① 0:01 underlined button “Window”",
-                "✎② 0:03 underlined (2 strokes)",
-                "· 0:05 clicked button “Area”",
-                "· 0:06 scrubbed slider “Playback”",
-            ],
-            "{text:?}"
+        let all = paste(&b);
+        assert!(
+            all.contains(
+                "            <marks>\n                - 0:01 underlined button “Window”\n                - 0:03 underlined (2 strokes)\n            </marks>\n"
+            ),
+            "{all}"
+        );
+        assert!(
+            all.contains(
+                "            <events>\n                - 0:05 clicked button “Area”\n                - 0:06 scrubbed slider “Playback”\n            </events>\n"
+            ),
+            "an unnamed point is left out: {all}"
         );
     }
 
     #[test]
-    fn speech_without_word_times_stays_whole() {
-        let mut b = bundle(
-            Vec::new(),
-            vec![keyframe(
-                1,
-                1_000,
-                KeyframeReason::Click,
-                "Make it smaller.",
-            )],
-        );
-        b.events = vec![InteractionEvent::Key {
-            t: 600,
-            shortcut: "⌘K".into(),
-        }];
-        let text = &keyframe_texts(&b)[0];
-        assert_eq!(text.head, "“Make it smaller.”");
-        assert_eq!(text.lines, vec!["· 0:00 pressed ⌘K".to_owned()]);
-    }
-
-    #[test]
-    fn the_summary_uses_these_lines_only_with_the_experiment() {
+    fn the_paste_lists_inputs_only_with_app_state_on() {
         let mut b = bundle(
             words(&[(500, "Look"), (800, "here.")]),
-            vec![keyframe(1, 1_000, KeyframeReason::Click, "Look here.")],
+            vec![keyframe(1, 1_000, KeyframeReason::Speech, "Look here.")],
         );
         b.events = vec![InteractionEvent::Key {
             t: 400,
@@ -1200,10 +746,7 @@ mod tests {
         let off = crate::sketch::summary_markdown_with(&b, dir, false);
         let on = crate::sketch::summary_markdown_with(&b, dir, true);
         assert!(!off.contains("⌘K"), "{off}");
-        assert!(
-            on.contains("- #1 (0:01)\n  · 0:00 pressed ⌘K “Look here.”\n"),
-            "{on}"
-        );
+        assert!(on.contains("- 0:00 pressed ⌘K"), "{on}");
     }
 
     #[test]
@@ -1223,15 +766,60 @@ mod tests {
                 keyframe(2, 9_300, KeyframeReason::Click, ""),
             ],
         );
+        b.keyframes[1].event = "clicked (x 0.20, y 0.50)".into();
         b.events = vec![
             click(1_000, 0.63),
             click(2_500, 0.63),
             click(4_000, 0.63),
             click(9_000, 0.2),
         ];
-        let texts = keyframe_texts(&b);
-        assert_eq!(texts[0].lines, vec!["· 0:01 clicked ×3".to_owned()]);
-        assert_eq!(texts[1].lines, vec!["· 0:09 clicked".to_owned()]);
-        assert_eq!(texts[1].head, "");
+        let all = paste(&b);
+        let second = &all[all.find("<moment n=\"2\"").expect("moment 2")..];
+        assert!(
+            all[..all.len() - second.len()].contains("- 0:01 clicked ×3"),
+            "{all}"
+        );
+        assert!(
+            second.starts_with(
+                "<moment n=\"2\" t=\"0:09\">\n            <image>frames/frame-02.png</image>\n            <action>clicked</action>\n        </moment>"
+            ),
+            "the click that cut #2 is its action, not an event of #1: {all}"
+        );
+    }
+
+    #[test]
+    fn a_click_keyframe_drops_its_own_click_not_a_later_one() {
+        let click = |t, x, label: &str| InteractionEvent::Click {
+            t,
+            x,
+            y: 0.5,
+            button: None,
+            label: Some(format!("“{label}”")),
+            role: Some("button".into()),
+        };
+        let mut b = bundle(
+            Vec::new(),
+            vec![
+                keyframe(1, 500, KeyframeReason::SceneChange, ""),
+                keyframe(2, 1_250, KeyframeReason::Click, ""),
+            ],
+        );
+        b.keyframes[1].event = "clicked button “Alpha” (x 0.10, y 0.50)".into();
+        b.events = vec![click(1_000, 0.1, "Alpha"), click(1_100, 0.6, "Beta")];
+        let all = paste(&b);
+        assert!(all.contains("- 0:01 clicked button “Beta”"), "{all}");
+        assert_eq!(
+            all.matches("“Alpha”").count(),
+            1,
+            "Alpha only as #2's action: {all}"
+        );
+        assert!(
+            all.contains("<action>clicked button “Alpha”</action>"),
+            "{all}"
+        );
+    }
+
+    fn paste(b: &ScrawlBundle) -> String {
+        crate::paste_xml::summary_xml(b, std::path::Path::new("/b"), true)
     }
 }

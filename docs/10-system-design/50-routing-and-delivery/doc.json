@@ -4127,7 +4127,16 @@
           }
         },
         {
-          "insert": " and on the second line of "
+          "insert": " and in the "
+        },
+        {
+          "insert": "<destination>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " tag of "
         },
         {
           "insert": "summary.md",
@@ -4136,10 +4145,19 @@
           }
         },
         {
-          "insert": ", such as "
+          "insert": ", after the "
         },
         {
-          "insert": "For session: SCRAWL (ses_…) · page http://localhost:5173/",
+          "insert": "<bundle>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " tag, such as "
+        },
+        {
+          "insert": "<destination session=\"ses_…\" title=\"SCRAWL\" page=\"http://localhost:5173/\" />",
           "attributes": {
             "code": true
           }

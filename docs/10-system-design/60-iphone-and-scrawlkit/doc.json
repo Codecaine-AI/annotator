@@ -344,16 +344,16 @@
           }
         },
         {
-          "insert": " with the mirror focused to flag a moment. A flag always gets a keyframe and shows as "
+          "insert": " with the mirror focused to flag a moment. A flag always gets a keyframe, and its moment in the summary shows "
         },
         {
-          "insert": "⚑",
+          "insert": "<action>flagged this moment</action>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " in the summary."
+          "insert": "."
         }
       ],
       "children": []
@@ -1741,7 +1741,43 @@
           }
         },
         {
-          "insert": " and the prompt queued into OpenCode show them."
+          "insert": " and the prompt queued into OpenCode show them as the "
+        },
+        {
+          "insert": "<context>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " list, the "
+        },
+        {
+          "insert": "screen",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " attribute of a "
+        },
+        {
+          "insert": "<moment>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and lines in its "
+        },
+        {
+          "insert": "<events>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
         }
       ],
       "children": []
@@ -1750,11 +1786,11 @@
       "id": "ip-ctx-sum",
       "type": "code",
       "props": {
-        "language": "text"
+        "language": "xml"
       },
       "text": [
         {
-          "insert": "[scrawl 0:25 · iPhone · OpenCode 1.4 (354) · /…/20261014-101500.scrawl]\nOpen contact-sheet.png and frames/ in that folder before changing anything: the marks and words only make sense on the images, which can show more than the text does.\nScreen: Sessions · server: studio · session: ses_3f…\n- #1 (0:01) “So here.”\n- #3 (0:08) ⟨Settings › Experimental⟩ [tapped “Back”] “Go back.”\n  · 0:09 server → mini"
+          "insert": "<scrawl_capture id=\"20261014-101500\" duration=\"0:25\">\n    <instructions>\n        Start with contact-sheet.png: …\n    </instructions>\n\n    <source device=\"iPhone\" app=\"OpenCode\" version=\"1.4\" build=\"354\" screen=\"Sessions\" />\n    <bundle path=\"/…/20261014-101500.scrawl\" />\n    <context>\n        - server: studio\n        - session: ses_3f…\n    </context>\n\n    <moments count=\"3\">\n        <moment n=\"1\" t=\"0:01\">\n            <image>frames/frame-01.png</image>\n            <said>\n                So here.\n            </said>\n        </moment>\n        <moment n=\"2\" t=\"0:03\">\n            <image>frames/frame-02.png</image>\n            <action>tapped “Settings”</action>\n        </moment>\n        <moment n=\"3\" t=\"0:08\" screen=\"Settings › Experimental\">\n            <image>frames/frame-03.png</image>\n            <action>tapped “Back”</action>\n            <events>\n                - 0:09 server → mini\n            </events>\n            <said>\n                Go back.\n            </said>\n        </moment>\n    </moments>\n</scrawl_capture>"
         }
       ],
       "children": []
@@ -3883,19 +3919,19 @@
       },
       "text": [
         {
-          "insert": "App events appear in "
+          "insert": "App events go in the "
         },
         {
-          "insert": "summary.md",
+          "insert": "<events>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " under the keyframe that was on screen when they happened, such as "
+          "insert": " of the moment that was on screen when they happened, such as "
         },
         {
-          "insert": "· 0:12 app: Done tapped",
+          "insert": "- 0:12 app: Done tapped",
           "attributes": {
             "code": true
           }

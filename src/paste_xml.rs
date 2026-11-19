@@ -1,5 +1,5 @@
-//! The `xmlPaste` experiment's summary: the same facts as `sketch::summary_markdown_with`, in
-//! nested XML sections an agent and a person can scan. Each `<moment>` holds one keyframe: its
+//! The paste and `summary.md` (`sketch::summary_markdown_with`): nested XML sections an agent
+//! and a person can scan. Each `<moment>` holds one keyframe: its
 //! image, the action that cut it, the marks it draws and the words said over it. No coordinates:
 //! they are in full-capture space, and the frames are often cropped, so the images show where.
 
@@ -7,7 +7,7 @@ use std::fmt::Write as _;
 
 use crate::agent_context::{events as event_line_texts, mark_text, without_positions};
 use crate::model::*;
-use crate::sketch::{context_value, marks_on};
+use crate::sketch::{context_value, describe_event, marks_on};
 
 /// Read first: one wording for the paste shortcut (the sheet is attached above the text) and for
 /// `summary.md` and the automatic copy (text only), so all three stay the same text.
@@ -18,6 +18,9 @@ const PIN_JOIN_MS: u64 = 1_000;
 
 /// How close (normalized) a neighbour's box must come to a pin to be part of the same ⇧-click.
 const PIN_TOUCH: f32 = 0.01;
+
+/// How long before a click keyframe its click can be (`agent_context` used the same).
+const CLICK_ANCHOR_MS: u64 = 1_500;
 
 /// Text wraps at this many characters, indent included.
 const WIDTH: usize = 96;
@@ -290,7 +293,43 @@ fn touches(a: [f32; 4], b: [f32; 4]) -> bool {
 /// App events and context changes; with app state on, also clicks, keys, drags and windows.
 fn event_lines(bundle: &ScrawlBundle, agent_context: bool) -> Vec<(u64, String)> {
     if agent_context {
-        return event_line_texts(bundle);
+        // The click that cut a click keyframe is that moment's <action>, so it is not an event
+        // too: the last click at most `CLICK_ANCHOR_MS` before the keyframe that its `event`
+        // describes goes, before `agent_context::events` folds repeats.
+        let mut cut: Vec<usize> = Vec::new();
+        for frame in &bundle.keyframes {
+            // A drag or swipe keyframe has reason Click too, but no click of its own.
+            let clicked = frame.event.starts_with("clicked") || frame.event.starts_with("tapped");
+            if frame.reason != KeyframeReason::Click || !clicked {
+                continue;
+            }
+            let own = bundle
+                .events
+                .iter()
+                .enumerate()
+                .filter(|(i, event)| {
+                    matches!(event, InteractionEvent::Click { t, .. }
+                        if *t <= frame.t && *t + CLICK_ANCHOR_MS >= frame.t)
+                        && !cut.contains(i)
+                        // `keyframes` describes a click keyframe by its own click.
+                        && describe_event(event) == frame.event
+                })
+                .max_by_key(|(_, event)| event.timestamp_ms())
+                .map(|(i, _)| i);
+            cut.extend(own);
+        }
+        if cut.is_empty() {
+            return event_line_texts(bundle);
+        }
+        let mut trimmed = bundle.clone();
+        trimmed.events = bundle
+            .events
+            .iter()
+            .enumerate()
+            .filter(|(i, _)| !cut.contains(i))
+            .map(|(_, event)| event.clone())
+            .collect();
+        return event_line_texts(&trimmed);
     }
     let mut lines: Vec<(u64, String)> = bundle
         .events

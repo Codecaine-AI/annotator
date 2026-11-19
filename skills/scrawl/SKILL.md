@@ -1,6 +1,6 @@
 ---
 name: scrawl
-description: Read and dig into Scrawl screen captures, where someone recorded their screen while talking, clicking and drawing red marks on it. Use whenever a message contains a Scrawl capture (a line like `[scrawl 0:12 · App “Window” · /path/to/….scrawl]` or a `<scrawl_capture>` block, a `.scrawl` bundle path, or a contact-sheet.png from one), when the user says "look at my scrawl" or refers to something they just recorded or drew, or when you need the `scrawl` CLI to zoom into a moment, pull frames, send a capture to a session, or export one as video.
+description: Read and dig into Scrawl screen captures, where someone recorded their screen while talking, clicking and drawing red marks on it. Use whenever a message contains a Scrawl capture (a `<scrawl_capture>` block, an older `[scrawl 0:12 · App “Window” · /path/to/….scrawl]` line, a `.scrawl` bundle path, or a contact-sheet.png from one), when the user says "look at my scrawl" or refers to something they just recorded or drew, or when you need the `scrawl` CLI to zoom into a moment, pull frames, send a capture to a session, or export one as video.
 ---
 
 # Scrawl captures
@@ -9,38 +9,63 @@ Scrawl records someone's screen, voice, clicks and red ink, then packs the resul
 
 ## What a paste looks like
 
-```text
-[scrawl 0:33 · OpenCode “Settings” · /Users/me/Library/Application Support/scrawl/captures/scrawl-1792432139176.scrawl]
-Open contact-sheet.png and frames/ in that folder before changing anything: the marks and words only make sense on the images, which can show more than the text does.
-Cropped to: the activity in OpenCode (full frames in frames-full/)
-- #1 (0:04) [clicked “New tab”] “Command T makes a new session, but here it should make a tab.”
-- #2 (0:07) “No, it doesn't.”
-- #3 (0:10) ⚑ “It says command shift B makes a new tab.”
-- #4 (0:18) clicked (x 0.51, y 0.93)
+```xml
+<scrawl_capture id="scrawl-1792432139176" duration="0:33">
+    <instructions>
+        Start with contact-sheet.png: it is attached above when the capture was pasted with its
+        image, else it is in the bundle folder. ...
+    </instructions>
+
+    <source app="OpenCode" window="Settings" cropped_to="OpenCode" uncropped="frames-full/" />
+    <bundle path="/Users/me/Library/Application Support/scrawl/captures/scrawl-1792432139176.scrawl" />
+
+    <moments count="4">
+        <moment n="1" t="0:04">
+            <image>frames/frame-01.png</image>
+            <action>clicked button “New tab”</action>
+            <said>
+                Command T makes a new session, but here it should make a tab.
+            </said>
+        </moment>
+        <moment n="3" t="0:10">
+            <image>frames/frame-03.png</image>
+            <action>flagged this moment</action>
+            <marks>
+                - 0:09 circled
+                - 0:10 pin 1
+            </marks>
+            <said>
+                It says command shift B makes a new tab.
+            </said>
+        </moment>
+        ...
+    </moments>
+</scrawl_capture>
 ```
 
-- The first line has the length, the app and window recorded, and the bundle path.
-- The next line asks you to open the images first. Do: the text is only what was said and done, and a problem can show in a frame without being marked or mentioned.
-- Each `#N (M:SS)` line is a keyframe: what they did at that moment in brackets, then what they said while it was on screen. A line with no quote has the action alone.
-- `⚑` means they flagged the moment on purpose. `⟨Name⟩` means the app reported a new screen. Lines starting `·` are events or values the app logged.
-- Optional lines near the top: `For session:` (where Scrawl sent it), `App shots:` (the command that prints a keyframe's app state, see below), `Screen:` with app context, `Note:`, and `Cropped to:`.
-- Coordinates are fractions of the captured area, from the top left (x 0.51 is just right of centre).
+- `<source>` names the app and window recorded, and the crop. `<bundle path>` is the bundle folder.
+- `<instructions>` asks you to read the images first. Do: the text is only what was said and done, and a problem can show in a frame without being marked or mentioned.
+- Each `<moment>` is a keyframe. `n` is the number on its image's white chip, and `t` is its time.
+  - `<image>` is its frame file, and `<action>` is what cut it (a click, a tap, a flag, a screen change).
+  - `<marks>` lists the red ink drawn on that screen. `<events>` lists app events and, with app state on, clicks, keys, drags and windows.
+  - `<said>` is what they said while it was on screen.
+- A `screen="…"` on a moment means the app reported a new screen.
+- Optional sections near the top: `<destination>` (the session Scrawl sent it to), `<app_shots>` (the command that prints a keyframe's app state, see below), `<context>` with app values, `<note>`, and `<no_transcript>`.
+- The text has no coordinates. The images show where.
 
-With the `xmlPaste` experiment on, the same facts come as XML: a `<scrawl_capture>` block with `<instructions>`, `<source>` (app, window, crop), `<bundle path=…>`, and `<moments>`. Each `<moment n="3" t="0:10">` holds its `<image>` (the frame file), the `<action>` that cut it, the `<marks>` it draws, any `<events>`, and `<said>` (the words said while it was on screen). The `n` is the number on the image's white chip, and the text has no coordinates.
-
-When you answer, refer to moments the same way, as in "#3 (0:10)", so the person can find them on the contact sheet.
+When you answer, refer to moments as "#3 (0:10)", so the person can find them on the contact sheet.
 
 ## Reading a bundle
 
-1. Look at `contact-sheet.png` in the bundle first (it's often attached already). It shows every keyframe in time order, left to right and top to bottom, each with its number `N` in a small white chip in a top corner (the `#N` in `summary.md`).
+1. Look at `contact-sheet.png` in the bundle first (it's often attached already). It shows every keyframe in time order, left to right and top to bottom, each with its number `N` in a small white chip in a top corner (the `n` of its `<moment>` in `summary.md`).
 2. Read the transcript lines next to it. Speech recognition mishears names and code terms, so trust the screen when the two disagree.
-3. Open `frames/frame-NN.png` for any keyframe you need at full size (`frame-03.png` is #3). When the summary says `Cropped to:`, the uncropped screens are in `frames-full/`.
+3. Open `frames/frame-NN.png` for any keyframe you need at full size (`frame-03.png` is #3). When `<source>` has `cropped_to`, the uncropped screens are in `frames-full/`.
 
 The person can pause a recording (Esc) and resume it. Paused time is cut out of the video, the audio, the transcript and every time in the bundle, so times run on without a gap. A sudden change between two keyframes can be a pause.
 
 What the drawings mean:
 
-- Red strokes, circles, underlines and arrows are the person's marks, and they point at the problem. Marks drawn on the same screen all show on one keyframe. When there are several, the text numbers them in drawing order (`✎① 0:06 …`, `✎② 0:09 …`); the image shows only the ink, so use `scrawl zoom --mark` to see which ink is which.
+- Red strokes, circles, underlines and arrows are the person's marks, and they point at the problem. Marks drawn on the same screen all show on one keyframe. The text lists them in drawing order with their times; the image shows only the ink, so use `scrawl zoom --mark` to see which ink is which.
 - A red disc in a white ring with a white number is a pin: a deliberate "here". Pins are numbered 1, 2, 3 in the order they were dropped in the whole recording, and the text calls them `pin N`. A pin number is not a mark number: `scrawl inspect --marks` lists each pin's mark id (`m3`), and `scrawl zoom --mark m3` zooms to it.
 - A ripple around the cursor shows a click or tap, and a finger trail shows a swipe.
 - A glowing red trail that tapers off is the laser pointer, used to point without leaving a mark.
@@ -59,13 +84,13 @@ Use `zoom` when the problem is motion (an animation, a jump, a flicker) or happe
 scrawl zoom <bundle> --at 0:21                 # a time, M:SS or seconds
 scrawl zoom <bundle> --at "the width changes"  # or a phrase they said
 scrawl zoom <bundle> --at 0:21 --span 1 --frames 16 --full
-scrawl zoom <bundle> --mark 2                  # the mark shown as ✎② in the text
-scrawl zoom <bundle> --mark 1 --frame 4        # ✎① of keyframe #4, when several have a ✎①
+scrawl zoom <bundle> --mark m2                 # a mark id from scrawl inspect --marks
+scrawl zoom <bundle> --mark 1 --frame 4        # keyframe #4's first mark in drawing order
 ```
 
 It prints the path of a PNG sheet of frames around that moment, the time of each cell, and what was said. Open the PNG and look at it before you act on the feedback. `--span` is the seconds covered (default 2, a quarter of it before the moment), `--frames` the number of cells (default 12), and `--full` shows the whole screen instead of the crop. The cells are numbered from #1 within the sheet, so those numbers aren't keyframe numbers.
 
-`--mark` takes a mark's number from the text or its id (`m2`) and centres the sheet on the time it was drawn, with only that mark's ink, drawn whole from the moment it starts. `scrawl inspect <bundle> --marks` lists every mark (`#2 ✎② 0:09 marked (2 strokes) · m2`: keyframe, number, time, shape, what it was drawn on, id), and `--marks --json` gives the same as JSON.
+`--mark` takes a mark's id (`m2`), or its number in drawing order on a keyframe, and centres the sheet on the time it was drawn, with only that mark's ink, drawn whole from the moment it starts. `scrawl inspect <bundle> --marks` lists every mark (`#2 ✎② 0:09 marked (2 strokes) · m2`: keyframe, number, time, shape, what it was drawn on, id), and `--marks --json` gives the same as JSON.
 
 ### Measure sizes and spacing
 
@@ -127,9 +152,9 @@ scrawl send <bundle> --clipboard      # copy the summary text to the clipboard
 scrawl export <bundle> [--out demo.mp4] [--zoom] [--crop auto|full|x,y,w,h] [--size 1920]
 ```
 
-- `appshot` prints what the app itself knew about the window a keyframe shows: use it when the picture leaves a name, a label or a URL unclear, or to find the element to change. `<bundle>` can be the capture's id from the `App shots:` line. The outline is one element per line, indented by depth, such as `button "Save" #save` (role, label, identifier). A text field shows its name, never what was typed in it, and a URL has no query. A header's `cut: nodes` (or `depth`, `bytes`, `timeout`) means the outline stops early. `no app shots in this capture` means it was made with app state off or on Windows; a keyframe without a shot says which window it expected.
+- `appshot` prints what the app itself knew about the window a keyframe shows: use it when the picture leaves a name, a label or a URL unclear, or to find the element to change. `<bundle>` can be the capture's id from the `<app_shots>` section. The outline is one element per line, indented by depth, such as `button "Save" #save` (role, label, identifier). A text field shows its name, never what was typed in it, and a URL has no query. A header's `cut: nodes` (or `depth`, `bytes`, `timeout`) means the outline stops early. `no app shots in this capture` means it was made with app state off or on Windows; a keyframe without a shot says which window it expected.
 - `zoom` and `frames` write into `<bundle>/zoom/`. Leave the rest of the bundle as it is, because Scrawl manages those files and cleans them up.
-- `send` without `--session` goes to the session the capture was addressed to (the `For session:` line), and otherwise to the most recently active session. With a recorded destination it refuses a different `--session` unless you pass `--reroute`, so check with the person before rerouting.
+- `send` without `--session` goes to the session the capture was addressed to (the `<destination>` section), and otherwise to the most recently active session. With a recorded destination it refuses a different `--session` unless you pass `--reroute`, so check with the person before rerouting.
 - `export` writes one `.mp4` with the ink and clicks burned in and the audio in sync (default `~/Movies/Scrawl/<bundle>.mp4`). `--zoom` eases in toward the activity. `--no-ink`, `--no-clicks`, `--hevc` and `--fps` are also available.
 - Captures are kept forever unless the person set a limit in Settings › Storage. Once video and audio are cleaned, `zoom`, `frames` and `export` can't read the video, but `frames/`, the contact sheet, `scrawl.json` and `appshots/` remain.
 - `scrawl <command> --help` lists every flag, and `scrawl skill` prints this guide as the installed version knows it.

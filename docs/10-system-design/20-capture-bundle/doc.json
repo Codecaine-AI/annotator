@@ -39,13 +39,6 @@
         "h-example",
         "ex-lead",
         "ex-code",
-        "h-xml",
-        "xml-lead",
-        "xml-example",
-        "xml-rules-lead",
-        "g-xml-pos",
-        "g-xml-marks",
-        "g-xml-words",
         "h-clip",
         "clip-lead",
         "clip-table",
@@ -551,7 +544,7 @@
       "props": {},
       "text": [
         {
-          "insert": "summary_markdown_with",
+          "insert": "summary_xml",
           "attributes": {
             "code": true
           }
@@ -560,17 +553,22 @@
           "insert": " in "
         },
         {
-          "insert": "src/sketch.rs",
+          "insert": "src/paste_xml.rs",
           "attributes": {
-            "code": true,
-            "reference": {
-              "kind": "source",
-              "path": "src/sketch.rs"
-            }
+            "code": true
           }
         },
         {
-          "insert": " builds the paste from the manifest. The finish step saves it as "
+          "insert": " builds the paste from the manifest, and "
+        },
+        {
+          "insert": "sketch::summary_markdown_with",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " calls it. The finish step saves it as "
         },
         {
           "insert": "summary.md",
@@ -579,7 +577,16 @@
           }
         },
         {
-          "insert": ", and the clipboard gets the same text. Only the header line is always there. The template below shows every line in its order:"
+          "insert": ", and the clipboard gets the same text. The paste is one "
+        },
+        {
+          "insert": "<scrawl_capture>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " block of nested XML sections, and the template below shows every section in its order:"
         }
       ],
       "children": []
@@ -588,11 +595,11 @@
       "id": "paste-template",
       "type": "code",
       "props": {
-        "language": "text"
+        "language": "xml"
       },
       "text": [
         {
-          "insert": "[scrawl M:SS · <target> · <absolute bundle folder>]\nFor session: <title> (<session id>) · page <url>\nOpen contact-sheet.png and frames/ in that folder before changing anything: the marks and words only make sense on the images, which can show more than the text does.\nApp shots: scrawl appshot <capture id> --frame N (N is the keyframe number)\nScreen: <screen> · <key>: <value> · <key>: <value>\nNote: <note>\nCropped to: <label> (full frames in frames-full/)\nNo transcript: <reason>\n  · M:SS app: <label>\n- #1 (M:SS) “<words said>”\n  · M:SS app: <label>\n- #2 (M:SS) <event>"
+          "insert": "<scrawl_capture id=\"<capture id>\" duration=\"M:SS\">\n    <instructions>\n        Start with contact-sheet.png: it is attached above when the capture was pasted with its\n        image, else it is in the bundle folder. ...\n    </instructions>\n\n    <source app=\"<app>\" window=\"<title>\" screen=\"<screen>\" cropped_to=\"<label>\" uncropped=\"frames-full/\" />\n    <bundle path=\"<absolute bundle folder>\" />\n    <destination session=\"<session id>\" title=\"<title>\" page=\"<url>\" />\n    <app_shots command=\"scrawl appshot <capture id> --frame N\" />\n    <context>\n        - <key>: <value>\n    </context>\n    <note>\n        <note>\n    </note>\n    <no_transcript>\n        <reason>\n    </no_transcript>\n\n    <moments count=\"N\">\n        <moment n=\"1\" t=\"M:SS\"> ... </moment>\n    </moments>\n</scrawl_capture>"
         }
       ],
       "children": []
@@ -603,7 +610,7 @@
       "props": {},
       "text": [
         {
-          "insert": "Each row of this table is one line of the template, in the same order, with the manifest state that adds it:"
+          "insert": "Each row of this table is one section of the template, in the same order, with the manifest state that adds it:"
         }
       ],
       "children": []
@@ -613,14 +620,32 @@
       "type": "structured-table",
       "props": {
         "columns": [
-          "Line",
+          "Section",
           "Appears when"
         ],
         "rows": [
           [
             [
               {
-                "insert": "[scrawl M:SS · …]",
+                "insert": "<instructions>",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "<source>",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "<bundle>",
                 "attributes": {
                   "code": true
                 }
@@ -631,7 +656,7 @@
           [
             [
               {
-                "insert": "For session: …",
+                "insert": "<destination>",
                 "attributes": {
                   "code": true
                 }
@@ -652,18 +677,7 @@
           [
             [
               {
-                "insert": "Open contact-sheet.png …",
-                "attributes": {
-                  "code": true
-                }
-              }
-            ],
-            "The capture has at least one keyframe"
-          ],
-          [
-            [
-              {
-                "insert": "App shots: …",
+                "insert": "<app_shots>",
                 "attributes": {
                   "code": true
                 }
@@ -684,7 +698,7 @@
           [
             [
               {
-                "insert": "Screen: …",
+                "insert": "<context>",
                 "attributes": {
                   "code": true
                 }
@@ -692,7 +706,7 @@
             ],
             [
               {
-                "insert": "The app named a screen at 0:00 or set "
+                "insert": "The app set "
               },
               {
                 "insert": "context",
@@ -705,7 +719,7 @@
           [
             [
               {
-                "insert": "Note: …",
+                "insert": "<note>",
                 "attributes": {
                   "code": true
                 }
@@ -726,28 +740,7 @@
           [
             [
               {
-                "insert": "Cropped to: …",
-                "attributes": {
-                  "code": true
-                }
-              }
-            ],
-            [
-              {
-                "insert": "autocrop",
-                "attributes": {
-                  "code": true
-                }
-              },
-              {
-                "insert": " is set"
-              }
-            ]
-          ],
-          [
-            [
-              {
-                "insert": "No transcript: …",
+                "insert": "<no_transcript>",
                 "attributes": {
                   "code": true
                 }
@@ -768,27 +761,16 @@
           [
             [
               {
-                "insert": "- #N (M:SS) …",
+                "insert": "<moments>",
                 "attributes": {
                   "code": true
                 }
               }
             ],
-            "Once for each keyframe"
-          ],
-          [
-            [
-              {
-                "insert": "  · M:SS …",
-                "attributes": {
-                  "code": true
-                }
-              }
-            ],
-            "An app event or a context change happened"
+            "The capture has at least one keyframe"
           ]
         ],
-        "title": "Summary lines and when each appears"
+        "title": "Paste sections and when each appears"
       },
       "children": []
     },
@@ -798,7 +780,7 @@
       "props": {},
       "text": [
         {
-          "insert": "The header and the optional lines take their text from the manifest, with a privacy rule and a length rule."
+          "insert": "The sections above the moments take their text from the manifest, with a privacy rule and a length rule."
         }
       ],
       "children": []
@@ -809,7 +791,7 @@
       "props": {},
       "text": [
         {
-          "insert": "Header",
+          "insert": "Source",
           "attributes": {
             "bold": true
           }
@@ -826,16 +808,22 @@
       "props": {},
       "text": [
         {
-          "insert": "The header's "
-        },
-        {
-          "insert": "<target>",
+          "insert": "<source>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " is the app, or "
+          "insert": " names the "
+        },
+        {
+          "insert": "app",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or "
         },
         {
           "insert": "Display",
@@ -844,10 +832,46 @@
           }
         },
         {
-          "insert": ", then the window title in quotes when it differs from the app name. An iPhone capture shows the device name, then "
+          "insert": ", and the "
         },
         {
-          "insert": "· <app> <version> (<build>)",
+          "insert": "window",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " title when it differs from the app name. An iPhone capture names the "
+        },
+        {
+          "insert": "device",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", then the "
+        },
+        {
+          "insert": "app",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "version",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "build",
           "attributes": {
             "code": true
           }
@@ -864,7 +888,16 @@
       "props": {},
       "text": [
         {
-          "insert": "The header's window title goes through "
+          "insert": "The "
+        },
+        {
+          "insert": "window",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " title goes through "
         },
         {
           "insert": "privacy::window_title",
@@ -902,7 +935,7 @@
       "props": {},
       "text": [
         {
-          "insert": "Optional Lines",
+          "insert": "Optional Sections",
           "attributes": {
             "bold": true
           }
@@ -920,16 +953,13 @@
       "props": {},
       "text": [
         {
-          "insert": "The "
-        },
-        {
-          "insert": "App shots:",
+          "insert": "<app_shots>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " line names the command of the build that wrote it: "
+          "insert": " names the command of the build that wrote it: "
         },
         {
           "insert": "scrawl",
@@ -958,7 +988,7 @@
       "props": {},
       "text": [
         {
-          "insert": "A screen name or a "
+          "insert": "A screen name, or a "
         },
         {
           "insert": "context",
@@ -967,7 +997,7 @@
           }
         },
         {
-          "insert": " key or value from the app goes on one line and is cut to 60 characters, ending in "
+          "insert": " key or value from the app, is one line cut to 60 characters, ending in "
         },
         {
           "insert": "…",
@@ -987,16 +1017,25 @@
       "props": {},
       "text": [
         {
-          "insert": "A capture with no keyframes lists its app events as "
+          "insert": "A capture with no keyframes lists its app events in "
         },
         {
-          "insert": "· M:SS <event>",
+          "insert": "<events>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " lines. With no app events either, it prints the whole transcript in quotes."
+          "insert": ". With no app events either, it puts the whole transcript in "
+        },
+        {
+          "insert": "<said>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
         }
       ],
       "children": []
@@ -1009,7 +1048,7 @@
       },
       "text": [
         {
-          "insert": "Keyframe Lines"
+          "insert": "Moments"
         }
       ],
       "children": []
@@ -1020,7 +1059,34 @@
       "props": {},
       "text": [
         {
-          "insert": "A keyframe line starts with the keyframe number, which is the number in the corner chip of its image, and its time. A line takes one of these four forms:"
+          "insert": "Each keyframe is one "
+        },
+        {
+          "insert": "<moment>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Its "
+        },
+        {
+          "insert": "n",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the number in the corner chip of its image, and "
+        },
+        {
+          "insert": "t",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is its time. A moment holds these sections, each only when it has content:"
         }
       ],
       "children": []
@@ -1029,11 +1095,11 @@
       "id": "kf-template",
       "type": "code",
       "props": {
-        "language": "text"
+        "language": "xml"
       },
       "text": [
         {
-          "insert": "- #N (M:SS) ⟨<screen>⟩ “<words said>”\n- #N (M:SS) ⟨<screen>⟩ [<click>] “<words said>”\n- #N (M:SS) ⟨<screen>⟩ ⚑ “<words said>”\n- #N (M:SS) ⟨<screen>⟩ ⚑ <event>\n  · M:SS app: <label>\n  · M:SS <key> → <value>\n  · M:SS <key> cleared"
+          "insert": "<moment n=\"N\" t=\"M:SS\" screen=\"<screen>\">\n    <image>frames/frame-NN.png</image>\n    <action><what cut the keyframe></action>\n    <marks>\n        - M:SS <mark>\n    </marks>\n    <events>\n        - M:SS <event>\n    </events>\n    <said>\n        <words said>\n    </said>\n</moment>"
         }
       ],
       "children": []
@@ -1044,7 +1110,7 @@
       "props": {},
       "text": [
         {
-          "insert": "Each part of a keyframe line comes from the keyframe itself or from the screens, marks and events around it."
+          "insert": "Each section comes from the keyframe or from the screens, marks and events around it. No section gives coordinates, because a position is in full-capture space and the frames are often cropped."
         }
       ],
       "children": []
@@ -1055,7 +1121,7 @@
       "props": {},
       "text": [
         {
-          "insert": "Markers",
+          "insert": "Screen and Action",
           "attributes": {
             "bold": true
           }
@@ -1073,13 +1139,13 @@
       "props": {},
       "text": [
         {
-          "insert": "⟨<screen>⟩",
+          "insert": "screen",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " appears when the screen that the app named differs from the last screen the summary showed. ScrawlKit apps name their screens."
+          "insert": " appears when the screen that the app named differs from the last screen the paste showed. ScrawlKit apps name their screens."
         }
       ],
       "children": []
@@ -1090,13 +1156,49 @@
       "props": {},
       "text": [
         {
-          "insert": "⚑",
+          "insert": "<action>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " marks a keyframe cut on a flag, a marker of a moment with no ink."
+          "insert": " is what cut the keyframe, without its position, such as "
+        },
+        {
+          "insert": "clicked",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "tapped “Back”",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "flagged this moment",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "screen changed",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
         }
       ],
       "children": []
@@ -1107,31 +1209,16 @@
       "props": {},
       "text": [
         {
-          "insert": "[<click>]",
+          "insert": "A keyframe cut on an ink mark, on speech or at the start shows "
+        },
+        {
+          "insert": "<action>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " appears on a click keyframe that has words and no flag. It is the click's event text up to its coordinates, such as "
-        },
-        {
-          "insert": "[clicked]",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": " or "
-        },
-        {
-          "insert": "[tapped “Back”]",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": "."
+          "insert": " only when the moment has no marks, events or words."
         }
       ],
       "children": []
@@ -1142,7 +1229,7 @@
       "props": {},
       "text": [
         {
-          "insert": "Words and Events",
+          "insert": "Marks, Events and Words",
           "attributes": {
             "bold": true
           }
@@ -1150,7 +1237,9 @@
       ],
       "children": [
         "kf-b4",
-        "kf-b5"
+        "kf-b7",
+        "kf-b5",
+        "kf-b6"
       ]
     },
     "kf-b4": {
@@ -1159,49 +1248,42 @@
       "props": {},
       "text": [
         {
-          "insert": "“<words said>”",
+          "insert": "<marks>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " is the keyframe's "
+          "insert": " lists the ink marks that the keyframe draws, also when words were said over them. A flag is the moment's "
         },
         {
-          "insert": "said",
+          "insert": "<action>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": ". A keyframe without words shows its "
+          "insert": " instead."
+        }
+      ],
+      "children": []
+    },
+    "kf-b7": {
+      "id": "kf-b7",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "One ⇧-click can leave a tap, a pin and a partial mark. "
         },
         {
-          "insert": "event",
+          "insert": "paste_xml::mark_lines",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " instead, such as "
-        },
-        {
-          "insert": "scene changed",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": " or "
-        },
-        {
-          "insert": "tapped “Settings” (x 0.10, y 0.90)",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": "."
+          "insert": " shows them as one pin line when the tap or mark touches the pin within 1 second."
         }
       ],
       "children": []
@@ -1212,16 +1294,66 @@
       "props": {},
       "text": [
         {
-          "insert": "An indented "
-        },
-        {
-          "insert": "·",
+          "insert": "<events>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " line is an app event or a context change from the keyframe's time to the next keyframe. The last keyframe takes every later one, and the ones before the first keyframe go above it."
+          "insert": " holds the app events and context changes from the keyframe's time to the next keyframe. The first moment also takes the ones before it."
+        }
+      ],
+      "children": []
+    },
+    "kf-b6": {
+      "id": "kf-b6",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "<said>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds the keyframe's "
+        },
+        {
+          "insert": "said",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", wrapped at 96 columns. Every section escapes "
+        },
+        {
+          "insert": "&",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "<",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": ">",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
         }
       ],
       "children": []
@@ -1265,29 +1397,43 @@
       "props": {},
       "text": [
         {
-          "insert": "With Save app state on, "
+          "insert": "With Save app state on, clicks and marks name what they landed on, such as "
         },
         {
-          "insert": "agent_context::keyframe_texts",
+          "insert": "clicked button “Files”",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " in "
+          "insert": ". Each moment's "
         },
         {
-          "insert": "src/agent_context.rs",
+          "insert": "<events>",
           "attributes": {
-            "code": true,
-            "reference": {
-              "kind": "source",
-              "path": "src/agent_context.rs"
-            }
+            "code": true
           }
         },
         {
-          "insert": " writes the text of each keyframe. The words before the first mark or event stay on the keyframe line. Each mark, or each run of events with no words between them, starts an indented line that the next words follow:"
+          "insert": " also lists the clicks, keys and drags from "
+        },
+        {
+          "insert": "agent_context::events",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and the window changes of a Screen capture. The click that cut a click keyframe is left out, because it is that moment's "
+        },
+        {
+          "insert": "<action>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ":"
         }
       ],
       "children": []
@@ -1296,11 +1442,11 @@
       "id": "as-example",
       "type": "code",
       "props": {
-        "language": "text"
+        "language": "xml"
       },
       "text": [
         {
-          "insert": "- #1 (0:01)\n  · 0:00 pressed ⌘K “Look here.”\n- #2 (0:09) “This one is wrong.”\n  ✎① 0:10 circled button “Area”\n  ✎② 0:12 underlined (2 strokes) “and so is this label.”\n  · 0:15 clicked ×3"
+          "insert": "<moment n=\"2\" t=\"0:09\">\n    <image>frames/frame-02.png</image>\n    <marks>\n        - 0:10 circled button “Area”\n        - 0:12 underlined (2 strokes)\n    </marks>\n    <events>\n        - 0:13 pressed ⌘K\n        - 0:15 clicked ×3\n    </events>\n    <said>\n        This one is wrong, and so is this label.\n    </said>\n</moment>"
         }
       ],
       "children": []
@@ -1344,7 +1490,7 @@
       "props": {},
       "text": [
         {
-          "insert": "A Screen capture of Safari, with auto-crop, a circle and a click, gives a paste like this one. The words are made up, and the line shapes match real bundles."
+          "insert": "A Screen capture of Chrome, with auto-crop, two clicks and a ⇧-click pin, gives a paste like this one. The words are shortened, and the sections match a real bundle."
         }
       ],
       "children": []
@@ -1353,323 +1499,11 @@
       "id": "ex-code",
       "type": "code",
       "props": {
-        "language": "text"
-      },
-      "text": [
-        {
-          "insert": "[scrawl 0:41 · Safari “Settings” · /Users/you/Library/Application Support/scrawl/captures/scrawl-1795011535201-44db-3.scrawl]\nOpen contact-sheet.png and frames/ in that folder before changing anything: the marks and words only make sense on the images, which can show more than the text does.\nCropped to: Safari (full frames in frames-full/)\n- #1 (0:03) “This header is too tall.”\n- #2 (0:12) [clicked] “And this button does nothing.”\n- #3 (0:27) scene changed"
-        }
-      ],
-      "children": []
-    },
-    "h-xml": {
-      "id": "h-xml",
-      "type": "heading",
-      "props": {
-        "level": 3
-      },
-      "text": [
-        {
-          "insert": "XML Paste Experiment"
-        }
-      ],
-      "children": []
-    },
-    "xml-lead": {
-      "id": "xml-lead",
-      "type": "paragraph",
-      "props": {},
-      "text": [
-        {
-          "insert": "With the "
-        },
-        {
-          "insert": "xmlPaste",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": " experiment on, "
-        },
-        {
-          "insert": "summary_markdown_with",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": " returns "
-        },
-        {
-          "insert": "paste_xml::summary_xml",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": " instead of the lines above. The XML holds the same facts in nested sections, one "
-        },
-        {
-          "insert": "<moment>",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": " for each keyframe. "
-        },
-        {
-          "insert": "summary.md",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": ", the automatic copy and the paste shortcut all get the same text."
-        }
-      ],
-      "children": []
-    },
-    "xml-example": {
-      "id": "xml-example",
-      "type": "code",
-      "props": {
         "language": "xml"
       },
       "text": [
         {
           "insert": "<scrawl_capture id=\"scrawl-1795095712207-71a2-2\" duration=\"0:49\">\n    <instructions>\n        Start with contact-sheet.png: it is attached above when the capture was pasted with its\n        image, else it is in the bundle folder. It shows every moment on one image, numbered by\n        the white chip in its corner. Read it before you change anything: the marks and words\n        only make sense on the images. Open a moment's image for full size.\n    </instructions>\n\n    <source app=\"Google Chrome\" window=\"Knowledge System\" cropped_to=\"Google Chrome\"\n            uncropped=\"frames-full/\" />\n    <bundle path=\"/Users/you/Library/Application Support/scrawl/captures/scrawl-1795095712207-71a2-2.scrawl\" />\n\n    <moments count=\"3\">\n        <moment n=\"1\" t=\"0:09\">\n            <image>frames/frame-01.png</image>\n            <action>clicked</action>\n            <said>\n                Option three is the best, where we can see the pieces here.\n            </said>\n        </moment>\n        <moment n=\"2\" t=\"0:18\">\n            <image>frames/frame-02.png</image>\n            <marks>\n                - 0:18 pin 1, with ink drawn from it\n            </marks>\n            <said>\n                This text feels a little big on this page.\n            </said>\n        </moment>\n        <moment n=\"3\" t=\"0:20\">\n            <image>frames/frame-03.png</image>\n            <action>clicked</action>\n        </moment>\n    </moments>\n</scrawl_capture>"
-        }
-      ],
-      "children": []
-    },
-    "xml-rules-lead": {
-      "id": "xml-rules-lead",
-      "type": "paragraph",
-      "props": {},
-      "text": [
-        {
-          "insert": "The XML differs from the line format in what it writes about positions, marks and words:"
-        }
-      ],
-      "children": []
-    },
-    "g-xml-pos": {
-      "id": "g-xml-pos",
-      "type": "list-item",
-      "props": {},
-      "text": [
-        {
-          "insert": "Positions",
-          "attributes": {
-            "bold": true
-          }
-        }
-      ],
-      "children": [
-        "xml-pos-1",
-        "xml-pos-2"
-      ]
-    },
-    "xml-pos-1": {
-      "id": "xml-pos-1",
-      "type": "list-item",
-      "props": {},
-      "text": [
-        {
-          "insert": "The text has no coordinates, because a position is in full-capture space and the frames are often cropped."
-        }
-      ],
-      "children": []
-    },
-    "xml-pos-2": {
-      "id": "xml-pos-2",
-      "type": "list-item",
-      "props": {},
-      "text": [
-        {
-          "insert": "A click's "
-        },
-        {
-          "insert": "<action>",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": " is "
-        },
-        {
-          "insert": "clicked",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": ". With Save app state on, it also names the target, such as "
-        },
-        {
-          "insert": "clicked button “Files”",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": "."
-        }
-      ],
-      "children": []
-    },
-    "g-xml-marks": {
-      "id": "g-xml-marks",
-      "type": "list-item",
-      "props": {},
-      "text": [
-        {
-          "insert": "Marks",
-          "attributes": {
-            "bold": true
-          }
-        }
-      ],
-      "children": [
-        "xml-marks-1",
-        "xml-marks-2"
-      ]
-    },
-    "xml-marks-1": {
-      "id": "xml-marks-1",
-      "type": "list-item",
-      "props": {},
-      "text": [
-        {
-          "insert": "The ink marks that a keyframe draws each get a line in "
-        },
-        {
-          "insert": "<marks>",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": ", also when words were said over them. A flag is the moment's "
-        },
-        {
-          "insert": "<action>",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": " instead."
-        }
-      ],
-      "children": []
-    },
-    "xml-marks-2": {
-      "id": "xml-marks-2",
-      "type": "list-item",
-      "props": {},
-      "text": [
-        {
-          "insert": "One ⇧-click can leave a tap, a pin and a partial mark. "
-        },
-        {
-          "insert": "paste_xml::mark_lines",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": " shows them as one pin line when the tap or mark touches the pin within 1 second."
-        }
-      ],
-      "children": []
-    },
-    "g-xml-words": {
-      "id": "g-xml-words",
-      "type": "list-item",
-      "props": {},
-      "text": [
-        {
-          "insert": "Words and Events",
-          "attributes": {
-            "bold": true
-          }
-        }
-      ],
-      "children": [
-        "xml-words-1",
-        "xml-words-2"
-      ]
-    },
-    "xml-words-1": {
-      "id": "xml-words-1",
-      "type": "list-item",
-      "props": {},
-      "text": [
-        {
-          "insert": "<said>",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": " holds the keyframe's "
-        },
-        {
-          "insert": "said",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": " as Keyframes and Images assigns it, with "
-        },
-        {
-          "insert": "&",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": ", "
-        },
-        {
-          "insert": "<",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": " and "
-        },
-        {
-          "insert": ">",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": " escaped."
-        }
-      ],
-      "children": []
-    },
-    "xml-words-2": {
-      "id": "xml-words-2",
-      "type": "list-item",
-      "props": {},
-      "text": [
-        {
-          "insert": "<events>",
-          "attributes": {
-            "code": true
-          }
-        },
-        {
-          "insert": " holds app events and context changes. With Save app state on, it also holds clicks, keys, drags and window changes."
         }
       ],
       "children": []
@@ -1802,13 +1636,13 @@
                 "insert": "One "
               },
               {
-                "insert": "App shots:",
+                "insert": "<app_shots>",
                 "attributes": {
                   "code": true
                 }
               },
               {
-                "insert": " line"
+                "insert": " section"
               }
             ],
             [
@@ -2072,13 +1906,13 @@
           "insert": " and the "
         },
         {
-          "insert": "For session:",
+          "insert": "<destination>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " line into "
+          "insert": " section into "
         },
         {
           "insert": "summary.md",
