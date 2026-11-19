@@ -316,8 +316,8 @@ the window's app, bundle id, title, URL and a text outline of its Accessibility 
 per line (`button "Save" #save`). Shots go in the bundle's `appshots/` folder and stay after the
 video is cleaned.
 
-`summary.md` stays short. When a capture has shots it gets one line:
-`App shots: scrawl appshot <id> --frame N (N is the keyframe number)`.
+`summary.md` stays short. When a capture has shots it gets one section:
+`<app_shots command="scrawl appshot <id> --frame N" />`.
 
 ```sh
 scrawl appshot [BUNDLE] [--frame N] [--json]
@@ -387,8 +387,8 @@ Scrawl picks the session in this order:
 3. Otherwise the capture is copied to the clipboard only, as before.
 
 The destination is recorded in `scrawl.json` (`destination: {session, title, via: "sdk" |
-"localhost", url, directory}`) and on the second line of `summary.md`
-(`For session: SCRAWL (ses_…) · page http://localhost:5173/`). `scrawl send` without `--session`
+"localhost", url, directory}`) and in `summary.md`
+(`<destination session="ses_…" title="SCRAWL" page="http://localhost:5173/" />`). `scrawl send` without `--session`
 sends to it again, and refuses a different `--session` unless you pass `--reroute`.
 
 To see where a capture of a URL would go, without sending anything:
@@ -437,7 +437,7 @@ The bundle then has:
 - `frames/frame-XX.png` and `contact-sheet.png`: cropped from the full-resolution frames (Screen
   keyframes are decoded from the 2560 px wide recording), with the ink and keyframe numbers redrawn at the crop's scale;
 - `frames-full/frame-XX.png` and `contact-sheet-full.png`: the uncropped versions;
-- one line in `summary.md`, e.g. `Cropped to: Ghostty + Safari (full frames in frames-full/)`;
+- the crop on `<source>` in `summary.md`, e.g. `cropped_to="Ghostty + Safari" uncropped="frames-full/"`;
 - `autocrop` in `scrawl.json`: each keyframe's crop in points, its kind and reason, and the
   changed regions that fed it.
 
@@ -712,13 +712,33 @@ work. The timeline gets `shortVersion`, `context` (values at the start), `contex
 The bundle keeps them as `context`, `contextChanges`, and `screens` spans (`{t0, t1, name}`), and
 `summary.md` (and the prompt queued into OpenCode) shows them:
 
-```
-[scrawl 0:25 · iPhone · OpenCode 1.4 (354) · /…/20261014-101500.scrawl]
-Open contact-sheet.png and frames/ in that folder before changing anything: the marks and words only make sense on the images, which can show more than the text does.
-Screen: Sessions · server: studio · session: ses_3f…
-- #1 (0:01) “So here.”
-- #3 (0:08) ⟨Settings › Experimental⟩ [tapped “Back”] “Go back.”
-  · 0:09 server → mini
+```xml
+<source device="iPhone" app="OpenCode" version="1.4" build="354" screen="Sessions" />
+<bundle path="/…/20261014-101500.scrawl" />
+<context>
+    - server: studio
+    - session: ses_3f…
+</context>
+
+<moments count="4">
+    <moment n="1" t="0:01">
+        <image>frames/frame-01.png</image>
+        <said>
+            So here.
+        </said>
+    </moment>
+    <moment n="3" t="0:08" screen="Settings › Experimental">
+        <image>frames/frame-03.png</image>
+        <action>tapped “Back”</action>
+        <events>
+            - 0:09 server → mini
+        </events>
+        <said>
+            Go back.
+        </said>
+    </moment>
+    ...
+</moments>
 ```
 
 ### Headless ingest server (`scrawl serve`)

@@ -926,7 +926,9 @@ mod tests {
         record_destination(&dir, &mut bundle, old).unwrap();
         let summary = std::fs::read_to_string(dir.join("summary.md")).unwrap();
         assert!(
-            summary.contains("For session: APP (ses_app) · page http://localhost:5173/page\n"),
+            summary.contains(
+                "    <destination session=\"ses_app\" title=\"APP\" page=\"http://localhost:5173/page\" />\n"
+            ),
             "{summary}"
         );
         for file in ["summary.md", "scrawl.json"] {
@@ -1002,7 +1004,9 @@ mod tests {
         .unwrap();
         let summary = std::fs::read_to_string(dir.join("summary.md")).unwrap();
         assert!(
-            summary.contains("For session: APP (ses_app) · page http://localhost:4321/"),
+            summary.contains(
+                "    <destination session=\"ses_app\" title=\"APP\" page=\"http://localhost:4321/\" />\n"
+            ),
             "{summary}"
         );
         let (_, loaded) = crate::handoff::load_bundle(&dir).unwrap();

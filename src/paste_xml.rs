@@ -1,5 +1,5 @@
-//! The `xmlPaste` experiment's summary: the same facts as `sketch::summary_markdown_with`, in
-//! nested XML sections an agent and a person can scan. Each `<moment>` holds one keyframe: its
+//! The paste and `summary.md` (`sketch::summary_markdown_with`): nested XML sections an agent
+//! and a person can scan. Each `<moment>` holds one keyframe: its
 //! image, the action that cut it, the marks it draws and the words said over it. No coordinates:
 //! they are in full-capture space, and the frames are often cropped, so the images show where.
 
@@ -18,6 +18,9 @@ const PIN_JOIN_MS: u64 = 1_000;
 
 /// How close (normalized) a neighbour's box must come to a pin to be part of the same ⇧-click.
 const PIN_TOUCH: f32 = 0.01;
+
+/// How long before a click keyframe its click can be (`agent_context` used the same).
+const CLICK_ANCHOR_MS: u64 = 1_500;
 
 /// Text wraps at this many characters, indent included.
 const WIDTH: usize = 96;
@@ -159,6 +162,23 @@ fn moments(bundle: &ScrawlBundle, agent_context: bool) -> String {
     for (t, line) in event_lines(bundle, agent_context) {
         let i = frames.iter().rposition(|k| k.t <= t).unwrap_or(0);
         events[i].push((t, line));
+    }
+    // A click keyframe is cut just after its click, which is its <action>: that click's own event
+    // line (the last click up to `CLICK_ANCHOR_MS` before the keyframe) goes.
+    for (i, frame) in frames.iter().enumerate() {
+        if frame.reason != KeyframeReason::Click {
+            continue;
+        }
+        // Events before a keyframe sit with the moment before it (the first moment for #1).
+        let owner = i.saturating_sub(1);
+        let own = events[owner].iter().rposition(|(t, line)| {
+            *t <= frame.t
+                && *t + CLICK_ANCHOR_MS >= frame.t
+                && (line.starts_with("clicked") || line.starts_with("tapped"))
+        });
+        if let Some(own) = own {
+            events[owner].remove(own);
+        }
     }
     let mut out = format!("    <moments count=\"{}\">\n", frames.len());
     let mut shown_screen = bundle.screen_at(0);

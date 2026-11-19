@@ -403,8 +403,8 @@
       "id": "xml-paste",
       "group": "agent",
       "name": "XML paste",
-      "says": "The paste and summary.md as nested XML sections: one <moment> per keyframe with its image, action, marks, events and words.",
-      "status": "experiment:xmlPaste",
+      "says": "The paste and summary.md are nested XML sections: one <moment> per keyframe with its image, action, marks, events and words.",
+      "status": "main",
       "platforms": ["mac", "windows", "linux"],
       "added": "2026-11-19",
       "docs": ["docs/10-system-design/20-capture-bundle"]

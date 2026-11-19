@@ -719,233 +719,19 @@ pub(crate) fn context_value(raw: &str) -> String {
     }
 }
 
-/// Agents given only the text fix what was said and skip the pictures, missing what only shows there.
-pub const LOOK_AT_IMAGES: &str = "Open contact-sheet.png and frames/ in that folder before changing anything: the marks and words only make sense on the images, which can show more than the text does.";
-
 pub fn summary_markdown(bundle: &ScrawlBundle, bundle_dir: &std::path::Path) -> String {
     summary_markdown_with(bundle, bundle_dir, crate::handoff::app_state())
 }
 
-/// `agent_context` is whether app state is on (`handoff::app_state`, `agent_context::keyframe_texts`).
+/// The paste and `summary.md` (`paste_xml::summary_xml`). `agent_context` is whether app state
+/// is on (`handoff::app_state`): clicks and marks then name what they landed on, and each
+/// moment's events add clicks, keys, drags and windows.
 pub fn summary_markdown_with(
     bundle: &ScrawlBundle,
     bundle_dir: &std::path::Path,
     agent_context: bool,
 ) -> String {
-    if crate::handoff::experiment("xmlPaste") {
-        return crate::paste_xml::summary_xml(bundle, bundle_dir, agent_context);
-    }
-    let mut target = bundle
-        .target
-        .app
-        .clone()
-        .unwrap_or_else(|| "Display".into());
-    // The title goes through the privacy policy here too, for a bundle built before it did.
-    if let Some(title) = &bundle.target.window_title {
-        let title = crate::privacy::window_title(bundle.target.bundle_id.as_deref(), title);
-        if !title.is_empty() && Some(title.as_str()) != bundle.target.app.as_deref() {
-            target.push_str(&format!(" “{title}”"));
-        }
-    }
-    if let Some(device) = &bundle.device {
-        target = device.name.clone();
-        if let Some(app) = &device.app {
-            target.push_str(&format!(" · {app}"));
-            let short = device
-                .app_short_version
-                .as_deref()
-                .filter(|v| !v.is_empty());
-            let build = device.app_version.as_deref().filter(|v| !v.is_empty());
-            match (short, build) {
-                (Some(short), Some(build)) if short != build => {
-                    target.push_str(&format!(" {short} ({build})"));
-                }
-                (Some(short), _) => target.push_str(&format!(" {short}")),
-                (None, Some(build)) => target.push_str(&format!(" ({build})")),
-                (None, None) => {}
-            }
-        }
-    }
-    let mut out = format!(
-        "[scrawl {} · {target} · {}]\n",
-        format_clock(bundle.duration_ms),
-        bundle_dir.display()
-    );
-    if let Some(dest) = &bundle.destination {
-        let title = if dest.title.is_empty() {
-            &dest.session
-        } else {
-            &dest.title
-        };
-        out.push_str(&format!("For session: {title} ({})", dest.session));
-        if let Some(url) = &dest.url {
-            out.push_str(&format!(" · page {url}"));
-        }
-        out.push('\n');
-    }
-    if !bundle.keyframes.is_empty() {
-        out.push_str(LOOK_AT_IMAGES);
-        out.push('\n');
-    }
-    // The app state of a keyframe's window is one command away, never pasted.
-    if bundle.keyframes.iter().any(|k| k.appshot.is_some()) {
-        out.push_str(&format!(
-            "App shots: {} appshot {} --frame N (N is the keyframe number)\n",
-            crate::app_identity::Variant::current().command_name(),
-            bundle.id
-        ));
-    }
-    // The screen at the start and the app's own values, on one line.
-    let start_screen = bundle.screen_at(0);
-    let context: Vec<String> = start_screen
-        .map(|screen| format!("Screen: {}", context_value(screen)))
-        .into_iter()
-        .chain(
-            bundle
-                .context
-                .iter()
-                .map(|(key, value)| format!("{}: {}", context_value(key), context_value(value))),
-        )
-        .collect();
-    if !context.is_empty() {
-        out.push_str(&context.join(" · "));
-        out.push('\n');
-    }
-    if let Some(note) = &bundle.note
-        && !note.trim().is_empty()
-    {
-        out.push_str(&format!("Note: {}\n", note.trim()));
-    }
-    if let Some(crop) = &bundle.autocrop {
-        out.push_str(&format!(
-            "Cropped to: {} (full frames in {}/)\n",
-            crop.label, crop.full_frames
-        ));
-    }
-    if let Some(missing) = &bundle.transcript.missing
-        && bundle.transcript.text.trim().is_empty()
-    {
-        out.push_str(&format!("No transcript: {}\n", missing.reason));
-    }
-    // App events and context changes nest under the keyframe on screen when they happened.
-    let mut app_events: Vec<(u64, String)> = bundle
-        .events
-        .iter()
-        .filter_map(|event| match event {
-            InteractionEvent::AppEvent { t, label } => Some((*t, format!("app: {label}"))),
-            _ => None,
-        })
-        .collect();
-    app_events.extend(bundle.context_changes.iter().map(|change| {
-        let key = context_value(&change.key);
-        let text = match &change.value {
-            Some(value) => format!("{key} → {}", context_value(value)),
-            None => format!("{key} cleared"),
-        };
-        (change.t, text)
-    }));
-    app_events.sort_by_key(|(t, _)| *t);
-    if agent_context && !bundle.keyframes.is_empty() {
-        let texts = crate::agent_context::keyframe_texts(bundle);
-        let mut shown_screen = start_screen;
-        for (frame, text) in bundle.keyframes.iter().zip(texts) {
-            let screen = bundle.screen_at(frame.t);
-            let screen_marker = match screen {
-                Some(name) if screen != shown_screen => format!(" ⟨{}⟩", context_value(name)),
-                _ => String::new(),
-            };
-            shown_screen = screen;
-            let flag = frame
-                .mark_id
-                .as_ref()
-                .and_then(|id| bundle.marks.iter().find(|m| &m.id == id))
-                .is_some_and(|m| m.shape == Shape::Flag);
-            let flag_marker = if flag { " ⚑" } else { "" };
-            let head = if text.head.is_empty() {
-                String::new()
-            } else {
-                format!(" {}", text.head)
-            };
-            out.push_str(&format!(
-                "- #{} ({}){screen_marker}{flag_marker}{head}\n",
-                frame.index,
-                format_clock(frame.t)
-            ));
-            for line in text.lines {
-                out.push_str(&format!("  {line}\n"));
-            }
-        }
-    } else if !bundle.keyframes.is_empty() {
-        let first_t = bundle.keyframes[0].t;
-        for (t, label) in &app_events {
-            if *t < first_t {
-                out.push_str(&format!("  · {} {label}\n", format_clock(*t)));
-            }
-        }
-        let mut shown_screen = start_screen;
-        for (i, frame) in bundle.keyframes.iter().enumerate() {
-            let clock = format_clock(frame.t);
-            let screen = bundle.screen_at(frame.t);
-            let screen_marker = match screen {
-                Some(name) if screen != shown_screen => format!(" ⟨{}⟩", context_value(name)),
-                _ => String::new(),
-            };
-            shown_screen = screen;
-            let flag = frame
-                .mark_id
-                .as_ref()
-                .and_then(|id| bundle.marks.iter().find(|m| &m.id == id))
-                .is_some_and(|m| m.shape == Shape::Flag);
-            let flag_marker = if flag { " ⚑" } else { "" };
-            match frame
-                .said
-                .as_deref()
-                .map(str::trim)
-                .filter(|s| !s.is_empty())
-            {
-                Some(said) => {
-                    let action_marker = if flag {
-                        " ⚑".to_owned()
-                    } else if frame.reason == KeyframeReason::Click {
-                        let compact = frame
-                            .event
-                            .split(" (")
-                            .next()
-                            .unwrap_or(&frame.event)
-                            .trim();
-                        if compact.is_empty() {
-                            String::new()
-                        } else {
-                            format!(" [{compact}]")
-                        }
-                    } else {
-                        String::new()
-                    };
-                    out.push_str(&format!(
-                        "- #{} ({clock}){screen_marker}{action_marker} “{said}”\n",
-                        frame.index
-                    ));
-                }
-                None => out.push_str(&format!(
-                    "- #{} ({clock}){screen_marker}{flag_marker} {}\n",
-                    frame.index, frame.event
-                )),
-            }
-            let next = bundle.keyframes.get(i + 1).map_or(u64::MAX, |k| k.t);
-            for (t, label) in &app_events {
-                if (*t < next || i + 1 == bundle.keyframes.len()) && *t >= frame.t {
-                    out.push_str(&format!("  · {} {label}\n", format_clock(*t)));
-                }
-            }
-        }
-    } else if !app_events.is_empty() {
-        for (t, label) in &app_events {
-            out.push_str(&format!("· {} {label}\n", format_clock(*t)));
-        }
-    } else if !bundle.transcript.text.trim().is_empty() {
-        out.push_str(&format!("“{}”\n", bundle.transcript.text.trim()));
-    }
-    out
+    crate::paste_xml::summary_xml(bundle, bundle_dir, agent_context)
 }
 
 /// A ⇧-click pin's live entrance: a brief ring at the click, gone in this long. Its numbered
@@ -2118,13 +1904,13 @@ mod tests {
         let dir = std::path::Path::new("/recordings/scrawl-1794586221550-4f2a.scrawl");
         let command = crate::app_identity::Variant::current().command_name();
         let line = format!(
-            "App shots: {command} appshot scrawl-1794586221550-4f2a --frame N (N is the keyframe number)\n"
+            "    <app_shots command=\"{command} appshot scrawl-1794586221550-4f2a --frame N\" />\n"
         );
         for agent_context in [false, true] {
             let with = summary_markdown_with(&bundle(Some("shot-01.json")), dir, agent_context);
             assert_eq!(with.matches(&line).count(), 1, "{with}");
             assert!(
-                with.find(&line).unwrap() < with.find("- #1").unwrap(),
+                with.find(&line).unwrap() < with.find("<moments").unwrap(),
                 "the command comes before the keyframes: {with}"
             );
             // A capture without shots says nothing about them.
@@ -2153,17 +1939,14 @@ mod tests {
         let dir = std::path::Path::new("/recordings/test");
         let summary = summary_markdown(&bundle("com.apple.Safari"), dir);
         assert!(
-            summary.starts_with(
-                "[scrawl 0:14 · Safari “Fixture file:///f/appshot-secret.html” · /recordings/test]"
+            summary.contains(
+                "    <source app=\"Safari\" window=\"Fixture file:///f/appshot-secret.html\" />\n"
             ),
             "{summary}"
         );
         assert!(!summary.contains("SECRET-MARKER"), "{summary}");
         let vault = summary_markdown(&bundle("com.1password.1password"), dir);
-        assert!(
-            vault.starts_with("[scrawl 0:14 · Safari · /recordings/test]"),
-            "{vault}"
-        );
+        assert!(vault.contains("    <source app=\"Safari\" />\n"), "{vault}");
     }
 
     #[test]
@@ -2238,10 +2021,12 @@ mod tests {
         assert!(tl.contains("— frame #1"));
 
         let summary = summary_markdown(&bundle, std::path::Path::new("/recordings/test"));
-        assert!(summary.starts_with("[scrawl 0:14 · App “Window” · /recordings/test]"));
-        assert!(summary.contains("Note: Simplify it."));
-        assert!(summary.contains("- #1 (0:05) “This row is too dense.”"));
-        assert!(!summary.contains("No transcript"));
+        assert!(summary.starts_with("<scrawl_capture id=\"test\" duration=\"0:14\">\n"));
+        assert!(summary.contains("    <source app=\"App\" window=\"Window\" />\n"));
+        assert!(summary.contains("    <bundle path=\"/recordings/test\" />\n"));
+        assert!(summary.contains("    <note>\n        Simplify it.\n    </note>\n"));
+        assert!(summary.contains("            <said>\n                This row is too dense.\n"));
+        assert!(!summary.contains("no_transcript"));
 
         // Audio but no speech model yet: the summary says so instead of staying quiet.
         let mut silent = bundle.clone();
@@ -2251,8 +2036,12 @@ mod tests {
             ..Default::default()
         };
         let summary = summary_markdown(&silent, std::path::Path::new("/recordings/test"));
-        assert!(summary.contains("No transcript: "));
-        assert!(summary.contains("(en_US) was still downloading. The audio is saved"));
+        let flat = summary.split_whitespace().collect::<Vec<_>>().join(" ");
+        assert!(flat.contains("<no_transcript> "), "{summary}");
+        assert!(
+            flat.contains("(en_US) was still downloading. The audio is saved"),
+            "{summary}"
+        );
 
         // A phone bundle: device header, a flagged keyframe, and app events under the keyframe
         // that was on screen when they happened.
@@ -2306,17 +2095,38 @@ mod tests {
             },
         ];
         let summary = summary_markdown(&phone, std::path::Path::new("/recordings/phone"));
+        assert!(
+            summary.contains(
+                "    <source device=\"iPhone\" app=\"dev.example.App\" build=\"42\" />\n"
+            ),
+            "{summary}"
+        );
+        let moments = &summary[summary.find("    <moments").expect("moments")..];
         assert_eq!(
-            summary,
-            format!(
-                "[scrawl 0:14 · iPhone · dev.example.App (42) · /recordings/phone]\n\
-                 {LOOK_AT_IMAGES}\n\
-                 \x20 · 0:01 app: launched\n\
-                 - #1 (0:05) “This row is too dense.”\n\
-                 \x20 · 0:06 app: rest started\n\
-                 - #2 (0:09) ⚑ flagged this moment\n\
-                 \x20 · 0:09 app: Done tapped\n"
-            )
+            moments,
+            "    <moments count=\"2\">\n\
+             \x20       <moment n=\"1\" t=\"0:05\">\n\
+             \x20           <image>frames/frame-01.png</image>\n\
+             \x20           <marks>\n\
+             \x20               - 0:05 tapped\n\
+             \x20           </marks>\n\
+             \x20           <events>\n\
+             \x20               - 0:01 app: launched\n\
+             \x20               - 0:06 app: rest started\n\
+             \x20           </events>\n\
+             \x20           <said>\n\
+             \x20               This row is too dense.\n\
+             \x20           </said>\n\
+             \x20       </moment>\n\
+             \x20       <moment n=\"2\" t=\"0:09\">\n\
+             \x20           <image>frames/frame-02.png</image>\n\
+             \x20           <action>flagged this moment</action>\n\
+             \x20           <events>\n\
+             \x20               - 0:09 app: Done tapped\n\
+             \x20           </events>\n\
+             \x20       </moment>\n\
+             \x20   </moments>\n\
+             </scrawl_capture>\n"
         );
         assert!(
             timeline(&phone)
@@ -2350,7 +2160,12 @@ mod tests {
         });
         let summary_with_action =
             summary_markdown(&phone, std::path::Path::new("/recordings/phone"));
-        assert!(summary_with_action.contains("- #3 (0:11) [swiped up] “And then I scroll up.”"));
+        assert!(
+            summary_with_action.contains(
+                "            <action>swiped up</action>\n            <said>\n                And then I scroll up.\n"
+            ),
+            "{summary_with_action}"
+        );
     }
 
     #[test]
@@ -2431,18 +2246,48 @@ mod tests {
         }];
         let summary = summary_markdown(&bundle, std::path::Path::new("/recordings/phone"));
         let session = format!("ses_{}…", "x".repeat(55));
+        let head = format!(
+            "    <source device=\"iPhone\" app=\"OpenCode\" version=\"1.4\" build=\"354\" screen=\"Sessions\" />\n\
+             \x20   <bundle path=\"/recordings/phone\" />\n\
+             \x20   <context>\n\
+             \x20       - server: studio\n\
+             \x20       - session: {session}\n\
+             \x20   </context>\n"
+        );
+        assert!(summary.contains(&head), "{summary}");
+        let moments = &summary[summary.find("    <moments").expect("moments")..];
         assert_eq!(
-            summary,
-            format!(
-                "[scrawl 0:25 · iPhone · OpenCode 1.4 (354) · /recordings/phone]\n\
-                 {LOOK_AT_IMAGES}\n\
-                 Screen: Sessions · server: studio · session: {session}\n\
-                 - #1 (0:01) “So here.”\n\
-                 - #2 (0:03) tapped “Settings” (x 0.10, y 0.90)\n\
-                 - #3 (0:08) ⟨Settings › Experimental⟩ [tapped “Back”] “Go back.”\n\
-                 \x20 · 0:09 server → mini\n\
-                 - #4 (0:20) “Done.”\n"
-            )
+            moments,
+            "    <moments count=\"4\">\n\
+             \x20       <moment n=\"1\" t=\"0:01\">\n\
+             \x20           <image>frames/frame-01.png</image>\n\
+             \x20           <said>\n\
+             \x20               So here.\n\
+             \x20           </said>\n\
+             \x20       </moment>\n\
+             \x20       <moment n=\"2\" t=\"0:03\">\n\
+             \x20           <image>frames/frame-02.png</image>\n\
+             \x20           <action>tapped “Settings”</action>\n\
+             \x20       </moment>\n\
+             \x20       <moment n=\"3\" t=\"0:08\" screen=\"Settings › Experimental\">\n\
+             \x20           <image>frames/frame-03.png</image>\n\
+             \x20           <action>tapped “Back”</action>\n\
+             \x20           <events>\n\
+             \x20               - 0:09 server → mini\n\
+             \x20           </events>\n\
+             \x20           <said>\n\
+             \x20               Go back.\n\
+             \x20           </said>\n\
+             \x20       </moment>\n\
+             \x20       <moment n=\"4\" t=\"0:20\">\n\
+             \x20           <image>frames/frame-04.png</image>\n\
+             \x20           <action>screen changed</action>\n\
+             \x20           <said>\n\
+             \x20               Done.\n\
+             \x20           </said>\n\
+             \x20       </moment>\n\
+             \x20   </moments>\n\
+             </scrawl_capture>\n"
         );
 
         // No screens or values: header only; a build without a marketing version stays as before.
@@ -2451,8 +2296,10 @@ mod tests {
         bundle.context_changes.clear();
         bundle.device.as_mut().unwrap().app_short_version = None;
         let summary = summary_markdown(&bundle, std::path::Path::new("/recordings/phone"));
-        assert!(summary.starts_with(&format!(
-            "[scrawl 0:25 · iPhone · OpenCode (354) · /recordings/phone]\n{LOOK_AT_IMAGES}\n- #1 (0:01) “So here.”\n"
-        )));
+        assert!(
+            summary.contains("    <source device=\"iPhone\" app=\"OpenCode\" build=\"354\" />\n"),
+            "{summary}"
+        );
+        assert!(!summary.contains("<context>"), "{summary}");
     }
 }
