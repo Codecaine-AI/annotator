@@ -1,0 +1,1296 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-3563236f8afb38391eee13b9c0197cca",
+  "title": "Safety and Recovery",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "intro",
+        "rules-h",
+        "rules-p",
+        "rules-table",
+        "perm-h",
+        "perm-1",
+        "perm-2",
+        "vd-h",
+        "vd-p",
+        "vd-1",
+        "vd-2",
+        "vd-3",
+        "vd-4",
+        "sg-h",
+        "sg-p",
+        "sg-1a",
+        "sg-1b",
+        "sg-1c",
+        "au-h",
+        "au-p",
+        "au-1",
+        "au-2",
+        "au-3",
+        "hk-h",
+        "hk-p",
+        "hk-1",
+        "hk-2",
+        "rc-h",
+        "rc-p",
+        "rc-1",
+        "rc-2",
+        "rc-3",
+        "rc-4",
+        "rc-note"
+      ]
+    },
+    "intro": {
+      "id": "intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Tests of Annotator must not touch Kit's real grants, displays, speakers, or OpenCode sessions. This guide gives the safe way to test each of them and the steps to re-send a capture that did not arrive. Read it before you test permissions, displays, audio, or delivery."
+        }
+      ],
+      "children": []
+    },
+    "rules-h": {
+      "id": "rules-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Test Without Touching Kit's Macs"
+        }
+      ],
+      "children": []
+    },
+    "rules-p": {
+      "id": "rules-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Each row names an action that is never allowed and the safe action to use instead. The sections below the table give the details."
+        }
+      ],
+      "children": []
+    },
+    "rules-table": {
+      "id": "rules-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Area",
+          "Never",
+          "Instead"
+        ],
+        "rows": [
+          [
+            "Permissions",
+            [
+              {
+                "insert": "tccutil reset",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " on Kit's real grants"
+              }
+            ],
+            "Preview the permission panel"
+          ],
+          [
+            "Displays",
+            "Test more than one display on Kit's desk Mac",
+            [
+              {
+                "insert": "A "
+              },
+              {
+                "insert": "CGVirtualDisplay",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " from "
+              },
+              {
+                "insert": "scripts/virtual-display.swift",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Screen",
+            [
+              {
+                "insert": "caffeinate -d",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "caffeinate -u",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", or a real-screen capture on the Studio"
+              }
+            ],
+            "The MacBook Pro, a virtual display, or a macvm VM"
+          ],
+          [
+            "Audio",
+            [
+              {
+                "insert": "say",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "afplay",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", or speaker playback"
+              }
+            ],
+            "Recorded WAVs, a silent loopback device, or a macvm VM"
+          ],
+          [
+            "OpenCode",
+            "A test that posts to a real session",
+            [
+              {
+                "insert": "IngestHooks",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " and "
+              },
+              {
+                "insert": "routing::Hooks",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ]
+        ],
+        "title": "Safe test actions"
+      },
+      "children": []
+    },
+    "perm-h": {
+      "id": "perm-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Preview the Permission Panel"
+        }
+      ],
+      "children": []
+    },
+    "perm-1": {
+      "id": "perm-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Run "
+        },
+        {
+          "insert": "scrawl-helper permission-panel --permission screen-recording --preview",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to see the panel without a reset."
+        }
+      ],
+      "children": []
+    },
+    "perm-2": {
+      "id": "perm-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Onboarding and Settings",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/70-onboarding-and-settings"
+            }
+          }
+        },
+        {
+          "insert": " describes the panel and the grants it checks."
+        }
+      ],
+      "children": []
+    },
+    "vd-h": {
+      "id": "vd-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Add a Virtual Display"
+        }
+      ],
+      "children": []
+    },
+    "vd-p": {
+      "id": "vd-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scripts/virtual-display.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "scripts/virtual-display.swift"
+            }
+          }
+        },
+        {
+          "insert": " adds a temporary second display through the private CoreGraphics "
+        },
+        {
+          "insert": "CGVirtualDisplay",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The display lasts as long as the process."
+        }
+      ],
+      "children": []
+    },
+    "vd-1": {
+      "id": "vd-1",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Compile the script."
+        }
+      ],
+      "children": [
+        "vd-1c"
+      ]
+    },
+    "vd-1c": {
+      "id": "vd-1c",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "swiftc -O scripts/virtual-display.swift -o /tmp/virtual-display"
+        }
+      ],
+      "children": []
+    },
+    "vd-2": {
+      "id": "vd-2",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Start the display."
+        }
+      ],
+      "children": [
+        "vd-2c",
+        "vd-2a",
+        "vd-2b"
+      ]
+    },
+    "vd-2c": {
+      "id": "vd-2c",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "/tmp/virtual-display --width 1920 --height 1080 --scale 1 --place left"
+        }
+      ],
+      "children": []
+    },
+    "vd-2a": {
+      "id": "vd-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The size is in points, "
+        },
+        {
+          "insert": "--scale 2",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " makes it HiDPI, and "
+        },
+        {
+          "insert": "--place",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " takes "
+        },
+        {
+          "insert": "left",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "right",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or "
+        },
+        {
+          "insert": "above",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "vd-2b": {
+      "id": "vd-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Add "
+        },
+        {
+          "insert": "--seconds 600",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to end the display after 600 s."
+        }
+      ],
+      "children": []
+    },
+    "vd-3": {
+      "id": "vd-3",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Run the test on the display. The script prints the display id and its global bounds."
+        }
+      ],
+      "children": []
+    },
+    "vd-4": {
+      "id": "vd-4",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Stop the process with "
+        },
+        {
+          "insert": "SIGINT",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "SIGTERM",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or let "
+        },
+        {
+          "insert": "--seconds",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " run out. The display goes away when the process exits."
+        }
+      ],
+      "children": []
+    },
+    "sg-h": {
+      "id": "sg-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Keep the Displays Asleep"
+        }
+      ],
+      "children": []
+    },
+    "sg-p": {
+      "id": "sg-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Never wake or flash Kit's displays. Run real-screen recordings and benchmarks on the MacBook Pro under "
+        },
+        {
+          "insert": "/tmp/pro-gui.lock",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", on a virtual display, or in a macvm VM."
+        }
+      ],
+      "children": []
+    },
+    "sg-1a": {
+      "id": "sg-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "perf/screen-guard.sh",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "perf/screen-guard.sh"
+            }
+          }
+        },
+        {
+          "insert": " exits non-zero when the Mac's screen must not be used for a real-screen capture. It never wakes a display."
+        }
+      ],
+      "children": []
+    },
+    "sg-1b": {
+      "id": "sg-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "On a host whose local name contains "
+        },
+        {
+          "insert": "Studio",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", it refuses unless "
+        },
+        {
+          "insert": "SCRAWL_STUDIO_SCREEN_OK=1",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is set."
+        }
+      ],
+      "children": []
+    },
+    "sg-1c": {
+      "id": "sg-1c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "With that variable set, it still refuses when the Studio had no key or mouse event in the last 60 s."
+        }
+      ],
+      "children": []
+    },
+    "au-h": {
+      "id": "au-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Test Audio Without Speakers"
+        }
+      ],
+      "children": []
+    },
+    "au-p": {
+      "id": "au-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Never play audio out loud on Kit's Macs to test the microphone or transcription. Use one of these three sources instead."
+        }
+      ],
+      "children": []
+    },
+    "au-1": {
+      "id": "au-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Recorded WAVs",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "au-1a",
+        "au-1b",
+        "au-1c"
+      ]
+    },
+    "au-1a": {
+      "id": "au-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "scrawl reprocess <bundle> --out <new.scrawl> --bench 1 --live-speed 1",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " streams the bundle's "
+        },
+        {
+          "insert": "audio.wav",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " into a live transcription."
+        }
+      ],
+      "children": []
+    },
+    "au-1b": {
+      "id": "au-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--live-speed",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " needs "
+        },
+        {
+          "insert": "--bench",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and it plays the audio only for a Screen capture."
+        }
+      ],
+      "children": []
+    },
+    "au-1c": {
+      "id": "au-1c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The command writes a new bundle at "
+        },
+        {
+          "insert": "--out",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and leaves the original bundle unchanged."
+        }
+      ],
+      "children": []
+    },
+    "au-2": {
+      "id": "au-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A silent virtual loopback device",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "au-2a"
+      ]
+    },
+    "au-2a": {
+      "id": "au-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Remove the device after the test."
+        }
+      ],
+      "children": []
+    },
+    "au-3": {
+      "id": "au-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The Mac mini VMs",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "au-3a"
+      ]
+    },
+    "au-3a": {
+      "id": "au-3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Start one with "
+        },
+        {
+          "insert": "macvm",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "hk-h": {
+      "id": "hk-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Swap the Outside Steps in Tests"
+        }
+      ],
+      "children": []
+    },
+    "hk-p": {
+      "id": "hk-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A test never posts to a real OpenCode session. Two hook structs hold the steps that reach outside the process, and a test replaces them."
+        }
+      ],
+      "children": []
+    },
+    "hk-1": {
+      "id": "hk-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "IngestHooks",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/phone.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/phone.rs"
+            }
+          }
+        },
+        {
+          "insert": " covers a ScrawlKit ingest: "
+        },
+        {
+          "insert": "resolve",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " picks the session, "
+        },
+        {
+          "insert": "build",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " makes the bundle, and "
+        },
+        {
+          "insert": "forward",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " sends it."
+        }
+      ],
+      "children": []
+    },
+    "hk-2": {
+      "id": "hk-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "routing::Hooks",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/routing.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/routing.rs"
+            }
+          }
+        },
+        {
+          "insert": " covers dev-site routing: "
+        },
+        {
+          "insert": "sdk",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " looks up a registered tab, "
+        },
+        {
+          "insert": "listener_dir",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " finds the project behind a port, and "
+        },
+        {
+          "insert": "api",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " makes one OpenCode "
+        },
+        {
+          "insert": "GET",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rc-h": {
+      "id": "rc-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Recover a Delivery"
+        }
+      ],
+      "children": []
+    },
+    "rc-p": {
+      "id": "rc-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Re-send a capture only to the destination it recorded. "
+        },
+        {
+          "insert": "handoff::recorded_destination",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/handoff.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/handoff.rs"
+            }
+          }
+        },
+        {
+          "insert": " reads that destination, and "
+        },
+        {
+          "insert": "scrawl send",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " uses it. "
+        },
+        {
+          "insert": "Routing and Delivery",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/50-routing-and-delivery"
+            }
+          }
+        },
+        {
+          "insert": " describes how a capture picks its destination."
+        }
+      ],
+      "children": []
+    },
+    "rc-1": {
+      "id": "rc-1",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Read the recorded destination of the bundle."
+        }
+      ],
+      "children": [
+        "rc-1a",
+        "rc-1b",
+        "rc-1c"
+      ]
+    },
+    "rc-1a": {
+      "id": "rc-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "For an imported ScrawlKit capture, read the original "
+        },
+        {
+          "insert": "timeline.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Its top-level "
+        },
+        {
+          "insert": "session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the configured destination."
+        }
+      ],
+      "children": []
+    },
+    "rc-1b": {
+      "id": "rc-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "For a Mac capture of a dev site, read "
+        },
+        {
+          "insert": "destination.session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "recorded_destination",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads it when "
+        },
+        {
+          "insert": "timeline.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " has no "
+        },
+        {
+          "insert": "session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rc-1c": {
+      "id": "rc-1c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Never use "
+        },
+        {
+          "insert": "context.session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to choose "
+        },
+        {
+          "insert": "scrawl send --session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". It only names the session that was visible in the recorded app."
+        }
+      ],
+      "children": []
+    },
+    "rc-2": {
+      "id": "rc-2",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "If the bundle records no destination and the owning app is unclear, ask the user and stop."
+        }
+      ],
+      "children": [
+        "rc-2a"
+      ]
+    },
+    "rc-2a": {
+      "id": "rc-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Do not guess from the session on screen or from recent activity. Without a destination, "
+        },
+        {
+          "insert": "scrawl send",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " picks the most recent active session."
+        }
+      ],
+      "children": []
+    },
+    "rc-3": {
+      "id": "rc-3",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Check whether the destination session already received the capture."
+        }
+      ],
+      "children": []
+    },
+    "rc-4": {
+      "id": "rc-4",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Run "
+        },
+        {
+          "insert": "scrawl send <bundle>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " without "
+        },
+        {
+          "insert": "--session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The command sends the bundle to its recorded destination."
+        }
+      ],
+      "children": [
+        "rc-4a",
+        "rc-4b"
+      ]
+    },
+    "rc-4a": {
+      "id": "rc-4a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A "
+        },
+        {
+          "insert": "--session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that differs from the recorded destination fails with the error "
+        },
+        {
+          "insert": "This recording was addressed to <session>; pass --reroute",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "rc-4b": {
+      "id": "rc-4b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Ask the user before you pass "
+        },
+        {
+          "insert": "--reroute",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to override a recorded destination."
+        }
+      ],
+      "children": []
+    },
+    "rc-note": {
+      "id": "rc-note",
+      "type": "callout",
+      "props": {
+        "tone": "warning"
+      },
+      "text": [
+        {
+          "insert": "Do not change the endpoint or the recipient of a private project to make a recovery work."
+        }
+      ],
+      "children": []
+    }
+  }
+}

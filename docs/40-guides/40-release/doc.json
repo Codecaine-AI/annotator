@@ -1,0 +1,1316 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-13a9442f8c4b32ec102ea2f17e26552e",
+  "title": "Release",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "intro",
+        "fork",
+        "fork-p",
+        "steps-h",
+        "g1",
+        "s1",
+        "s2",
+        "g2",
+        "s3",
+        "s4",
+        "s5",
+        "g3",
+        "s6",
+        "s7",
+        "s8",
+        "s9",
+        "script-h",
+        "script-p",
+        "script-outline",
+        "sp-h",
+        "sp-p",
+        "sp-1",
+        "sp-2",
+        "ver-h",
+        "ver-p",
+        "v1",
+        "v2",
+        "v3",
+        "v4",
+        "v5"
+      ]
+    },
+    "intro": {
+      "id": "intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "This guide is upstream's release process for kitlangton/scrawl. A release is one notarized Mac build, a DMG and a Sparkle zip, plus one Windows zip, all from the same tagged commit. Every change lands on "
+        },
+        {
+          "insert": "main",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " through pull requests, the version bump and the appcast included."
+        }
+      ],
+      "children": []
+    },
+    "fork": {
+      "id": "fork",
+      "type": "callout",
+      "props": {
+        "title": "Upstream process only",
+        "tone": "warning"
+      },
+      "text": [
+        {
+          "insert": "Annotator does not publish releases, and the fork has no Sparkle, appcast, DMG, Homebrew cask or Windows zip. Do not run these steps from the fork."
+        }
+      ],
+      "children": []
+    },
+    "fork-p": {
+      "id": "fork-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Install Annotator from the repo with "
+        },
+        {
+          "insert": "./scripts/install-app.sh",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", as "
+        },
+        {
+          "insert": "Build, Test, and Install",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/10-build-test-and-install"
+            }
+          }
+        },
+        {
+          "insert": " shows. The steps below stay for reference and for changes sent upstream."
+        }
+      ],
+      "children": []
+    },
+    "steps-h": {
+      "id": "steps-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Release a Version"
+        }
+      ],
+      "children": []
+    },
+    "g1": {
+      "id": "g1",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Prepare the Build"
+        }
+      ],
+      "children": []
+    },
+    "s1": {
+      "id": "s1",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Open a "
+        },
+        {
+          "insert": "release/<version>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " pull request that bumps "
+        },
+        {
+          "insert": "version",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "Cargo.toml",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "Cargo.lock",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": [
+        "s1a",
+        "s1b"
+      ]
+    },
+    "s1a": {
+      "id": "s1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "In the same pull request, change every "
+        },
+        {
+          "insert": "\"status\": \"main\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "site/src/features.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to "
+        },
+        {
+          "insert": "\"stable@<version>\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "Experiments and Feature Map",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "30-implementation/20-experiments-and-feature-map"
+            }
+          }
+        },
+        {
+          "insert": " explains the statuses."
+        }
+      ],
+      "children": []
+    },
+    "s1b": {
+      "id": "s1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A push to a "
+        },
+        {
+          "insert": "release/**",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " branch dry-runs the Windows job in "
+        },
+        {
+          "insert": ".github/workflows/release-windows.yml",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": ".github/workflows/release-windows.yml"
+            }
+          }
+        },
+        {
+          "insert": ". The job also opens the welcome window on a fresh profile and keeps a screenshot."
+        }
+      ],
+      "children": []
+    },
+    "s2": {
+      "id": "s2",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "On the Studio, from that commit, build the Mac release:"
+        }
+      ],
+      "children": [
+        "s2c",
+        "s2a",
+        "s2b"
+      ]
+    },
+    "s2c": {
+      "id": "s2c",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "SCRAWL_BUILD_NUMBER=<n> \\\n  SCRAWL_SPARKLE_DIR=~/.local/share/scrawl-release/sparkle-2.9.4 \\\n  ./scripts/release-app.sh"
+        }
+      ],
+      "children": []
+    },
+    "s2a": {
+      "id": "s2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Add 1 to the build number every release. Sparkle compares the build number, not the version."
+        }
+      ],
+      "children": []
+    },
+    "s2b": {
+      "id": "s2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The script writes "
+        },
+        {
+          "insert": "dist/Scrawl-<version>-arm64.dmg",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "dist/Scrawl-<version>-arm64.zip",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Its own "
+        },
+        {
+          "insert": "dist/updates/appcast.xml",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is thrown away, and the appcast job on the Pro makes the published one."
+        }
+      ],
+      "children": []
+    },
+    "g2": {
+      "id": "g2",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Tag and Make the Appcast"
+        }
+      ],
+      "children": []
+    },
+    "s3": {
+      "id": "s3",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Merge the pull request and tag the merge commit "
+        },
+        {
+          "insert": "v<version>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": [
+        "s3a"
+      ]
+    },
+    "s3a": {
+      "id": "s3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Create the GitHub release with the DMG. The tag's Windows job attaches "
+        },
+        {
+          "insert": "Scrawl-<version>-windows-x64.zip",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "s4": {
+      "id": "s4",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "On the Pro over ssh, copy the Sparkle zip into "
+        },
+        {
+          "insert": "~/.local/share/scrawl-release/updates/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and start the appcast job:"
+        }
+      ],
+      "children": [
+        "s4c",
+        "s4a",
+        "s4b",
+        "s4d"
+      ]
+    },
+    "s4c": {
+      "id": "s4c",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "launchctl kickstart gui/$(id -u)/dev.kit.scrawl-appcast"
+        }
+      ],
+      "children": []
+    },
+    "s4a": {
+      "id": "s4a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The job is "
+        },
+        {
+          "insert": "~/Library/LaunchAgents/dev.kit.scrawl-appcast.plist",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which runs "
+        },
+        {
+          "insert": "~/.local/share/scrawl-release/appcast.sh",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Only a GUI-session job can read the ed25519 key from the login keychain."
+        }
+      ],
+      "children": []
+    },
+    "s4b": {
+      "id": "s4b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The job runs "
+        },
+        {
+          "insert": "generate_appcast",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " over the updates folder, which holds every earlier zip so it can make deltas. Its log, "
+        },
+        {
+          "insert": "~/.local/share/scrawl-release/appcast.log",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", ends with "
+        },
+        {
+          "insert": "exit=0",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "s4d": {
+      "id": "s4d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "For a dry run, run "
+        },
+        {
+          "insert": "appcast.sh <folder> <log>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " as a one-off launchd job on a copy of the folder."
+        }
+      ],
+      "children": []
+    },
+    "s5": {
+      "id": "s5",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Copy "
+        },
+        {
+          "insert": "updates/appcast.xml",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " into "
+        },
+        {
+          "insert": "site/public/appcast.xml",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in a pull request."
+        }
+      ],
+      "children": [
+        "s5a"
+      ]
+    },
+    "s5a": {
+      "id": "s5a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Check the new item's "
+        },
+        {
+          "insert": "edSignature",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " against the app's "
+        },
+        {
+          "insert": "SUPublicEDKey",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "g3": {
+      "id": "g3",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Deploy the Site and the Cask"
+        }
+      ],
+      "children": []
+    },
+    "s6": {
+      "id": "s6",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "In the Pro's checkout, where "
+        },
+        {
+          "insert": "wrangler",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is signed in, fast-forward to "
+        },
+        {
+          "insert": "main",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "s7": {
+      "id": "s7",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Copy the DMG, the Sparkle zip, the Windows zip and the new "
+        },
+        {
+          "insert": "Scrawl<n>-*.delta",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " files into "
+        },
+        {
+          "insert": "site/public/releases/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and also as "
+        },
+        {
+          "insert": "Scrawl-latest-*",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "s8": {
+      "id": "s8",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Build and deploy the site from "
+        },
+        {
+          "insert": "site/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": [
+        "s8c"
+      ]
+    },
+    "s8c": {
+      "id": "s8c",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "cd site && bun run build && bunx wrangler@latest deploy"
+        }
+      ],
+      "children": []
+    },
+    "s9": {
+      "id": "s9",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Open a pull request to "
+        },
+        {
+          "insert": "kitlangton/homebrew-tap",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that bumps "
+        },
+        {
+          "insert": "version",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "sha256",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "Casks/scrawl.rb",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "script-h": {
+      "id": "script-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "What "
+        },
+        {
+          "insert": "release-app.sh",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " Does"
+        }
+      ],
+      "children": []
+    },
+    "script-p": {
+      "id": "script-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "scripts/release-app.sh",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "scripts/release-app.sh"
+            }
+          }
+        },
+        {
+          "insert": " takes one mode argument, "
+        },
+        {
+          "insert": "prepare",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " by default or "
+        },
+        {
+          "insert": "publish",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "SCRAWL_VERSION",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " overrides the version from "
+        },
+        {
+          "insert": "Cargo.toml",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and "
+        },
+        {
+          "insert": "SCRAWL_RELEASE_BASE_URL",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " overrides "
+        },
+        {
+          "insert": "https://scrawl.kitlangton.com",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "script-outline": {
+      "id": "script-outline",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Release Build",
+            "steps": [
+              {
+                "text": "Prepare",
+                "steps": [
+                  {
+                    "text": "Run `scripts/setup-sparkle.sh` for the Sparkle folder"
+                  },
+                  {
+                    "text": "Run `cargo build --release -j 3 --offline`"
+                  },
+                  {
+                    "text": "Assemble `dist/Scrawl.app` with Sparkle.framework and `dev.kitlangton.scrawl`"
+                  }
+                ]
+              },
+              {
+                "text": "Sign",
+                "steps": [
+                  {
+                    "text": "If the Developer ID identity is in the keychain, sign with the hardened runtime"
+                  },
+                  {
+                    "text": "Otherwise sign ad hoc"
+                  }
+                ]
+              },
+              {
+                "text": "Package",
+                "steps": [
+                  {
+                    "text": "Create and sign the DMG"
+                  },
+                  {
+                    "text": "If signed and the notary key exists, notarize and staple"
+                  },
+                  {
+                    "text": "Otherwise warn that Gatekeeper blocks the download"
+                  },
+                  {
+                    "text": "Zip the app into `dist/` and `dist/updates/`"
+                  }
+                ]
+              },
+              {
+                "text": "If the Sparkle Key Is in the Keychain",
+                "steps": [
+                  {
+                    "text": "Run `generate_appcast` over `dist/updates/`"
+                  }
+                ]
+              },
+              {
+                "text": "If `site/public` Exists",
+                "steps": [
+                  {
+                    "text": "the appcast PR later replaces this copy with the appcast from the Pro",
+                    "kind": "note"
+                  },
+                  {
+                    "text": "Copy the DMG and zip into `site/public/releases/`"
+                  },
+                  {
+                    "text": "Copy the local appcast to `site/public/appcast.xml`"
+                  }
+                ]
+              },
+              {
+                "text": "If the Mode Is Publish",
+                "steps": [
+                  {
+                    "text": "Build and deploy the site"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "sp-h": {
+      "id": "sp-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Keep the Sparkle Tools Out of "
+        },
+        {
+          "insert": "target/",
+          "attributes": {
+            "code": true
+          }
+        }
+      ],
+      "children": []
+    },
+    "sp-p": {
+      "id": "sp-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Keep the Sparkle tools and the updates folder under "
+        },
+        {
+          "insert": "~/.local/share/scrawl-release/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", never in "
+        },
+        {
+          "insert": "target/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "/tmp",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". A clean or a reboot removes those folders, with the tools and every earlier zip."
+        }
+      ],
+      "children": []
+    },
+    "sp-1": {
+      "id": "sp-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "scripts/setup-sparkle.sh",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "scripts/setup-sparkle.sh"
+            }
+          }
+        },
+        {
+          "insert": " puts Sparkle 2.9.4 in "
+        },
+        {
+          "insert": "$SCRAWL_SPARKLE_DIR",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", or in "
+        },
+        {
+          "insert": "target/sparkle-2.9.4",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " when that is unset, and prints the folder."
+        }
+      ],
+      "children": []
+    },
+    "sp-2": {
+      "id": "sp-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It reuses a complete copy from "
+        },
+        {
+          "insert": "target/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " when one exists. Otherwise it downloads the archive and stops if the SHA-256 does not match."
+        }
+      ],
+      "children": []
+    },
+    "ver-h": {
+      "id": "ver-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Check After Deploying"
+        }
+      ],
+      "children": []
+    },
+    "ver-p": {
+      "id": "ver-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Tick each check against the live site after the deploy."
+        }
+      ],
+      "children": []
+    },
+    "v1": {
+      "id": "v1",
+      "type": "list-item",
+      "props": {
+        "checked": false,
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The live DMG, zips and newest delta match the release's SHA-256 values."
+        }
+      ],
+      "children": []
+    },
+    "v2": {
+      "id": "v2",
+      "type": "list-item",
+      "props": {
+        "checked": false,
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The live appcast's signature verifies."
+        }
+      ],
+      "children": []
+    },
+    "v3": {
+      "id": "v3",
+      "type": "list-item",
+      "props": {
+        "checked": false,
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "spctl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " accepts the downloaded DMG and the app in it."
+        }
+      ],
+      "children": []
+    },
+    "v4": {
+      "id": "v4",
+      "type": "list-item",
+      "props": {
+        "checked": false,
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The site shows the new version on the Mac and the Windows download buttons."
+        }
+      ],
+      "children": []
+    },
+    "v5": {
+      "id": "v5",
+      "type": "list-item",
+      "props": {
+        "checked": false,
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The Windows zip holds the files that "
+        },
+        {
+          "insert": "Windows",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/90-windows"
+            }
+          }
+        },
+        {
+          "insert": " lists."
+        }
+      ],
+      "children": [
+        "v5a",
+        "v5b",
+        "v5c"
+      ]
+    },
+    "v5a": {
+      "id": "v5a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It holds "
+        },
+        {
+          "insert": "scrawl.exe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "transcribe.dll",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "ggml.dll",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "ggml-base.dll",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", README and LICENSE."
+        }
+      ],
+      "children": []
+    },
+    "v5b": {
+      "id": "v5b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It holds nine "
+        },
+        {
+          "insert": "ggml-cpu-<tier>.dll",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " files, one each for x64, sse42, sandybridge, haswell, alderlake, skylakex, cannonlake, cascadelake and icelake."
+        }
+      ],
+      "children": []
+    },
+    "v5c": {
+      "id": "v5c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It holds the three Visual C++ runtime DLLs, "
+        },
+        {
+          "insert": "VCRUNTIME140.dll",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "VCRUNTIME140_1.dll",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "MSVCP140.dll",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    }
+  }
+}

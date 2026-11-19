@@ -7,8 +7,8 @@
 //! ended. At finish `Cuts` takes those spans out of every timeline (video, audio, candidate
 //! frames, clicks, ink, the window log), so they all lose the same milliseconds and stay in
 //! sync. A pause the recording is finished in has no end (`Span::OPEN`): each track stops in
-//! its own time after the Finish press, and is cut to wherever it ends. `docs/capture.md` says
-//! why.
+//! its own time after the Finish press, and is cut to wherever it ends.
+//! `docs/10-system-design/10-capture` says why.
 
 use crate::model::{InteractionEvent, RgbaFrame, Stroke};
 

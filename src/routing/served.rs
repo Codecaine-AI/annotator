@@ -1,6 +1,7 @@
 //! Pages a server on this Mac serves from outside its own project, such as a shared artifact
-//! gallery: which file the tab shows, and which session published it (`docs/routing.md`, "Pages
-//! from a file server"). The server's folder says nothing about who owns such a page.
+//! gallery: which file the tab shows, and which session published it
+//! (`docs/10-system-design/50-routing-and-delivery`, "Pages From a File Server"). The server's
+//! folder says nothing about who owns such a page.
 
 use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};

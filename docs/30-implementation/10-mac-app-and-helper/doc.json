@@ -1,0 +1,2507 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-91cbd200a0311f159602457eb4cccefb",
+  "title": "Mac App and Helper",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "intro",
+        "gov-h",
+        "gov-1",
+        "gov-2",
+        "layers-h",
+        "layers-p",
+        "layers-stack",
+        "roles-h",
+        "roles-p",
+        "roles-table",
+        "roles-note",
+        "helper-h",
+        "helper-p",
+        "helper-table",
+        "helper-run",
+        "helper-code",
+        "ipc-h",
+        "ipc-p",
+        "ipc-1",
+        "ipc-2",
+        "ipc-3",
+        "id-h",
+        "id-p",
+        "id-table",
+        "id-alias",
+        "dec-h",
+        "d1-h",
+        "d1-d",
+        "d1-w",
+        "d1-a",
+        "d2-h",
+        "d2-d",
+        "d2-w",
+        "d2-a",
+        "d3-h",
+        "d3-d",
+        "d3-w",
+        "d3-a",
+        "d4-h",
+        "d4-d",
+        "d4-w",
+        "d4-a"
+      ]
+    },
+    "intro": {
+      "id": "intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The Mac app is one Rust and GPUI binary, "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and one Swift executable, "
+        },
+        {
+          "insert": "scrawl-helper",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", that ships beside it in "
+        },
+        {
+          "insert": "Contents/MacOS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". The Rust binary is the menu-bar app, the review window and the command-line tool. The helper holds the Apple frameworks that Rust cannot reach. This page records how the two split the work, how they talk, and how one build knows which app it is, in "
+        },
+        {
+          "insert": "src/main.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/main.rs"
+            }
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "src/helper.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/helper.rs"
+            }
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "src/app_identity.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/app_identity.rs"
+            }
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "helper/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "gov-h": {
+      "id": "gov-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Governed By"
+        }
+      ],
+      "children": []
+    },
+    "gov-1": {
+      "id": "gov-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Capture and Recording",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/10-capture"
+            }
+          }
+        },
+        {
+          "insert": " sets what a Mac recording holds. The Rust side records it."
+        }
+      ],
+      "children": []
+    },
+    "gov-2": {
+      "id": "gov-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Transcription",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/35-transcription"
+            }
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "iPhone and ScrawlKit",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/60-iphone-and-scrawlkit"
+            }
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "Onboarding and Settings",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/70-onboarding-and-settings"
+            }
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "Export and Retention",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/80-export-and-retention"
+            }
+          }
+        },
+        {
+          "insert": " set the behavior that the helper runs."
+        }
+      ],
+      "children": []
+    },
+    "layers-h": {
+      "id": "layers-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Layers"
+        }
+      ],
+      "children": []
+    },
+    "layers-p": {
+      "id": "layers-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Three layers make up the Mac app. The Rust binary starts the helper as a child process, and the helper calls the Swift-only Apple frameworks. "
+        },
+        {
+          "insert": "build.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " builds the helper with "
+        },
+        {
+          "insert": "xcrun swiftc",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and the Rust side records the screen itself through the "
+        },
+        {
+          "insert": "screencapturekit",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " crate."
+        }
+      ],
+      "children": []
+    },
+    "layers-stack": {
+      "id": "layers-stack",
+      "type": "stack",
+      "props": {
+        "boundaries": [
+          {
+            "after": "scrawl",
+            "rule": "`scrawl` starts the helper only through `helper::path`. Arguments go in, JSON comes out on stdout, and long jobs take commands on stdin."
+          },
+          {
+            "after": "scrawl-helper",
+            "rule": "`src/onboarding.rs` and `src/settings.rs` decide what the helper's windows show, and send it to the helper as JSON lines on stdin."
+          }
+        ],
+        "nodes": [
+          {
+            "name": "scrawl",
+            "badge": "rust",
+            "detail": "src/main.rs · `ui::run_app` · `helper::path`",
+            "uses": "child process"
+          },
+          {
+            "name": "scrawl-helper",
+            "badge": "swift",
+            "detail": "helper/main.swift · one subcommand per job",
+            "uses": "Swift API"
+          },
+          {
+            "name": "Swift-only Apple frameworks",
+            "detail": "SpeechAnalyzer · CoreMediaIO and AVFoundation · SwiftUI · CoreAudio"
+          }
+        ]
+      },
+      "children": []
+    },
+    "roles-h": {
+      "id": "roles-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "One Binary, Three Roles"
+        }
+      ],
+      "children": []
+    },
+    "roles-p": {
+      "id": "roles-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " binary picks its role from the "
+        },
+        {
+          "insert": "clap",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " subcommand that "
+        },
+        {
+          "insert": "main",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " parses. The rows below are in the order that "
+        },
+        {
+          "insert": "main",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " checks them."
+        }
+      ],
+      "children": []
+    },
+    "roles-table": {
+      "id": "roles-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Role",
+          "Started by",
+          "What runs"
+        ],
+        "rows": [
+          [
+            "Menu-bar app",
+            [
+              {
+                "insert": "scrawl app",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", or macOS opening the app with no subcommand"
+              }
+            ],
+            [
+              {
+                "insert": "ui::run_app",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ": hotkeys, input tap, status item, ingest server, cleanup, recovery"
+              }
+            ]
+          ],
+          [
+            "Help text",
+            [
+              {
+                "insert": "scrawl",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " with no subcommand in a terminal"
+              }
+            ],
+            "Prints help, so a terminal never starts a second menu-bar app"
+          ],
+          [
+            "Review window",
+            [
+              {
+                "insert": "scrawl preview <bundle>",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "ui::run_app",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " with one bundle open in the GPUI review window"
+              }
+            ]
+          ],
+          [
+            "Command-line tool",
+            "Any other subcommand",
+            "That subcommand's job in the same process"
+          ]
+        ]
+      },
+      "children": []
+    },
+    "roles-note": {
+      "id": "roles-note",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The app bundle sets "
+        },
+        {
+          "insert": "LSUIElement",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", so the app has no Dock icon. "
+        },
+        {
+          "insert": "Command-Line Tool",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/20-command-line"
+            }
+          }
+        },
+        {
+          "insert": " lists every subcommand."
+        }
+      ],
+      "children": []
+    },
+    "helper-h": {
+      "id": "helper-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Helper Commands"
+        }
+      ],
+      "children": []
+    },
+    "helper-p": {
+      "id": "helper-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The helper has 19 subcommands, in the order that "
+        },
+        {
+          "insert": "helper/main.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "helper/main.swift"
+            }
+          }
+        },
+        {
+          "insert": " checks them. The Rust caller column names the code that starts each one."
+        }
+      ],
+      "children": []
+    },
+    "helper-table": {
+      "id": "helper-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Subcommand",
+          "What it does",
+          "Rust caller"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "devices",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Lists cabled iPhones and iPads from the USB registry",
+            [
+              {
+                "insert": "helper::devices",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "mirror",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Shows the live mirror window and records the native movie",
+            [
+              {
+                "insert": "src/phone.rs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "transcribe",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Transcribes a file with SpeechAnalyzer, with word timings",
+            [
+              {
+                "insert": "helper::transcribe",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "transcribe-stream",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Transcribes PCM from stdin while the capture records",
+            [
+              {
+                "insert": "src/live_transcribe.rs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "speech-model",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Reports or installs the speech model",
+            [
+              {
+                "insert": "helper::install_speech_model",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "frames",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Decodes movie frames at given times",
+            [
+              {
+                "insert": "helper::frames",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "audio",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Mixes every audio track to 16 kHz mono WAV",
+            [
+              {
+                "insert": "helper::export_audio",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "shrink",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Writes an HEVC copy on the same timeline",
+            [
+              {
+                "insert": "helper::shrink",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "cut",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Keeps only the given time ranges of a movie",
+            [
+              {
+                "insert": "helper::cut",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "export",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Encodes the shareable .mp4 from a plan file",
+            [
+              {
+                "insert": "src/export/mod.rs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "probe",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Prints a movie's duration and video size",
+            [
+              {
+                "insert": "helper::probe",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "permission-panel",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Shows the drag-to-allow card for a Privacy pane",
+            "None. The helper's own onboarding window starts it."
+          ],
+          [
+            [
+              {
+                "insert": "permissions",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Prints the grants from a fresh process",
+            [
+              {
+                "insert": "helper::permissions",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "sck-probe",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Tests a ScreenCaptureKit capture in the helper process",
+            "None. It is a diagnostic."
+          ],
+          [
+            [
+              {
+                "insert": "onboarding",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Shows the SwiftUI welcome window",
+            [
+              {
+                "insert": "src/onboarding.rs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "playback-volume",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Lowers and restores the output volume with CoreAudio",
+            [
+              {
+                "insert": "src/playback.rs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "settings",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Shows the SwiftUI Settings window",
+            [
+              {
+                "insert": "src/settings.rs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "play",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Plays a capture's video in the system player",
+            [
+              {
+                "insert": "helper::play",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            [
+              {
+                "insert": "qr",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Draws a QR code as text",
+            [
+              {
+                "insert": "helper::qr",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ]
+        ]
+      },
+      "children": []
+    },
+    "helper-run": {
+      "id": "helper-run",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "To test one piece by itself, run the helper from "
+        },
+        {
+          "insert": "target/debug/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " after a build. The "
+        },
+        {
+          "insert": "--preview",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " flag on "
+        },
+        {
+          "insert": "permission-panel",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " shows the card without polling for a grant."
+        }
+      ],
+      "children": []
+    },
+    "helper-code": {
+      "id": "helper-code",
+      "type": "code",
+      "props": {
+        "language": "sh"
+      },
+      "text": [
+        {
+          "insert": "target/debug/scrawl-helper devices\ntarget/debug/scrawl-helper permissions\ntarget/debug/scrawl-helper transcribe audio.wav\ntarget/debug/scrawl-helper frames recording.mov --out-dir /tmp/f --at 1000,2000 --max-edge 1600\ntarget/debug/scrawl-helper shrink recording.mov --out /tmp/small.mov --max-edge 1600\ntarget/debug/scrawl-helper export plan.json\ntarget/debug/scrawl-helper permission-panel --permission screen-recording --preview"
+        }
+      ],
+      "children": []
+    },
+    "ipc-h": {
+      "id": "ipc-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "How the App Talks to the Helper"
+        }
+      ],
+      "children": []
+    },
+    "ipc-p": {
+      "id": "ipc-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The app talks to the helper through the helper's arguments, stdin, stdout, stderr and exit code. Every timestamp in helper output is an integer number of milliseconds."
+        }
+      ],
+      "children": []
+    },
+    "ipc-1": {
+      "id": "ipc-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "One-shot jobs",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ipc-1a",
+        "ipc-1b",
+        "ipc-1c"
+      ]
+    },
+    "ipc-1a": {
+      "id": "ipc-1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "helper::run",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " starts the helper with stdin closed and parses one JSON value from stdout."
+        }
+      ],
+      "children": []
+    },
+    "ipc-1b": {
+      "id": "ipc-1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A failed job exits 1 and writes "
+        },
+        {
+          "insert": "scrawl-helper: <message>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " to stderr. The Rust caller returns that message as its error."
+        }
+      ],
+      "children": []
+    },
+    "ipc-1c": {
+      "id": "ipc-1c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Each one-shot call has a timeout, such as 5 s for "
+        },
+        {
+          "insert": "permissions",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "devices",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". At the timeout, "
+        },
+        {
+          "insert": "run_program",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " kills the child and returns a timeout error."
+        }
+      ],
+      "children": []
+    },
+    "ipc-2": {
+      "id": "ipc-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Long-running windows and streams",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "ipc-2a",
+        "ipc-2b",
+        "ipc-2c",
+        "ipc-2d"
+      ]
+    },
+    "ipc-2a": {
+      "id": "ipc-2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "mirror",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " takes "
+        },
+        {
+          "insert": "show",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "hide",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "start",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "stop",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "cancel",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " on stdin, and the end of input means stop. It writes events such as "
+        },
+        {
+          "insert": "recording",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "marker",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "finished",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " as JSON lines."
+        }
+      ],
+      "children": []
+    },
+    "ipc-2b": {
+      "id": "ipc-2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "transcribe-stream",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads 16 kHz mono 16-bit PCM on stdin and writes "
+        },
+        {
+          "insert": "ready",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", segment and "
+        },
+        {
+          "insert": "done",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " lines on stdout."
+        }
+      ],
+      "children": []
+    },
+    "ipc-2c": {
+      "id": "ipc-2c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "onboarding",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "settings",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " read "
+        },
+        {
+          "insert": "{\"type\":\"state\",…}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " lines on stdin and write button actions such as "
+        },
+        {
+          "insert": "{\"action\":\"continue\"}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " on stdout."
+        }
+      ],
+      "children": []
+    },
+    "ipc-2d": {
+      "id": "ipc-2d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "permission-panel",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " writes "
+        },
+        {
+          "insert": "docked",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "dropped",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", then "
+        },
+        {
+          "insert": "granted",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " or "
+        },
+        {
+          "insert": "cancelled",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with a "
+        },
+        {
+          "insert": "reason",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". It takes "
+        },
+        {
+          "insert": "cancel",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "back",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "granted",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " on stdin."
+        }
+      ],
+      "children": []
+    },
+    "ipc-3": {
+      "id": "ipc-3",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The "
+        },
+        {
+          "insert": "permission-panel",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " subcommand has two one-shot modes. "
+        },
+        {
+          "insert": "--check P",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints "
+        },
+        {
+          "insert": "{\"granted\":…}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " from a fresh process. "
+        },
+        {
+          "insert": "--plan --settings X,Y,W,H --visible X,Y,W,H",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " prints where the card docks, and "
+        },
+        {
+          "insert": "scripts/check-permission-panel-dock.sh",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "scripts/check-permission-panel-dock.sh"
+            }
+          }
+        },
+        {
+          "insert": " checks those cases."
+        }
+      ],
+      "children": []
+    },
+    "id-h": {
+      "id": "id-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "App Identity"
+        }
+      ],
+      "children": []
+    },
+    "id-p": {
+      "id": "id-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Variant::current",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reads the "
+        },
+        {
+          "insert": "CFBundleIdentifier",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of the "
+        },
+        {
+          "insert": ".app",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that holds the running executable, once per process. On macOS, only "
+        },
+        {
+          "insert": "ai.codecaine.annotator",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " gives "
+        },
+        {
+          "insert": "Live",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Annotator Dev.app, "
+        },
+        {
+          "insert": "target/debug/scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and every other path give "
+        },
+        {
+          "insert": "Dev",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Tests and builds for other platforms always get "
+        },
+        {
+          "insert": "Live",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "id-table": {
+      "id": "id-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Value",
+          "Live",
+          "Dev"
+        ],
+        "rows": [
+          [
+            "Bundle id",
+            [
+              {
+                "insert": "ai.codecaine.annotator",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "ai.codecaine.annotator.dev",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Config",
+            [
+              {
+                "insert": "~/.config/scrawl/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "~/.config/scrawl-dev/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Captures",
+            [
+              {
+                "insert": "~/Library/Application Support/scrawl/captures/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "~/Library/Application Support/scrawl-dev/captures/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Logs",
+            [
+              {
+                "insert": "~/Library/Logs/Scrawl/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "~/Library/Logs/Scrawl Dev/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Exports",
+            [
+              {
+                "insert": "~/Movies/Scrawl/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "~/Movies/Scrawl Dev/",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Command link",
+            [
+              {
+                "insert": "scrawl",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "scrawl-dev",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Ingest port",
+            [
+              {
+                "insert": "47777",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "47778",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ],
+          [
+            "Default shortcuts",
+            [
+              {
+                "insert": "⌥⇧S",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " and "
+              },
+              {
+                "insert": "⌥⇧V",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", with aliases"
+              }
+            ],
+            [
+              {
+                "insert": "⌃⌥S",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " and "
+              },
+              {
+                "insert": "⌃⌥V",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", no aliases"
+              }
+            ]
+          ]
+        ]
+      },
+      "children": []
+    },
+    "id-alias": {
+      "id": "id-alias",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The live default keys also register "
+        },
+        {
+          "insert": "⌃⌥⇧",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "⌘⌥⇧",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "⌃⌥⌘",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with the same letter. Dev uses "
+        },
+        {
+          "insert": "⌃⌥",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " because none of those aliases hold it. The "
+        },
+        {
+          "insert": "SCRAWL_CONFIG",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " environment variable overrides the config path for either variant."
+        }
+      ],
+      "children": []
+    },
+    "dec-h": {
+      "id": "dec-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Decisions"
+        }
+      ],
+      "children": []
+    },
+    "d1-h": {
+      "id": "d1-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Swift-Only Frameworks Live in the Helper"
+        }
+      ],
+      "children": []
+    },
+    "d1-d": {
+      "id": "d1-d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Decision",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d1-d1"
+      ]
+    },
+    "d1-d1": {
+      "id": "d1-d1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Code that needs a Swift-only Apple framework, or one that the objc2 bindings do not cover, goes in "
+        },
+        {
+          "insert": "helper/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " as a subcommand. Everything else stays in Rust."
+        }
+      ],
+      "children": []
+    },
+    "d1-w": {
+      "id": "d1-w",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Why",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d1-w1",
+        "d1-w2"
+      ]
+    },
+    "d1-w1": {
+      "id": "d1-w1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "SpeechAnalyzer, CoreMediaIO and AVFoundation iPhone capture, AVFoundation movie decoding and the SwiftUI windows have no Rust binding that the app uses."
+        }
+      ],
+      "children": []
+    },
+    "d1-w2": {
+      "id": "d1-w2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "ScreenCaptureKit has the "
+        },
+        {
+          "insert": "screencapturekit",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " crate, so "
+        },
+        {
+          "insert": "src/capture/macos.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/capture/macos.rs"
+            }
+          }
+        },
+        {
+          "insert": " records the Mac screen in Rust. The helper's "
+        },
+        {
+          "insert": "sck-probe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " only tests a grant."
+        }
+      ],
+      "children": []
+    },
+    "d1-a": {
+      "id": "d1-a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Applies to",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d1-a1"
+      ]
+    },
+    "d1-a1": {
+      "id": "d1-a1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "helper/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "src/helper.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", including every future helper subcommand."
+        }
+      ],
+      "children": []
+    },
+    "d2-h": {
+      "id": "d2-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "The Helper Is a Child Process"
+        }
+      ],
+      "children": []
+    },
+    "d2-d": {
+      "id": "d2-d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Decision",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d2-d1"
+      ]
+    },
+    "d2-d1": {
+      "id": "d2-d1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "build.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "build.rs"
+            }
+          }
+        },
+        {
+          "insert": " compiles every "
+        },
+        {
+          "insert": ".swift",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " file in "
+        },
+        {
+          "insert": "helper/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " into one separate executable. Rust starts it per job and never links it."
+        }
+      ],
+      "children": []
+    },
+    "d2-w": {
+      "id": "d2-w",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Why",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d2-w1",
+        "d2-w2",
+        "d2-w3"
+      ]
+    },
+    "d2-w1": {
+      "id": "d2-w1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A fresh process reads the current grants. "
+        },
+        {
+          "insert": "helper::permissions",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " uses one because a long-running process can miss a new Screen Recording grant."
+        }
+      ],
+      "children": []
+    },
+    "d2-w2": {
+      "id": "d2-w2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The helper embeds "
+        },
+        {
+          "insert": "helper/Info.plist",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in its "
+        },
+        {
+          "insert": "__TEXT,__info_plist",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " section, so it carries its own camera, microphone and speech usage strings."
+        }
+      ],
+      "children": []
+    },
+    "d2-w3": {
+      "id": "d2-w3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "build.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " targets macOS 15.0 and needs the macOS 26 SDK. A build fails when "
+        },
+        {
+          "insert": "xcrun swiftc",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " fails."
+        }
+      ],
+      "children": []
+    },
+    "d2-a": {
+      "id": "d2-a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Applies to",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d2-a1"
+      ]
+    },
+    "d2-a1": {
+      "id": "d2-a1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "build.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "helper/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and every Rust file that starts the helper."
+        }
+      ],
+      "children": []
+    },
+    "d3-h": {
+      "id": "d3-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Find the Helper Through Its Real Path"
+        }
+      ],
+      "children": []
+    },
+    "d3-d": {
+      "id": "d3-d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Decision",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d3-d1"
+      ]
+    },
+    "d3-d1": {
+      "id": "d3-d1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Every spawn gets the helper from "
+        },
+        {
+          "insert": "helper::path",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". It uses "
+        },
+        {
+          "insert": "SCRAWL_HELPER",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " when that is set, else "
+        },
+        {
+          "insert": "scrawl-helper",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " beside the canonical executable or one folder up from it."
+        }
+      ],
+      "children": []
+    },
+    "d3-w": {
+      "id": "d3-w",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Why",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d3-w1",
+        "d3-w2"
+      ]
+    },
+    "d3-w1": {
+      "id": "d3-w1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " link on PATH resolves to the app's own binary, so the helper it finds is the app's copy."
+        }
+      ],
+      "children": []
+    },
+    "d3-w2": {
+      "id": "d3-w2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Test binaries in "
+        },
+        {
+          "insert": "target/*/deps",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " find the helper one folder up, where "
+        },
+        {
+          "insert": "build.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " puts it."
+        }
+      ],
+      "children": []
+    },
+    "d3-a": {
+      "id": "d3-a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Applies to",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d3-a1"
+      ]
+    },
+    "d3-a1": {
+      "id": "d3-a1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "src/helper.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and each "
+        },
+        {
+          "insert": "Command::new",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that starts the helper, such as in "
+        },
+        {
+          "insert": "src/phone.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "src/settings.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "d4-h": {
+      "id": "d4-h",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "One Source for Per-App State"
+        }
+      ],
+      "children": []
+    },
+    "d4-d": {
+      "id": "d4-d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Decision",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d4-d1"
+      ]
+    },
+    "d4-d1": {
+      "id": "d4-d1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Every per-app path, port, shortcut and command name comes from "
+        },
+        {
+          "insert": "app_identity::Variant",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". New code takes these values from "
+        },
+        {
+          "insert": "Variant",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and never writes the live values itself."
+        }
+      ],
+      "children": []
+    },
+    "d4-w": {
+      "id": "d4-w",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Why",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d4-w1"
+      ]
+    },
+    "d4-w1": {
+      "id": "d4-w1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The live app and Annotator Dev.app must run at the same time. A development build must never read or write the live app's state."
+        }
+      ],
+      "children": []
+    },
+    "d4-a": {
+      "id": "d4-a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Applies to",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "d4-a1"
+      ]
+    },
+    "d4-a1": {
+      "id": "d4-a1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "src/app_identity.rs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and all code under "
+        },
+        {
+          "insert": "src/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " that names a config file, a captures folder, a log folder, a port or a shortcut."
+        }
+      ],
+      "children": []
+    }
+  }
+}

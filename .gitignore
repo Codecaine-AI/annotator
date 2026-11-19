@@ -6,3 +6,9 @@
 /.swiftpm
 /artifacts
 /*.scrawl
+
+# Docs System edit journals
+.changesets/
+
+# Docs System index cache
+.index/

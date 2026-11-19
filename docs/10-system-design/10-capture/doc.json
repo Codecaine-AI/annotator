@@ -1,0 +1,4519 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-fa38a4840264805f392fbc6d8171ff7e",
+  "title": "Capture and Recording",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "intro",
+        "h-start",
+        "p-start",
+        "t-press",
+        "p-start-rules",
+        "l-release",
+        "l-chips",
+        "l-switch",
+        "l-alias",
+        "h-picker",
+        "p-picker",
+        "t-picker",
+        "l-pick-1",
+        "l-pick-2",
+        "h-keys",
+        "p-keys",
+        "t-keys",
+        "p-keys-rules",
+        "l-k-match",
+        "l-k-cancel",
+        "l-k-change",
+        "p-keys-more",
+        "h-what",
+        "p-what",
+        "t-what",
+        "l-frames",
+        "l-size",
+        "l-prompts",
+        "l-sim",
+        "p-flow",
+        "po-flow",
+        "p-flow-after",
+        "h-ink",
+        "p-ink",
+        "t-ink",
+        "p-ink-more",
+        "p-ink-live-lead",
+        "l-live",
+        "l-overlay",
+        "l-drawkey",
+        "h-drawclicks",
+        "p-dc",
+        "p-dc2",
+        "t-dc",
+        "p-dc3",
+        "p-dc4",
+        "l-ontarget",
+        "l-latch",
+        "l-owner",
+        "l-outage",
+        "l-off",
+        "p-ink-test",
+        "l-harness-1",
+        "l-harness-2",
+        "l-harness-3",
+        "h-pause",
+        "p-pause",
+        "p-classify",
+        "t-classify",
+        "p-session",
+        "t-session",
+        "p-capsule",
+        "l-paused",
+        "l-pausein",
+        "img-capsule",
+        "img-capsule-keys",
+        "h-cut",
+        "p-cut",
+        "p-open",
+        "t-cut",
+        "p-cut-detail",
+        "l-movie",
+        "l-audio",
+        "l-cand",
+        "h-why",
+        "p-why",
+        "p-why2",
+        "h-live",
+        "p-live",
+        "l-wave",
+        "l-words",
+        "p-live-test",
+        "h-displays",
+        "p-displays",
+        "t-screens",
+        "p-one",
+        "t-onedisplay",
+        "p-follow-lead",
+        "l-follow",
+        "l-pillpos",
+        "callout-vd"
+      ]
+    },
+    "intro": {
+      "id": "intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A Mac capture runs from one press of the Record shortcut to a finished bundle. While it records, Annotator takes the screen video, the microphone, clicks, scrolls, keys, the draw-modifier ink and pins, and a log of the windows on screen. This page covers how a recording starts, what it records, how ink and pins work, how pause and resume cut time out, and how displays are handled. The files a capture leaves and the paste are on "
+        },
+        {
+          "insert": "Capture Bundle and Paste",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/20-capture-bundle"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-start": {
+      "id": "h-start",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Start and Finish a Recording"
+        }
+      ],
+      "children": []
+    },
+    "p-start": {
+      "id": "p-start",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "What a press of the Record shortcut (default "
+        },
+        {
+          "insert": "⌥⇧S",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") does depends on what Annotator is doing. "
+        },
+        {
+          "insert": "shortcut::Shortcut::press",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/shortcut.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/shortcut.rs"
+            }
+          }
+        },
+        {
+          "insert": " makes the choice, in the order of the rows below."
+        }
+      ],
+      "children": []
+    },
+    "t-press": {
+      "id": "t-press",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "State",
+          "Result"
+        ],
+        "rows": [
+          [
+            "Nothing records",
+            "Waits for the shortcut's modifiers to come up, then records the display under the pointer, auto-cropped"
+          ],
+          [
+            "The picker is open",
+            "Records what the picker is on"
+          ],
+          [
+            "Recording, under 400 ms since the start",
+            "Nothing, so a double press leaves no empty capture"
+          ],
+          [
+            "Recording, 400 ms or more",
+            "Finishes the recording"
+          ],
+          [
+            "Processing a capture",
+            "Nothing"
+          ]
+        ],
+        "title": "What a Record press does"
+      },
+      "children": []
+    },
+    "p-start-rules": {
+      "id": "p-start-rules",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Four rules shape a recording that a press starts, and the table above does not show them."
+        }
+      ],
+      "children": []
+    },
+    "l-release": {
+      "id": "l-release",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Release starts it",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-release-1",
+        "l-release-2",
+        "l-release-3"
+      ]
+    },
+    "l-release-1": {
+      "id": "l-release-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A press, however long it is held, records only when its modifiers come up, so nothing is captured while ⇧, the draw modifier, is still down."
+        }
+      ],
+      "children": []
+    },
+    "l-release-2": {
+      "id": "l-release-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "While a press waits, "
+        },
+        {
+          "insert": "ScrawlCoordinator::tick_shortcut",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " polls the modifier flags and takes the cancel key from the key tap, so the release counts whichever window has focus."
+        }
+      ],
+      "children": []
+    },
+    "l-release-3": {
+      "id": "l-release-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The cancel key before the release cancels the press. A recording started this way shows a brief red edge glow from the overlay as its start cue."
+        }
+      ],
+      "children": []
+    },
+    "l-chips": {
+      "id": "l-chips",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Switch chips",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-chips-1",
+        "l-chips-2",
+        "l-chips-3",
+        "l-chips-4"
+      ]
+    },
+    "l-chips-1": {
+      "id": "l-chips-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A recording started by a press opens the capsule onto the chips Area, Window, Screen, and iPhone when one is cabled ("
+        },
+        {
+          "insert": "shortcut::Reveal",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "l-chips-2": {
+      "id": "l-chips-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The chips fold after 3.5 s ("
+        },
+        {
+          "insert": "REVEAL_MS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), or at the first click, scroll or stroke once 0.9 s ("
+        },
+        {
+          "insert": "REVEAL_MIN_MS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") have passed."
+        }
+      ],
+      "children": []
+    },
+    "l-chips-3": {
+      "id": "l-chips-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "They never fold while the pointer is on the capsule, and they stay 1.2 s ("
+        },
+        {
+          "insert": "REVEAL_LINGER_MS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") after it leaves."
+        }
+      ],
+      "children": []
+    },
+    "l-chips-4": {
+      "id": "l-chips-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A pause folds them at once, so they never hide Resume."
+        }
+      ],
+      "children": []
+    },
+    "l-switch": {
+      "id": "l-switch",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A chip restarts the capture",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-switch-1",
+        "l-switch-2",
+        "l-switch-3"
+      ]
+    },
+    "l-switch-1": {
+      "id": "l-switch-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "In "
+        },
+        {
+          "insert": "ScrawlCoordinator::switch_recording",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", Screen only folds the chips and the recording goes on."
+        }
+      ],
+      "children": []
+    },
+    "l-switch-2": {
+      "id": "l-switch-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Window and Area discard the recording and its bundle, then morph the capsule into the picker on that mode."
+        }
+      ],
+      "children": []
+    },
+    "l-switch-3": {
+      "id": "l-switch-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "iPhone discards the recording and starts the cabled phone instead."
+        }
+      ],
+      "children": []
+    },
+    "l-alias": {
+      "id": "l-alias",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Aliases",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-alias-1",
+        "l-alias-2"
+      ]
+    },
+    "l-alias-1": {
+      "id": "l-alias-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "While Record keeps its default, the live app also registers "
+        },
+        {
+          "insert": "⌃⌥⇧S",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "⌘⌥⇧S",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "⌃⌥⌘S",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", on the active layout's S key and the ANSI one ("
+        },
+        {
+          "insert": "capture::hotkey_combos",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "l-alias-2": {
+      "id": "l-alias-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Annotator Dev.app defaults to "
+        },
+        {
+          "insert": "⌃⌥S",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "⌃⌥V",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " with no aliases, because its aliases would be the live app's keys."
+        }
+      ],
+      "children": []
+    },
+    "h-picker": {
+      "id": "h-picker",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Pick a Target"
+        }
+      ],
+      "children": []
+    },
+    "p-picker": {
+      "id": "p-picker",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The picker opens only from the menu's "
+        },
+        {
+          "insert": "Choose What to Record…",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": " item or from a switch chip. It opens on the pointer's display and on the mode used last, with the modes Area, Window, Screen, and iPhone when one is cabled. "
+        },
+        {
+          "insert": "ScrawlCoordinator::handle_selection_key",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " maps its keys as the table shows."
+        }
+      ],
+      "children": []
+    },
+    "t-picker": {
+      "id": "t-picker",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Key",
+          "Action"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "1",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " to "
+              },
+              {
+                "insert": "4",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Jumps to a mode"
+          ],
+          [
+            [
+              {
+                "insert": "Tab",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "→",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Steps to the next mode"
+          ],
+          [
+            [
+              {
+                "insert": "⇧Tab",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " or "
+              },
+              {
+                "insert": "←",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Steps to the previous mode"
+          ],
+          [
+            [
+              {
+                "insert": "Space",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Toggles Area and Window"
+          ],
+          [
+            [
+              {
+                "insert": "⏎",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", the shortcut's key, or the Record shortcut"
+              }
+            ],
+            "Records the full screen from Area, Window or Screen, and the phone from iPhone"
+          ],
+          [
+            "The cancel key",
+            "Closes the picker, also with ⌥⇧ still held"
+          ]
+        ],
+        "title": "Picker keys"
+      },
+      "children": []
+    },
+    "l-pick-1": {
+      "id": "l-pick-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "In Area you drag a region, and in Window you click a window. Clicking the selected mode again, or "
+        },
+        {
+          "insert": "Record",
+          "attributes": {
+            "bold": true
+          }
+        },
+        {
+          "insert": ", also starts the recording."
+        }
+      ],
+      "children": []
+    },
+    "l-pick-2": {
+      "id": "l-pick-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A held key's repeats never record, so a held S does not start a second capture."
+        }
+      ],
+      "children": []
+    },
+    "h-keys": {
+      "id": "h-keys",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Shortcuts"
+        }
+      ],
+      "children": []
+    },
+    "p-keys": {
+      "id": "p-keys",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Settings › Shortcuts has five rows, listed in "
+        },
+        {
+          "insert": "settings::Control::ALL",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " order. They are saved as "
+        },
+        {
+          "insert": "\"shortcuts\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "~/.config/scrawl/config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and a change works on the next key press."
+        }
+      ],
+      "children": []
+    },
+    "t-keys": {
+      "id": "t-keys",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Row",
+          "Default",
+          "What it takes",
+          "Matched by"
+        ],
+        "rows": [
+          [
+            "Record",
+            [
+              {
+                "insert": "⌥⇧S",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Any combination",
+            "Carbon hotkey"
+          ],
+          [
+            "Paste last capture",
+            [
+              {
+                "insert": "⌥⇧V",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Any combination, or off",
+            "Carbon hotkey"
+          ],
+          [
+            "Undo stroke",
+            [
+              {
+                "insert": "⌘Z",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Any combination, only while recording",
+            "Key tap"
+          ],
+          [
+            "Draw",
+            [
+              {
+                "insert": "⇧",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "One modifier: ⇧, ⌥, ⌃ or ⌘",
+            "Key tap and HID poller"
+          ],
+          [
+            "Cancel recording",
+            [
+              {
+                "insert": "Esc",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Esc or F1 to F12",
+            "Key tap"
+          ]
+        ],
+        "title": "Settings › Shortcuts rows"
+      },
+      "children": []
+    },
+    "p-keys-rules": {
+      "id": "p-keys-rules",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator matches the keys in two places and checks each new key before it saves it."
+        }
+      ],
+      "children": []
+    },
+    "l-k-match": {
+      "id": "l-k-match",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Undo, cancel and draw keys",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-k-match-1",
+        "l-k-match-2",
+        "l-k-match-3"
+      ]
+    },
+    "l-k-match-1": {
+      "id": "l-k-match-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "These three are matched only in the key tap and the HID poller, never through Carbon. On Windows the keyboard hook matches them, never "
+        },
+        {
+          "insert": "RegisterHotKey",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "l-k-match-2": {
+      "id": "l-k-match-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "They are swappable atomics on "
+        },
+        {
+          "insert": "SharedCaptureTelemetry",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "undo_combo",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "cancel_key",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "draw_mask",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), so a change in Settings works on the next press."
+        }
+      ],
+      "children": []
+    },
+    "l-k-match-3": {
+      "id": "l-k-match-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Carbon hotkeys and the key tap report a Record press through "
+        },
+        {
+          "insert": "emit_capture_shortcut",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", which drops a second report within 90 ms."
+        }
+      ],
+      "children": []
+    },
+    "l-k-cancel": {
+      "id": "l-k-cancel",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Cancel key",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-k-cancel-1",
+        "l-k-cancel-2",
+        "l-k-cancel-3",
+        "l-k-cancel-4"
+      ]
+    },
+    "l-k-cancel-1": {
+      "id": "l-k-cancel-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The key tap stamps each press as it arrives ("
+        },
+        {
+          "insert": "note_cancel",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") and ignores a held key's repeats. The UI loop takes the presses with their times ("
+        },
+        {
+          "insert": "take_cancel_presses",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), so two quick presses stay two when the loop is late."
+        }
+      ],
+      "children": []
+    },
+    "l-k-cancel-2": {
+      "id": "l-k-cancel-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It closes an open picker even when another app has the keys."
+        }
+      ],
+      "children": []
+    },
+    "l-k-cancel-3": {
+      "id": "l-k-cancel-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "During a recording it pauses, resumes or cancels, as Pause and Resume describes."
+        }
+      ],
+      "children": []
+    },
+    "l-k-cancel-4": {
+      "id": "l-k-cancel-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The Review window's Esc-to-close stays Esc."
+        }
+      ],
+      "children": []
+    },
+    "l-k-change": {
+      "id": "l-k-change",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Changing a row",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-k-change-1",
+        "l-k-change-2",
+        "l-k-change-3",
+        "l-k-change-4"
+      ]
+    },
+    "l-k-change-1": {
+      "id": "l-k-change-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Click a row's keys and press the new combination, or press Esc to cancel. The ↺ button puts the default back, and × or Delete turns Paste off."
+        }
+      ],
+      "children": []
+    },
+    "l-k-change-2": {
+      "id": "l-k-change-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Record and Paste need ⌘, ⌥ or ⌃, though a function key can stand alone. "
+        },
+        {
+          "insert": "settings::validate",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " turns down ⌘ with one key, combinations macOS uses, a key another row has, and a key another app holds."
+        }
+      ],
+      "children": []
+    },
+    "l-k-change-3": {
+      "id": "l-k-change-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A refused key names the row that has it, such as "
+        },
+        {
+          "insert": "⌥⇧S is already Record. Pick another key.",
+          "attributes": {
+            "code": true
+          }
+        }
+      ],
+      "children": []
+    },
+    "l-k-change-4": {
+      "id": "l-k-change-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "While the recorder listens for a new key, Annotator's own shortcuts are paused."
+        }
+      ],
+      "children": []
+    },
+    "p-keys-more": {
+      "id": "p-keys-more",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The Settings window and its other panes are on "
+        },
+        {
+          "insert": "Onboarding and Settings",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/70-onboarding-and-settings"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-what": {
+      "id": "h-what",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "What a Recording Records"
+        }
+      ],
+      "children": []
+    },
+    "p-what": {
+      "id": "p-what",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Every track runs on one capture clock that starts with the recording. The table lists each track in the order "
+        },
+        {
+          "insert": "ScrawlCoordinator::start_recording_with_target",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/ui.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/ui.rs"
+            }
+          }
+        },
+        {
+          "insert": " starts it."
+        }
+      ],
+      "children": []
+    },
+    "t-what": {
+      "id": "t-what",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Track",
+          "Recorder",
+          "What it keeps"
+        ],
+        "rows": [
+          [
+            "Audio",
+            [
+              {
+                "insert": "AudioRecorder",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The microphone, with its own start offset on the capture clock"
+          ],
+          [
+            "Screen video",
+            [
+              {
+                "insert": "ScreenCaptureSession",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "recording.mp4",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " and small candidate frames for keyframes"
+              }
+            ]
+          ],
+          [
+            "App shots",
+            [
+              {
+                "insert": "appshot::walker",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The window's text, only with app state on"
+          ],
+          [
+            "Window log",
+            [
+              {
+                "insert": "WindowLogger",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Window snapshots and cursor samples, for Screen and Area captures only"
+          ],
+          [
+            "Input events",
+            [
+              {
+                "insert": "SharedCaptureTelemetry",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Clicks, drags, scrolls, points, keys, app changes and app events"
+          ],
+          [
+            "Ink and pins",
+            [
+              {
+                "insert": "SharedCaptureTelemetry",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Strokes and numbered pins from the draw modifier"
+          ]
+        ],
+        "title": "Recorded tracks"
+      },
+      "children": []
+    },
+    "l-frames": {
+      "id": "l-frames",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Candidate frames",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-frames-1",
+        "l-frames-2",
+        "l-frames-3"
+      ]
+    },
+    "l-frames-1": {
+      "id": "l-frames-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The sampler keeps candidates of 480 px on the long edge ("
+        },
+        {
+          "insert": "CANDIDATE_EDGE",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") in a "
+        },
+        {
+          "insert": "CandidateBuffer",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " capped at 384 MB."
+        }
+      ],
+      "children": []
+    },
+    "l-frames-2": {
+      "id": "l-frames-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A full buffer thins evenly and halves its sampling rate. It never drops the first frame or a frame taken at a click or a stroke."
+        }
+      ],
+      "children": []
+    },
+    "l-frames-3": {
+      "id": "l-frames-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "At finish the chosen keyframes are decoded from "
+        },
+        {
+          "insert": "recording.mp4",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " at native size, shifted by "
+        },
+        {
+          "insert": "videoOffsetMs",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". If decoding fails, the candidates are used."
+        }
+      ],
+      "children": []
+    },
+    "l-size": {
+      "id": "l-size",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Native size is 2560 px for a Screen capture and 1280 px for Window or Area, never above the display's own scale. A 1x display 1920 pt wide records 1920 px."
+        }
+      ],
+      "children": []
+    },
+    "l-prompts": {
+      "id": "l-prompts",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "macOS prompts over a Screen or Area capture, such as UserNotificationCenter and SecurityAgent ("
+        },
+        {
+          "insert": "windows::system_prompts_over",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), are left out of the video when ScreenCaptureKit lists them. Frames that can show one are dropped ("
+        },
+        {
+          "insert": "CandidateBuffer::drop_since",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), and clicks on them are not recorded."
+        }
+      ],
+      "children": []
+    },
+    "l-sim": {
+      "id": "l-sim",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "scrawl capture-sim",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " drives the capture path headless for memory and timing checks."
+        }
+      ],
+      "children": []
+    },
+    "p-flow": {
+      "id": "p-flow",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The outline traces a press-started Screen capture from the press to the built bundle. Lines marked as trace steps write a line to the Annotator log."
+        }
+      ],
+      "children": []
+    },
+    "po-flow": {
+      "id": "po-flow",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Record a Mac Capture",
+            "steps": [
+              {
+                "text": "Wait for the Release",
+                "steps": [
+                  {
+                    "text": "Mark the press pending in `Shortcut::press`"
+                  },
+                  {
+                    "text": "Poll the modifiers in `tick_shortcut`"
+                  },
+                  {
+                    "text": "If the cancel key comes first",
+                    "steps": [
+                      {
+                        "text": "Cancel the press",
+                        "trace": true
+                      },
+                      {
+                        "text": "Stop"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "When the modifiers come up",
+                    "steps": [
+                      {
+                        "text": "Pick the display under the pointer with `discover_target`",
+                        "trace": true
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "Open the Target",
+                "steps": [
+                  {
+                    "text": "If the permissions are not ready",
+                    "steps": [
+                      {
+                        "text": "Cancel the recording"
+                      },
+                      {
+                        "text": "Stop"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "Create the `<id>.scrawl` folder in the captures folder",
+                    "trace": true
+                  },
+                  {
+                    "text": "Set the capture target on `SharedCaptureTelemetry`"
+                  },
+                  {
+                    "text": "Move the overlay to the target's display, or open one"
+                  }
+                ]
+              },
+              {
+                "text": "Start the Recorders",
+                "steps": [
+                  {
+                    "text": "Start `AudioRecorder`"
+                  },
+                  {
+                    "text": "Start `ScreenCaptureSession` into `recording.mp4`"
+                  },
+                  {
+                    "text": "If app state is on",
+                    "steps": [
+                      {
+                        "text": "Start the first app shot"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "If the target is a Screen or an Area",
+                    "steps": [
+                      {
+                        "text": "Start `WindowLogger`"
+                      }
+                    ]
+                  },
+                  {
+                    "text": "Show the recording capsule with the switch chips"
+                  }
+                ]
+              },
+              {
+                "text": "Record",
+                "steps": [
+                  {
+                    "text": "Collect clicks, scrolls, keys, ink and pins on `SharedCaptureTelemetry`"
+                  },
+                  {
+                    "text": "Note each pause in `pause::Session`"
+                  }
+                ]
+              },
+              {
+                "text": "Stop the Recorders",
+                "steps": [
+                  {
+                    "text": "Close the pauses into `pause::Cuts` with `Session::finish`"
+                  },
+                  {
+                    "text": "Cut the events and the strokes"
+                  },
+                  {
+                    "text": "Stop the screen, the window log and the audio on a background worker"
+                  },
+                  {
+                    "text": "If any pause happened",
+                    "steps": [
+                      {
+                        "text": "Cut the movie, the window log, the app shots and the audio"
+                      }
+                    ]
+                  }
+                ]
+              },
+              {
+                "text": "Build and Deliver",
+                "steps": [
+                  {
+                    "text": "Build the bundle with `finalize_capture_bundle`"
+                  },
+                  {
+                    "text": "Copy the bundle to the clipboard"
+                  },
+                  {
+                    "text": "Show the finished capsule",
+                    "trace": true
+                  },
+                  {
+                    "text": "Route the capture when a route applies"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "p-flow-after": {
+      "id": "p-flow-after",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Keyframes and the transcript are made inside the bundle build, on "
+        },
+        {
+          "insert": "Keyframes and Images",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/30-keyframes-and-images"
+            }
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "Transcription",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/35-transcription"
+            }
+          }
+        },
+        {
+          "insert": ". Routing is on "
+        },
+        {
+          "insert": "Routing and Delivery",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/50-routing-and-delivery"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-ink": {
+      "id": "h-ink",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Ink and Pins"
+        }
+      ],
+      "children": []
+    },
+    "p-ink": {
+      "id": "p-ink",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The draw modifier, ⇧ by default, turns pointer moves into red ink and clicks into numbered pins. "
+        },
+        {
+          "insert": "track_shift_ink",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "shift_down",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "shift_up",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/capture.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/capture.rs"
+            }
+          }
+        },
+        {
+          "insert": " record them. The 120 Hz "
+        },
+        {
+          "insert": "run_global_hid_poller",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/capture/macos.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/capture/macos.rs"
+            }
+          }
+        },
+        {
+          "insert": " reads the modifier flags, and the modifier counts only when it is down alone and not left over from a chord such as ⌥⇧S."
+        }
+      ],
+      "children": []
+    },
+    "t-ink": {
+      "id": "t-ink",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Gesture",
+          "Result"
+        ],
+        "rows": [
+          [
+            "Hold the modifier and move inside the target",
+            "One stroke, with or without a button down, kept on release when it spans 6 pt or more"
+          ],
+          [
+            "Click with the modifier already down",
+            "A pin, numbered 1, 2, 3 in drop order, when the press moves under 12 pt and comes up within 1 s"
+          ],
+          [
+            "Draw, then click in the same hold",
+            "A stroke that ends at the press, then its pin. Ink after the click starts a new stroke"
+          ],
+          [
+            "Click more places in the same hold",
+            "The next pin at each click, with the lines between the pins"
+          ],
+          [
+            "Press the modifier after the button is down, pointer still",
+            "Nothing"
+          ],
+          [
+            "Move on another display",
+            "Nothing, because a capture belongs to one display"
+          ]
+        ],
+        "title": "Draw gestures"
+      },
+      "children": []
+    },
+    "p-ink-more": {
+      "id": "p-ink-more",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The pin rule is "
+        },
+        {
+          "insert": "is_pin_click",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and the ink before a press is "
+        },
+        {
+          "insert": "ink_before",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". For pins alone, let go of the modifier between clicks."
+        }
+      ],
+      "children": []
+    },
+    "p-ink-live-lead": {
+      "id": "p-ink-live-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Ink and pins show live on the overlay but never in the video."
+        }
+      ],
+      "children": []
+    },
+    "l-live": {
+      "id": "l-live",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Live pins",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-live-1",
+        "l-live-2",
+        "l-live-3"
+      ]
+    },
+    "l-live-1": {
+      "id": "l-live-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A dropped pin pulses once for 350 ms ("
+        },
+        {
+          "insert": "sketch::pin_pulse",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "l-live-2": {
+      "id": "l-live-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It then shows as a red disc 22 pt across in a white ring with its number in white, whole for 2 s and fading over 0.5 s ("
+        },
+        {
+          "insert": "sketch::pin_badge",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "l-live-3": {
+      "id": "l-live-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The shader takes the numbers from a coverage texture made when the first pin drops ("
+        },
+        {
+          "insert": "pin_label_texture",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/laser_overlay.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/laser_overlay.rs"
+            }
+          }
+        },
+        {
+          "insert": "). The Windows overlay shows the pulse only."
+        }
+      ],
+      "children": []
+    },
+    "l-overlay": {
+      "id": "l-overlay",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Overlay and video",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-overlay-1",
+        "l-overlay-2",
+        "l-overlay-3",
+        "l-overlay-4"
+      ]
+    },
+    "l-overlay-1": {
+      "id": "l-overlay-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The overlay window is left out of the recording, so the video never shows ink or pins."
+        }
+      ],
+      "children": []
+    },
+    "l-overlay-2": {
+      "id": "l-overlay-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Keyframes, the contact sheet and exports draw them again from "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "l-overlay-3": {
+      "id": "l-overlay-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The draw modifier held alone shows a laser tip."
+        }
+      ],
+      "children": []
+    },
+    "l-overlay-4": {
+      "id": "l-overlay-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The Undo shortcut removes the last ink stroke."
+        }
+      ],
+      "children": []
+    },
+    "l-drawkey": {
+      "id": "l-drawkey",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Another draw key",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-drawkey-1",
+        "l-drawkey-2"
+      ]
+    },
+    "l-drawkey-1": {
+      "id": "l-drawkey-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Settings › Shortcuts can make the draw modifier ⌥, ⌃ or ⌘, saved as "
+        },
+        {
+          "insert": "\"shortcuts\": {\"draw\": …}",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and every rule on this page then holds for that key."
+        }
+      ],
+      "children": []
+    },
+    "l-drawkey-2": {
+      "id": "l-drawkey-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "When the modifier comes down with another one ("
+        },
+        {
+          "insert": "draw_in_chord",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), ink waits until the modifier is let go."
+        }
+      ],
+      "children": []
+    },
+    "h-drawclicks": {
+      "id": "h-drawclicks",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Draw Clicks"
+        }
+      ],
+      "children": []
+    },
+    "p-dc": {
+      "id": "p-dc",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The key tap keeps one kind of press from the app: a left press that starts with the draw modifier alone, inside the target, while the recording takes input. That press drops its pin or draws its ink, and the app under the pointer never gets its click, its drags or its release. Every other key and click reaches the app, and presses Annotator posts itself always pass."
+        }
+      ],
+      "children": []
+    },
+    "p-dc2": {
+      "id": "p-dc2",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The key tap ("
+        },
+        {
+          "insert": "spawn_key_tap",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", an active tap on the Accessibility grant) takes left mouse down, dragged and up ("
+        },
+        {
+          "insert": "left_button_kept",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") and modifier changes. "
+        },
+        {
+          "insert": "blocks_draw_press",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " keeps a press only when every condition in the table holds, checked in this order."
+        }
+      ],
+      "children": []
+    },
+    "t-dc": {
+      "id": "t-dc",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Condition",
+          "Where it comes from"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "blockDrawClicks",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " is on"
+              }
+            ],
+            "Read from `config.json` when the recording starts, on by default"
+          ],
+          [
+            "The recording takes input",
+            "Off while paused or finished"
+          ],
+          [
+            "The draw modifier alone is held",
+            "The draw latch says it is not left over from a chord"
+          ],
+          [
+            "The press is inside the target's rectangle",
+            "The target's lock"
+          ],
+          [
+            "The press lands on what is recorded",
+            "The window list, read last (`press_misses_target`)"
+          ]
+        ],
+        "title": "Conditions for a kept press"
+      },
+      "children": []
+    },
+    "p-dc3": {
+      "id": "p-dc3",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Every left press on the Mac passes the tap, so the cheap checks come first. Until the setting, the recording and the modifiers say a press can be a draw-press, the tap only reads two system press counters. When in doubt a press passes, because a missed pin costs a click and a press kept by mistake costs the app its click."
+        }
+      ],
+      "children": []
+    },
+    "p-dc4": {
+      "id": "p-dc4",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A kept press starts as "
+        },
+        {
+          "insert": "shift_down",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " would, its drags are kept, and its release ends it as "
+        },
+        {
+          "insert": "shift_up",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " would. A pause or a finish during a kept press drops the press but keeps the rest of it from the app until the button comes up. Five rules keep that judgment right."
+        }
+      ],
+      "children": []
+    },
+    "l-ontarget": {
+      "id": "l-ontarget",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "On the target",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-ontarget-1",
+        "l-ontarget-2",
+        "l-ontarget-3",
+        "l-ontarget-4",
+        "l-ontarget-5"
+      ]
+    },
+    "l-ontarget-1": {
+      "id": "l-ontarget-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The tap reads the window list for each press it judges and reuses no answer. The read costs the tap thread a median 0.4 ms, and 48.6 ms at most over 21 windows."
+        }
+      ],
+      "children": []
+    },
+    "l-ontarget-2": {
+      "id": "l-ontarget-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A press on one of Annotator's own windows, such as the capsule, goes to it. A press on a macOS prompt ("
+        },
+        {
+          "insert": "windows::system_prompt_at",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") answers macOS."
+        }
+      ],
+      "children": []
+    },
+    "l-ontarget-3": {
+      "id": "l-ontarget-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "In a Window or iPhone capture a press passes unless it goes to that window ("
+        },
+        {
+          "insert": "windows::press_goes_to",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "): the window by its id, or the iPhone mirror by its process."
+        }
+      ],
+      "children": []
+    },
+    "l-ontarget-4": {
+      "id": "l-ontarget-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "When another window is in front, the tap asks the window server which window takes the press ("
+        },
+        {
+          "insert": "window_taking_press",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), and no answer passes. A minimized window or one on another Space keeps nothing."
+        }
+      ],
+      "children": []
+    },
+    "l-ontarget-5": {
+      "id": "l-ontarget-5",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The mouse monitor keeps its own answer for 250 ms at one point ("
+        },
+        {
+          "insert": "on_scrawl_window",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") to decide what is recorded, and the tap never reads it. A press the tap lets through drops no pin."
+        }
+      ],
+      "children": []
+    },
+    "l-latch": {
+      "id": "l-latch",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "One latch",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-latch-1",
+        "l-latch-2",
+        "l-latch-3",
+        "l-latch-4"
+      ]
+    },
+    "l-latch-1": {
+      "id": "l-latch-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "\"Left over from a chord\" is one latch ("
+        },
+        {
+          "insert": "draw_latch",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") that ink, pins and kept presses all read. So ⌘⇧ with ⌘ let go neither draws, drops a pin nor is kept."
+        }
+      ],
+      "children": []
+    },
+    "l-latch-2": {
+      "id": "l-latch-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The tap counts each modifier change in key order ("
+        },
+        {
+          "insert": "note_tap_modifiers",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). The poller marks the latch first ("
+        },
+        {
+          "insert": "draw_latch_mark",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") and counts its sample only if the tap saw no change since ("
+        },
+        {
+          "insert": "note_polled_modifiers",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "l-latch-3": {
+      "id": "l-latch-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "While the tap is on, a poller sample can set the latch but never clear it. Only the tap's own event that the draw modifier is up clears it."
+        }
+      ],
+      "children": []
+    },
+    "l-latch-4": {
+      "id": "l-latch-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A change the tap never sees, such as under Secure Input, leaves the latch on until the tap sees the draw modifier let go. Without a tap every poller sample counts."
+        }
+      ],
+      "children": []
+    },
+    "l-owner": {
+      "id": "l-owner",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "One owner",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-owner-1",
+        "l-owner-2",
+        "l-owner-3",
+        "l-owner-4"
+      ]
+    },
+    "l-owner-1": {
+      "id": "l-owner-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "One party starts and ends a draw-press: the key tap, or the mouse monitor with the polled buttons."
+        }
+      ],
+      "children": []
+    },
+    "l-owner-2": {
+      "id": "l-owner-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The tap owns draw-presses ("
+        },
+        {
+          "insert": "tap_owns_draw_presses",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") from before it is made or enabled until after it is off. "
+        },
+        {
+          "insert": "tap_presses_on",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "tap_presses_off",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " switch that under one lock."
+        }
+      ],
+      "children": []
+    },
+    "l-owner-3": {
+      "id": "l-owner-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Every place that enables the tap goes through "
+        },
+        {
+          "insert": "enable_key_tap",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", the poller's look every 500 ms included."
+        }
+      ],
+      "children": []
+    },
+    "l-owner-4": {
+      "id": "l-owner-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The others ask for the owner under the press lock ("
+        },
+        {
+          "insert": "start_press",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), so their late press starts nothing. Only the party that started a press ends it, so a click is one pin."
+        }
+      ],
+      "children": []
+    },
+    "l-outage": {
+      "id": "l-outage",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Tap outages",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-outage-1",
+        "l-outage-2",
+        "l-outage-3",
+        "l-outage-4",
+        "l-outage-5"
+      ]
+    },
+    "l-outage-1": {
+      "id": "l-outage-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "When the tap stops or is made again, a kept press is forgotten ("
+        },
+        {
+          "insert": "forget_press",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") with its waiting pin, and its drags and release pass."
+        }
+      ],
+      "children": []
+    },
+    "l-outage-2": {
+      "id": "l-outage-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "While macOS has the tap disabled, a draw-press reaches the app and drops no pin. "
+        },
+        {
+          "insert": "recover_tap",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " brings it back in one step under the enable lock, with a "
+        },
+        {
+          "insert": "TapOff",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " reason."
+        }
+      ],
+      "children": []
+    },
+    "l-outage-3": {
+      "id": "l-outage-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Only a timeout forgets, and only a kept press that is the last event the tap took. A tap macOS turned off for the user, such as for Secure Input, forgets nothing."
+        }
+      ],
+      "children": []
+    },
+    "l-outage-4": {
+      "id": "l-outage-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "If a release and a new press went by while the tap was off, the system's left-press count ("
+        },
+        {
+          "insert": "CGEventSourceCounterForEventType",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") has moved on. "
+        },
+        {
+          "insert": "check_kept_press",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " then forgets the kept press."
+        }
+      ],
+      "children": []
+    },
+    "l-outage-5": {
+      "id": "l-outage-5",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The poller treats a tap as timed out only when it is still off at its next 500 ms look with no notice between. Each tap starts with no such look counted ("
+        },
+        {
+          "insert": "tap_made",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "l-off": {
+      "id": "l-off",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Off",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-off-1",
+        "l-off-2"
+      ]
+    },
+    "l-off-1": {
+      "id": "l-off-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Without Accessibility there is no key tap, and every press reaches the app."
+        }
+      ],
+      "children": []
+    },
+    "l-off-2": {
+      "id": "l-off-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "\"blockDrawClicks\": false",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "config.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " lets every press through. Windows always passes every press ("
+        },
+        {
+          "insert": "CallNextHookEx",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "p-ink-test": {
+      "id": "p-ink-test",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "cargo test shift_click",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "cargo test pin",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "cargo test kept",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " cover the rules, the timing and the pixels. "
+        },
+        {
+          "insert": "scripts/shift-ink-harness.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "scripts/shift-ink-harness.swift"
+            }
+          }
+        },
+        {
+          "insert": " proves them end to end in Annotator Dev.app, and it moves the real pointer for about 5 s a run."
+        }
+      ],
+      "children": []
+    },
+    "l-harness-1": {
+      "id": "l-harness-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The harness starts a recording with "
+        },
+        {
+          "insert": "⌃⌥S",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and posts the draw modifier from Dev's config. It moves, drags and clicks at the HID event tap inside a window of its own."
+        }
+      ],
+      "children": []
+    },
+    "l-harness-2": {
+      "id": "l-harness-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It counts the strokes and pins in the new bundle, the left presses its window received, and any drag or release that reached it without its press."
+        }
+      ],
+      "children": []
+    },
+    "l-harness-3": {
+      "id": "l-harness-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "--scenario all|move|drag|click|move-then-pin|pins|held-pins|button-first|late-shift|blocked|chord-drag",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " picks the gestures, and "
+        },
+        {
+          "insert": "--screenshot <png>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " saves the live pins."
+        }
+      ],
+      "children": []
+    },
+    "h-pause": {
+      "id": "h-pause",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Pause and Resume"
+        }
+      ],
+      "children": []
+    },
+    "p-pause": {
+      "id": "p-pause",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "On macOS, one press of the cancel key pauses a recording and the next press resumes it. Two presses within 400 ms ("
+        },
+        {
+          "insert": "DOUBLE_PRESS_MS",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") throw the recording away, paused or not. Annotator only watches the key, so an Esc that closes a dialog in the recorded app pauses the recording instead of losing it. On Windows and Linux, "
+        },
+        {
+          "insert": "ScrawlCoordinator::press_cancel_key",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " cancels a recording at once."
+        }
+      ],
+      "children": []
+    },
+    "p-classify": {
+      "id": "p-classify",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "pause::classify",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/pause.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/pause.rs"
+            }
+          }
+        },
+        {
+          "insert": " is the timing rule. It is a pure function of the last press that counted and this one."
+        }
+      ],
+      "children": []
+    },
+    "t-classify": {
+      "id": "t-classify",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Gap since the last counted press",
+          "Class",
+          "Effect"
+        ],
+        "rows": [
+          [
+            "No earlier press",
+            [
+              {
+                "insert": "Single",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Pauses or resumes"
+          ],
+          [
+            "Under 40 ms",
+            [
+              {
+                "insert": "Echo",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Nothing, because one press was reported by two sources"
+          ],
+          [
+            "40 ms to under 400 ms",
+            [
+              {
+                "insert": "Double",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Cancels the recording"
+          ],
+          [
+            "400 ms or more",
+            [
+              {
+                "insert": "Single",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Pauses or resumes"
+          ]
+        ],
+        "title": "Cancel key press classes"
+      },
+      "children": []
+    },
+    "p-session": {
+      "id": "p-session",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "pause::Session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the recording's state machine, owned by "
+        },
+        {
+          "insert": "ActiveRecording",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". A single press acts at once so the capsule answers the key, and the second press of a double cancels whatever the first one did. "
+        },
+        {
+          "insert": "ScrawlCoordinator::apply_pause_change",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is the only place that acts on a change."
+        }
+      ],
+      "children": []
+    },
+    "t-session": {
+      "id": "t-session",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "State",
+          "Entered by"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "Recording",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The start, or a single press or Resume while paused"
+          ],
+          [
+            [
+              {
+                "insert": "Paused { since_ms }",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A single press or the capsule's Pause (`toggle`) while recording"
+          ],
+          [
+            [
+              {
+                "insert": "Finishing",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The Record shortcut or Finish (`finish`), from either state above"
+          ],
+          [
+            [
+              {
+                "insert": "Cancelled",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "A double press or the capsule's Cancel (`cancel`)"
+          ]
+        ],
+        "title": "pause::State values"
+      },
+      "children": []
+    },
+    "p-capsule": {
+      "id": "p-capsule",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The recording capsule shows each control with its key from Settings: Pause or Resume "
+        },
+        {
+          "insert": "esc",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", Cancel "
+        },
+        {
+          "insert": "esc esc",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and Finish "
+        },
+        {
+          "insert": "⌥⇧S",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ("
+        },
+        {
+          "insert": "pill::model::Keys",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). Two approved mockups after the list show the capsule while it records and the keys it shows."
+        }
+      ],
+      "children": []
+    },
+    "l-paused": {
+      "id": "l-paused",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Paused capsule",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-paused-1",
+        "l-paused-2",
+        "l-paused-3"
+      ]
+    },
+    "l-paused-1": {
+      "id": "l-paused-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The dot stops pulsing and dims, and the lead says Paused."
+        }
+      ],
+      "children": []
+    },
+    "l-paused-2": {
+      "id": "l-paused-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The timer stands still ("
+        },
+        {
+          "insert": "ActiveRecording::shown_ms",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), and the waveform and the words leave."
+        }
+      ],
+      "children": []
+    },
+    "l-paused-3": {
+      "id": "l-paused-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The first chip reads Resume. "
+        },
+        {
+          "insert": "cargo test a_paused_capsule",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " draws it offscreen, and "
+        },
+        {
+          "insert": "SCRAWL_PILL_STILLS=<dir>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " writes the stills."
+        }
+      ],
+      "children": []
+    },
+    "l-pausein": {
+      "id": "l-pausein",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Input while paused",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-pausein-1",
+        "l-pausein-2"
+      ]
+    },
+    "l-pausein-1": {
+      "id": "l-pausein-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "SharedCaptureTelemetry::pause_input",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ends a stroke or drag in progress and turns input off. No click, ink or key is recorded, and the draw modifier does nothing."
+        }
+      ],
+      "children": []
+    },
+    "l-pausein-2": {
+      "id": "l-pausein-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "What was already drawn stays on screen ("
+        },
+        {
+          "insert": "overlay_live",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), and no candidate frame or app shot is taken."
+        }
+      ],
+      "children": []
+    },
+    "img-capsule": {
+      "id": "img-capsule",
+      "type": "image",
+      "props": {
+        "alt": "Mockup of the recording capsule with its waveform, live words, and the Pause, Cancel and Finish controls.",
+        "caption": "Approved design mockup of the recording capsule.",
+        "src": "./assets/images/recording-capsule.jpg"
+      },
+      "children": []
+    },
+    "img-capsule-keys": {
+      "id": "img-capsule-keys",
+      "type": "image",
+      "props": {
+        "alt": "Mockup of the capsule controls, each with the key from Settings beside it.",
+        "caption": "Approved design mockup of the capsule keys.",
+        "src": "./assets/images/capsule-keys.jpg"
+      },
+      "children": []
+    },
+    "h-cut": {
+      "id": "h-cut",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Paused Time Is Cut at Finish"
+        }
+      ],
+      "children": []
+    },
+    "p-cut": {
+      "id": "p-cut",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Nothing stops during a pause: the movie, the microphone and the window log go on, on the one capture clock. "
+        },
+        {
+          "insert": "Session",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " only notes when each pause began and ended, and at finish "
+        },
+        {
+          "insert": "pause::Cuts",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " takes those spans out of every timeline. Each timeline loses the same milliseconds, so they stay in sync."
+        }
+      ],
+      "children": []
+    },
+    "p-open": {
+      "id": "p-open",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A pause that Finish is pressed in has no end ("
+        },
+        {
+          "insert": "Span::OPEN",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). The screen and the microphone stop a few hundred ms after the press, so each track is cut from the pause's start to its own real end. The window log keeps nothing it saw in that pause."
+        }
+      ],
+      "children": []
+    },
+    "t-cut": {
+      "id": "t-cut",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Timeline",
+          "Cut by",
+          "Result"
+        ],
+        "rows": [
+          [
+            "Clicks, drags, scrolls, keys, ink, pins",
+            [
+              {
+                "insert": "cut_events",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", "
+              },
+              {
+                "insert": "cut_strokes",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "What began in a pause is dropped, and the rest moves earlier"
+          ],
+          [
+            "Candidate frames",
+            [
+              {
+                "insert": "cut_frames",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Frames from a pause are dropped. With none left, one blank frame of the same size stands in"
+          ],
+          [
+            [
+              {
+                "insert": "recording.mp4",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": ", the iPhone's "
+              },
+              {
+                "insert": "recording.mov",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "cut_movie",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The kept ranges, copied without a re-encode. `videoOffsetMs` moves with them"
+          ],
+          [
+            [
+              {
+                "insert": "audio.wav",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " and the transcript"
+              }
+            ],
+            [
+              {
+                "insert": "RecordedAudio::cut",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The paused samples are dropped before transcription"
+          ],
+          [
+            "Window log",
+            [
+              {
+                "insert": "ActivityLog::cut",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Resumes on the windows as they were at resume. Cursor samples from a pause are dropped"
+          ],
+          [
+            [
+              {
+                "insert": "durationMs",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            [
+              {
+                "insert": "Cuts::shift",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The paused time is subtracted"
+          ]
+        ],
+        "title": "How each timeline loses the pauses"
+      },
+      "children": []
+    },
+    "p-cut-detail": {
+      "id": "p-cut-detail",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The movie, the audio and the candidates each follow more rules when they are cut."
+        }
+      ],
+      "children": []
+    },
+    "l-movie": {
+      "id": "l-movie",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Movie",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-movie-1",
+        "l-movie-2",
+        "l-movie-3",
+        "l-movie-4"
+      ]
+    },
+    "l-movie-1": {
+      "id": "l-movie-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "cut_movie",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " runs "
+        },
+        {
+          "insert": "scrawl-helper cut MOVIE --out FILE --keep FROM-TO,…",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", an "
+        },
+        {
+          "insert": "AVMutableComposition",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of the kept ranges of every track, exported pass-through."
+        }
+      ],
+      "children": []
+    },
+    "l-movie-2": {
+      "id": "l-movie-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A 2-minute, 172 MB movie with two pauses takes 0.11 s. A cut between keyframes is trimmed by the edit list, which AVFoundation and ffmpeg both follow ("
+        },
+        {
+          "insert": "scripts/check-movie-cut.sh",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "scripts/check-movie-cut.sh"
+            }
+          }
+        },
+        {
+          "insert": ")."
+        }
+      ],
+      "children": []
+    },
+    "l-movie-3": {
+      "id": "l-movie-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The pauses move onto the movie's own clock first ("
+        },
+        {
+          "insert": "on_clock_from",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), and the phone's "
+        },
+        {
+          "insert": "offset_ms",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " moves the same way."
+        }
+      ],
+      "children": []
+    },
+    "l-movie-4": {
+      "id": "l-movie-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A Mac movie that cannot be cut is deleted rather than kept with its pauses, and the keyframes then come from the candidates. An iPhone capture fails instead."
+        }
+      ],
+      "children": []
+    },
+    "l-audio": {
+      "id": "l-audio",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Audio",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-audio-1",
+        "l-audio-2",
+        "l-audio-3",
+        "l-audio-4"
+      ]
+    },
+    "l-audio-1": {
+      "id": "l-audio-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The microphone opens some hundred ms after the capture clock starts, so the audio carries its own start ("
+        },
+        {
+          "insert": "RecordedAudio::offset_ms",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), and the pauses move onto that clock first."
+        }
+      ],
+      "children": []
+    },
+    "l-audio-2": {
+      "id": "l-audio-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The offset is the first buffer's arrival less how long before that CPAL's timestamp says its first sample was captured. It counts the device's latency as well as the buffer."
+        }
+      ],
+      "children": []
+    },
+    "l-audio-3": {
+      "id": "l-audio-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Every engine times words from the WAV's first sample, so "
+        },
+        {
+          "insert": "transcribe::heard",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " moves the transcript "
+        },
+        {
+          "insert": "offset_ms",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " later, in one place for Apple, Deepgram, Hex and a command."
+        }
+      ],
+      "children": []
+    },
+    "l-audio-4": {
+      "id": "l-audio-4",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "A live transcription that heard the pauses is dropped, and the cut WAV is transcribed instead."
+        }
+      ],
+      "children": []
+    },
+    "l-cand": {
+      "id": "l-cand",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Candidates",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-cand-1",
+        "l-cand-2"
+      ]
+    },
+    "l-cand-1": {
+      "id": "l-cand-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "No candidate is kept during a pause ("
+        },
+        {
+          "insert": "CandidateBuffer::set_paused",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), so a long pause does not thin the rest."
+        }
+      ],
+      "children": []
+    },
+    "l-cand-2": {
+      "id": "l-cand-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "When every candidate falls in a pause, "
+        },
+        {
+          "insert": "ScreenRecording::cut",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " puts in one blank frame, never a paused image, because a bundle needs a frame."
+        }
+      ],
+      "children": []
+    },
+    "h-why": {
+      "id": "h-why",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "Why One Cut at Finish"
+        }
+      ],
+      "children": []
+    },
+    "p-why": {
+      "id": "p-why",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The other design stops each recorder while paused and keeps a running offset. That needs a pause in four recorders that start and stop at their own pace. ScreenCaptureKit's recording output cannot pause, so the movie would be written in segments and joined. Each recorder would lose a slightly different span, which is how audio and video drift apart."
+        }
+      ],
+      "children": []
+    },
+    "p-why2": {
+      "id": "p-why2",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "One list of spans on one clock, applied once, cannot drift, and the live path stays as it is. The cost is that the pause stays on disk until finish, the microphone indicator stays on, and the movie is rewritten once when a pause happened. "
+        },
+        {
+          "insert": "cargo test pause::",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " covers the press rule, the state machine and every cut."
+        }
+      ],
+      "children": []
+    },
+    "h-live": {
+      "id": "h-live",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Live Audio and Words"
+        }
+      ],
+      "children": []
+    },
+    "p-live": {
+      "id": "p-live",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Two settings in Settings › Recording control what the macOS capsule shows while it records. "
+        },
+        {
+          "insert": "live_audio::wanted",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "live_audio::captions_possible",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "src/live_audio.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/live_audio.rs"
+            }
+          }
+        },
+        {
+          "insert": " read them once per recording, and only the native macOS capsule draws them."
+        }
+      ],
+      "children": []
+    },
+    "l-wave": {
+      "id": "l-wave",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Show live audio",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-wave-1",
+        "l-wave-2"
+      ]
+    },
+    "l-wave-1": {
+      "id": "l-wave-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "\"liveAudio\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is on by default and puts a waveform beside the timer, so a dead, muted or wrong microphone shows at once."
+        }
+      ],
+      "children": []
+    },
+    "l-wave-2": {
+      "id": "l-wave-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Dim dots are silence, and a flat red line means the microphone sent nothing for 600 ms. It shows for a cabled iPhone too."
+        }
+      ],
+      "children": []
+    },
+    "l-words": {
+      "id": "l-words",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Show live words",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-words-1",
+        "l-words-2",
+        "l-words-3"
+      ]
+    },
+    "l-words-1": {
+      "id": "l-words-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "\"liveWords\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is off by default and adds a row of words under the waveform, about a second behind. The words need the waveform on."
+        }
+      ],
+      "children": []
+    },
+    "l-words-2": {
+      "id": "l-words-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The words come from an Apple Speech "
+        },
+        {
+          "insert": "transcribe-stream",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of their own ("
+        },
+        {
+          "insert": "Live::preview",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), so they show with any transcriber."
+        }
+      ],
+      "children": []
+    },
+    "l-words-3": {
+      "id": "l-words-3",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "That stream starts only with live words on and is dropped at stop, so the final transcript is unchanged. With the "
+        },
+        {
+          "insert": "liveTranscribe",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " experiment and Apple Speech, the experiment's stream shows the words instead."
+        }
+      ],
+      "children": []
+    },
+    "p-live-test": {
+      "id": "p-live-test",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "cargo test live_audio",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " covers the defaults, the "
+        },
+        {
+          "insert": "liveWords",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " switch and the words with a non-Apple transcriber. The microphone choice is on "
+        },
+        {
+          "insert": "Onboarding and Settings",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/70-onboarding-and-settings"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "h-displays": {
+      "id": "h-displays",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "More Than One Display"
+        }
+      ],
+      "children": []
+    },
+    "p-displays": {
+      "id": "p-displays",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Every rect and point is in global top-left points: "
+        },
+        {
+          "insert": "CGEvent",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " locations, "
+        },
+        {
+          "insert": "CGDisplayBounds",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "SCWindow",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " frames and "
+        },
+        {
+          "insert": "TargetFrame",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". A display left of or above the primary one has negative coordinates. "
+        },
+        {
+          "insert": "src/screens.rs",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "src/screens.rs"
+            }
+          }
+        },
+        {
+          "insert": " holds the conversions."
+        }
+      ],
+      "children": []
+    },
+    "t-screens": {
+      "id": "t-screens",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Function",
+          "What it gives"
+        ],
+        "rows": [
+          [
+            [
+              {
+                "insert": "screens::flip",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "An AppKit frame (bottom-left origin, y up) as a global rect"
+          ],
+          [
+            [
+              {
+                "insert": "screens::current",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Each display with its menu bar, notch and `backingScaleFactor`, on the main thread only"
+          ],
+          [
+            [
+              {
+                "insert": "screens::displays",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "The CoreGraphics view of the displays, on any thread"
+          ],
+          [
+            [
+              {
+                "insert": "screens::source_rect",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "An Area as a display-local `sourceRect`"
+          ],
+          [
+            [
+              {
+                "insert": "screens::pill_origin",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Where the capsule sits on a display"
+          ]
+        ],
+        "title": "Display functions in screens"
+      },
+      "children": []
+    },
+    "p-one": {
+      "id": "p-one",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A capture belongs to one display, and "
+        },
+        {
+          "insert": "TargetFrame.scale",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is that display's scale."
+        }
+      ],
+      "children": []
+    },
+    "t-onedisplay": {
+      "id": "t-onedisplay",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Capture",
+          "Display"
+        ],
+        "rows": [
+          [
+            "Started by a press",
+            "The display under the pointer"
+          ],
+          [
+            "Window",
+            "The display that holds the window's centre"
+          ],
+          [
+            "Area",
+            "The display that holds the area's centre, with the area clamped to it"
+          ]
+        ],
+        "title": "Which display a capture uses"
+      },
+      "children": []
+    },
+    "p-follow-lead": {
+      "id": "p-follow-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The picker, the overlay and the capsule move to the display in use."
+        }
+      ],
+      "children": []
+    },
+    "l-follow": {
+      "id": "l-follow",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Picker and overlay",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-follow-1",
+        "l-follow-2"
+      ]
+    },
+    "l-follow-1": {
+      "id": "l-follow-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The picker's window, its Metal overlay and the capsule follow the pointer between displays ("
+        },
+        {
+          "insert": "follow_pointer_display",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). They stay put while an area is dragged or iPhone is the mode."
+        }
+      ],
+      "children": []
+    },
+    "l-follow-2": {
+      "id": "l-follow-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "When recording starts, the overlay moves to the target's display ("
+        },
+        {
+          "insert": "move_to",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "). It follows the iPhone mirror if the mirror is dragged."
+        }
+      ],
+      "children": []
+    },
+    "l-pillpos": {
+      "id": "l-pillpos",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Capsule",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "l-pillpos-1",
+        "l-pillpos-2"
+      ]
+    },
+    "l-pillpos-1": {
+      "id": "l-pillpos-1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "NativePill::place_on",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " puts the capsule on the display in use, "
+        },
+        {
+          "insert": "PANEL_Y",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " (34 pt) below its top."
+        }
+      ],
+      "children": []
+    },
+    "l-pillpos-2": {
+      "id": "l-pillpos-2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "It sits lower when a taller menu bar or the notch needs the room."
+        }
+      ],
+      "children": []
+    },
+    "callout-vd": {
+      "id": "callout-vd",
+      "type": "callout",
+      "props": {
+        "tone": "warning"
+      },
+      "text": [
+        {
+          "insert": "Test more than one display with a "
+        },
+        {
+          "insert": "CGVirtualDisplay",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " from "
+        },
+        {
+          "insert": "scripts/virtual-display.swift",
+          "attributes": {
+            "code": true,
+            "reference": {
+              "kind": "source",
+              "path": "scripts/virtual-display.swift"
+            }
+          }
+        },
+        {
+          "insert": ", never on Kit's desk Mac."
+        }
+      ],
+      "children": []
+    }
+  }
+}

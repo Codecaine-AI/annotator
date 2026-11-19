@@ -2,7 +2,7 @@
 App colors come from the Scrawl source (model.rs, pill.metal, Settings.swift, ui.rs).
 Frame and caption colors come from design-system tokens in root.css."""
 import pathlib, sys
-here = pathlib.Path(__file__).parent  # docs/mockups
+here = pathlib.Path(__file__).parent  # design/mockups
 out = here / "out"; out.mkdir(exist_ok=True)
 root = (here / "root.css").read_text()
 

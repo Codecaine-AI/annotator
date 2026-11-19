@@ -1,0 +1,128 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-3ee138c25a5d15c4fe3b5768f194a3c1",
+  "title": "Guides",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "g-open",
+        "g-l10",
+        "g-l20",
+        "g-l30",
+        "g-l40"
+      ]
+    },
+    "g-open": {
+      "id": "g-open",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Guides is a guides tier: it holds procedures, not contracts. Each page gives the steps for one job on the Annotator repo or app. Where a step depends on a rule, the page links to the System Design or Implementation page that owns the rule."
+        }
+      ],
+      "children": []
+    },
+    "g-l10": {
+      "id": "g-l10",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Build, Test, and Install",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/10-build-test-and-install"
+            }
+          }
+        },
+        {
+          "insert": ": the cargo commands, the live and Dev installs, signing, and the UI mockups."
+        }
+      ],
+      "children": []
+    },
+    "g-l20": {
+      "id": "g-l20",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Command-Line Tool",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/20-command-line"
+            }
+          }
+        },
+        {
+          "insert": ": every "
+        },
+        {
+          "insert": "scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " subcommand and its main flags."
+        }
+      ],
+      "children": []
+    },
+    "g-l30": {
+      "id": "g-l30",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Safety and Recovery",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/30-safety-and-recovery"
+            }
+          }
+        },
+        {
+          "insert": ": what never to do on the owner's Macs, and how to re-send a capture."
+        }
+      ],
+      "children": []
+    },
+    "g-l40": {
+      "id": "g-l40",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Release",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "40-guides/40-release"
+            }
+          }
+        },
+        {
+          "insert": ": the version PR, the signed build, the appcast, the site, and Homebrew."
+        }
+      ],
+      "children": []
+    }
+  }
+}

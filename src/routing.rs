@@ -8,7 +8,7 @@
 //! 3. Otherwise nothing: the capture stays on the clipboard.
 //!
 //! With `"experiments": {"smartRouting": true}`, [`smart`] decides instead, from clues
-//! [`look`] gathers (`docs/routing.md`).
+//! [`look`] gathers (`docs/10-system-design/50-routing-and-delivery`).
 
 pub mod look;
 pub mod served;

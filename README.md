@@ -198,7 +198,7 @@ granted and each on-demand sheet: `target/debug/scrawl-helper onboarding --rende
 The menu has Record Screen, Choose What to Record…, Open Latest Capture, History…, Export Last
 Capture as Video… (when on), Settings… and Quit Annotator.
 
-![Settings › Recording pane mockup](docs/images/mockups/30-recording.png)
+![Settings › Recording pane mockup](design/mockups/images/30-recording.png)
 
 *Settings › Recording: Deepgram nova-3, live audio on, live words off, Save app state shown on in the approved design mockup. It is off by default.*
 
@@ -221,7 +221,7 @@ refused key names the row that has it ("⌥⇧S is already Record. Pick another 
 puts the default back. While the recorder listens, Annotator's own shortcuts are paused. They are
 saved as `"shortcuts"` in `~/.config/scrawl/config.json`, and a change works on the next key press.
 
-![Settings › Shortcuts pane mockup](docs/images/mockups/20-shortcuts.png)
+![Settings › Shortcuts pane mockup](design/mockups/images/20-shortcuts.png)
 
 *Settings › Shortcuts with its five rows (approved design mockup). The app's Cancel recording caption
 now reads "Press once to pause or resume. Press twice to cancel."*
@@ -242,7 +242,7 @@ words as you say them, about a second behind. The words come from Apple Speech o
 the transcriber is, and they need the waveform on. They are only for you: the transcript is still
 made from the finished recording.
 
-![Recording capsule mockup](docs/images/mockups/10-capsule.png)
+![Recording capsule mockup](design/mockups/images/10-capsule.png)
 
 *The recording capsule: waveform on by default, live words as a setting, and the waveform's states (approved design mockup).* From the terminal, `scrawl mic list` shows the inputs and the
 one recordings will use, `scrawl mic set <id|default>` chooses, and `scrawl mic watch` prints the
@@ -275,7 +275,7 @@ While recording, the capsule shows each control's key: Pause or Resume `esc`, Ca
 Finish `⌥⇧S`, with the keys from Settings › Shortcuts. While paused, the dot dims, the timer stops,
 and the waveform and words leave.
 
-![Capsule keys mockup](docs/images/mockups/25-capsule-keys.png)
+![Capsule keys mockup](design/mockups/images/25-capsule-keys.png)
 
 *The capsule shows the key for each control (approved design mockup).*
 
@@ -300,11 +300,11 @@ Double-click a row, or press Return, to open it in Review. Review shows a **Vide
 capture's video file exists, and a row with its video opens on that tab. The tab plays the movie
 in a native player (`scrawl-helper play`). For a paused recording it plays the cut movie.
 
-![History window mockup](docs/images/mockups/40-history.png)
+![History window mockup](design/mockups/images/40-history.png)
 
 *The History window and its menu item (approved design mockup).*
 
-![Review Video tab mockup](docs/images/mockups/50-review-video.png)
+![Review Video tab mockup](design/mockups/images/50-review-video.png)
 
 *The Review window's Video tab (approved design mockup).*
 
@@ -334,9 +334,9 @@ Everything app state saves goes through one privacy policy (`src/privacy.rs`). I
 - anything from a password manager (1Password, Bitwarden, Keychain Access, Passwords, LastPass) except its name;
 - a browser's own pages (`chrome://`, `about:` and the like).
 
-Details are in `docs/keyframes-and-text.md`.
+Details are in `docs/10-system-design/40-app-state-and-privacy`.
 
-![App shot CLI mockup](docs/images/mockups/60-appshot.png)
+![App shot CLI mockup](design/mockups/images/60-appshot.png)
 
 *`scrawl appshot` output and the App shots line (approved design mockup).*
 

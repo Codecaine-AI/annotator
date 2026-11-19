@@ -1,0 +1,843 @@
+{
+  "schemaVersion": 1,
+  "id": "doc-d501be94ffeddebe37aff6bb071fc4d8",
+  "title": "Product Intent",
+  "root": "root",
+  "blocks": {
+    "root": {
+      "id": "root",
+      "type": "paragraph",
+      "props": {},
+      "children": [
+        "intro",
+        "loop-h",
+        "loop-p",
+        "loop-outline",
+        "entry-h",
+        "entry-p",
+        "entry-table",
+        "entry-more",
+        "entry-bundle",
+        "pr-h",
+        "pr-p",
+        "p1",
+        "p2",
+        "p3",
+        "p4",
+        "p5"
+      ]
+    },
+    "intro": {
+      "id": "intro",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Annotator is the human-to-agent half of a feedback loop. The agent builds, the human looks, points, talks, and draws, and the agent understands what was meant and acts. A capture records the screen, the voice, the cursor, the clicks, and the "
+        },
+        {
+          "insert": "⇧",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " ink, and Annotator compiles it into a compact "
+        },
+        {
+          "insert": ".scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " bundle. This page states what the product is for and the five principles that every change keeps."
+        }
+      ],
+      "children": []
+    },
+    "loop-h": {
+      "id": "loop-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "The Feedback Loop"
+        }
+      ],
+      "children": []
+    },
+    "loop-p": {
+      "id": "loop-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "One pass of the loop goes from a change the agent made to the next change the agent makes. The human shows the problem instead of describing it."
+        }
+      ],
+      "children": []
+    },
+    "loop-outline": {
+      "id": "loop-outline",
+      "type": "process-outline",
+      "props": {
+        "steps": [
+          {
+            "text": "Feedback Loop",
+            "steps": [
+              {
+                "text": "Agent Builds",
+                "steps": [
+                  {
+                    "text": "The agent changes an app or a page"
+                  }
+                ]
+              },
+              {
+                "text": "Human Shows",
+                "steps": [
+                  {
+                    "text": "Start a capture with `⌥⇧S`, a cabled iPhone, or ScrawlKit"
+                  },
+                  {
+                    "text": "Talk about what is on the screen"
+                  },
+                  {
+                    "text": "Point and click at the parts that matter"
+                  },
+                  {
+                    "text": "Hold `⇧` to draw red ink on the screen"
+                  },
+                  {
+                    "text": "Finish the capture"
+                  }
+                ]
+              },
+              {
+                "text": "Annotator Compiles",
+                "steps": [
+                  {
+                    "text": "Cut keyframes on real actions, marks, and visual changes"
+                  },
+                  {
+                    "text": "Write the `.scrawl` bundle to the captures folder"
+                  }
+                ]
+              },
+              {
+                "text": "Agent Acts",
+                "steps": [
+                  {
+                    "text": "Deliver the bundle by auto-routing or `⌥⇧V`"
+                  },
+                  {
+                    "text": "The agent reads `contact-sheet.png` and `summary.md`"
+                  },
+                  {
+                    "text": "The agent looks closer with `scrawl zoom`"
+                  },
+                  {
+                    "text": "The agent changes the app or page again"
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      "children": []
+    },
+    "entry-h": {
+      "id": "entry-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Capture Entry Points"
+        }
+      ],
+      "children": []
+    },
+    "entry-p": {
+      "id": "entry-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "A capture starts in one of three ways. The table lists them by the device that is on screen."
+        }
+      ],
+      "children": []
+    },
+    "entry-table": {
+      "id": "entry-table",
+      "type": "structured-table",
+      "props": {
+        "columns": [
+          "Entry point",
+          "Trigger",
+          "What Annotator records"
+        ],
+        "rows": [
+          [
+            "Mac screen",
+            [
+              {
+                "insert": "⌥⇧S",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " to start and again to finish"
+              }
+            ],
+            "The Mac screen, voice, cursor, clicks, and ink"
+          ],
+          [
+            "Cabled iPhone",
+            [
+              {
+                "insert": "Plug in the iPhone and pick "
+              },
+              {
+                "insert": "iPhone",
+                "attributes": {
+                  "bold": true
+                }
+              },
+              {
+                "insert": " in the picker"
+              }
+            ],
+            "The iPhone mirror window plus the native video"
+          ],
+          [
+            "ScrawlKit",
+            "A three-finger long press inside an iOS app",
+            [
+              {
+                "insert": "A recording that the Mac imports, also with "
+              },
+              {
+                "insert": "scrawl import",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ]
+          ]
+        ],
+        "title": "Capture entry points"
+      },
+      "children": []
+    },
+    "entry-more": {
+      "id": "entry-more",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The parts of each path are on "
+        },
+        {
+          "insert": "Capture and Recording",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/10-capture"
+            }
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "iPhone and ScrawlKit",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/60-iphone-and-scrawlkit"
+            }
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "entry-bundle": {
+      "id": "entry-bundle",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Each path writes a "
+        },
+        {
+          "insert": ".scrawl",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " bundle, with files such as "
+        },
+        {
+          "insert": "contact-sheet.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "frames/frame-XX.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
+        },
+        {
+          "insert": "Capture Bundle and Paste",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/20-capture-bundle"
+            }
+          }
+        },
+        {
+          "insert": " defines each file."
+        }
+      ],
+      "children": []
+    },
+    "pr-h": {
+      "id": "pr-h",
+      "type": "heading",
+      "props": {
+        "level": 2
+      },
+      "text": [
+        {
+          "insert": "Principles"
+        }
+      ],
+      "children": []
+    },
+    "pr-p": {
+      "id": "pr-p",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "Five principles decide what a change to Annotator must keep. They come in order of weight: the human's time comes first."
+        }
+      ],
+      "children": []
+    },
+    "p1": {
+      "id": "p1",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "The human's time is the scarce resource.",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "p1a",
+        "p1b"
+      ]
+    },
+    "p1a": {
+      "id": "p1a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Starting ("
+        },
+        {
+          "insert": "⌥⇧S",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), marking ("
+        },
+        {
+          "insert": "⇧",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "), and delivering (auto-routing or "
+        },
+        {
+          "insert": "⌥⇧V",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ") must feel instant."
+        }
+      ],
+      "children": []
+    },
+    "p1b": {
+      "id": "p1b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Each of the three actions must take as few steps as possible."
+        }
+      ],
+      "children": []
+    },
+    "p2": {
+      "id": "p2",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Do not make the agent guess what Scrawl can capture.",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "p2a",
+        "p2b",
+        "p2c"
+      ]
+    },
+    "p2a": {
+      "id": "p2a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The OS, the window server, the Accessibility tree, the browser page, or the host app can know which window, element, URL, or session is on screen. Record that fact."
+        }
+      ],
+      "children": []
+    },
+    "p2b": {
+      "id": "p2b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Do not leave the agent to infer the fact from pixels and from words such as \"this part\" or \"here\"."
+        }
+      ],
+      "children": []
+    },
+    "p2c": {
+      "id": "p2c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "App State and Privacy",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/40-app-state-and-privacy"
+            }
+          }
+        },
+        {
+          "insert": " holds what Annotator records and the privacy policy for each stored string."
+        }
+      ],
+      "children": []
+    },
+    "p3": {
+      "id": "p3",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Images stay visual and text carries meaning.",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "p3a",
+        "p3b",
+        "p3c",
+        "p3d"
+      ]
+    },
+    "p3a": {
+      "id": "p3a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "contact-sheet.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "frames/*.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " show the screen, the red ink, the click ripples, and the number of each keyframe in a small white corner chip."
+        }
+      ],
+      "children": []
+    },
+    "p3b": {
+      "id": "p3b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "The images have no "
+        },
+        {
+          "insert": "#",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", no time, no rasterized captions, and no card chrome."
+        }
+      ],
+      "children": []
+    },
+    "p3c": {
+      "id": "p3c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and the clipboard carry the time-aligned transcript, the interaction events, and the absolute file paths as plain text. The text pastes cleanly into a terminal or a GUI composer."
+        }
+      ],
+      "children": []
+    },
+    "p3d": {
+      "id": "p3d",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Keyframes and Images",
+          "attributes": {
+            "reference": {
+              "kind": "doc",
+              "path": "10-system-design/30-keyframes-and-images"
+            }
+          }
+        },
+        {
+          "insert": " holds the details."
+        }
+      ],
+      "children": []
+    },
+    "p4": {
+      "id": "p4",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Spend the agent's context where the signal is.",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "p4a",
+        "p4b",
+        "p4c"
+      ]
+    },
+    "p4a": {
+      "id": "p4a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Cut keyframes only on real actions, marks, or visual changes. Never cut one on a speech pause over a static screen."
+        }
+      ],
+      "children": []
+    },
+    "p4b": {
+      "id": "p4b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Crop each image to the active region, and keep the full frames on disk."
+        }
+      ],
+      "children": []
+    },
+    "p4c": {
+      "id": "p4c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Point the agent at "
+        },
+        {
+          "insert": "scrawl zoom",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for a closer look around a moment."
+        }
+      ],
+      "children": []
+    },
+    "p5": {
+      "id": "p5",
+      "type": "list-item",
+      "props": {
+        "ordered": true
+      },
+      "text": [
+        {
+          "insert": "Inspect real bundles after every change.",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "p5a",
+        "p5b",
+        "p5c"
+      ]
+    },
+    "p5a": {
+      "id": "p5a",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "After each change to Annotator, and after Kit tests a capture, read the latest bundles in "
+        },
+        {
+          "insert": "~/Library/Application Support/scrawl/captures/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". Annotator Dev.app writes to "
+        },
+        {
+          "insert": "~/Library/Application Support/scrawl-dev/captures/",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "p5b": {
+      "id": "p5b",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Read both the text, "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "scrawl.json",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", and the images, "
+        },
+        {
+          "insert": "contact-sheet.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": "frames/*.png",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "p5c": {
+      "id": "p5c",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Report each concrete improvement you see in the output or the UX."
+        }
+      ],
+      "children": [
+        "p5c1",
+        "p5c2"
+      ]
+    },
+    "p5c1": {
+      "id": "p5c1",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "Output problems include noisy text in "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", a low-density contact sheet, a keyframe cut on a speech pause, and a ghost or misaligned stroke."
+        }
+      ],
+      "children": []
+    },
+    "p5c2": {
+      "id": "p5c2",
+      "type": "list-item",
+      "props": {
+        "ordered": false
+      },
+      "text": [
+        {
+          "insert": "UX problems include slow startup, slow post-processing, and paste friction."
+        }
+      ],
+      "children": []
+    }
+  }
+}
