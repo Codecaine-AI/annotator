@@ -2285,7 +2285,7 @@
           }
         },
         {
-          "insert": " turns it into the sentence that "
+          "insert": " turns it into a sentence. "
         },
         {
           "insert": "summary.md",
@@ -2294,7 +2294,16 @@
           }
         },
         {
-          "insert": " prints."
+          "insert": " prints that sentence in its "
+        },
+        {
+          "insert": "<no_transcript>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " tag while the transcript is empty."
         }
       ],
       "children": []

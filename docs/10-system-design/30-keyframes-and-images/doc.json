@@ -756,7 +756,7 @@
           }
         },
         {
-          "insert": ", which "
+          "insert": ". "
         },
         {
           "insert": "Capture Bundle and Paste",
@@ -768,7 +768,34 @@
           }
         },
         {
-          "insert": " shows in the summary line of each keyframe."
+          "insert": " shows them as the "
+        },
+        {
+          "insert": "<said>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of the keyframe's "
+        },
+        {
+          "insert": "<moment>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " in "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
         }
       ],
       "children": []
@@ -1037,16 +1064,16 @@
       "props": {},
       "text": [
         {
-          "insert": "The images stay visual, and the text carries the meaning. A keyframe image shows the screenshot, the ink, the input and the keyframe number, with no rasterized captions or card chrome. The transcript, the "
+          "insert": "The images stay visual, and the text carries the meaning. A keyframe image shows the screenshot, the ink, the input and the keyframe number, with no rasterized captions or card chrome. The transcript, the number and time of each "
         },
         {
-          "insert": "#N (M:SS)",
+          "insert": "<moment>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " index and the file paths go in "
+          "insert": " and the file paths go in "
         },
         {
           "insert": "summary.md",
@@ -1225,16 +1252,43 @@
       "props": {},
       "text": [
         {
-          "insert": "Two or more marks on one keyframe get the numbers ①②③ in drawing order in the text and in "
+          "insert": "Two or more marks on one keyframe get the numbers ①②③ in drawing order in "
         },
         {
-          "insert": "scrawl.json",
+          "insert": "scrawl inspect --marks",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": ", never on the image, so nothing covers the screen."
+          "insert": " and "
+        },
+        {
+          "insert": "scrawl zoom --mark",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", never on the image, so nothing covers the screen. The "
+        },
+        {
+          "insert": "<marks>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " list in "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " gives each mark its own line with its time, so it does not number them."
         }
       ],
       "children": []
@@ -1283,7 +1337,7 @@
           }
         },
         {
-          "insert": " and its "
+          "insert": " and the "
         },
         {
           "insert": "pin N",
@@ -1292,7 +1346,16 @@
           }
         },
         {
-          "insert": " in "
+          "insert": " line in the "
+        },
+        {
+          "insert": "<marks>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " of its moment in "
         },
         {
           "insert": "summary.md",
@@ -1561,25 +1624,43 @@
           }
         },
         {
-          "insert": ". The summary gets a "
+          "insert": ". The "
         },
         {
-          "insert": "Cropped to:",
+          "insert": "<source>",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": " line, such as "
+          "insert": " tag of the summary gets "
         },
         {
-          "insert": "Cropped to: Ghostty + Safari (full frames in frames-full/)",
+          "insert": "cropped_to",
           "attributes": {
             "code": true
           }
         },
         {
-          "insert": ", and "
+          "insert": " and "
+        },
+        {
+          "insert": "uncropped",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " attributes, such as "
+        },
+        {
+          "insert": "cropped_to=\"Ghostty + Safari\" uncropped=\"frames-full/\"",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". "
         },
         {
           "insert": "Capture Bundle and Paste",
