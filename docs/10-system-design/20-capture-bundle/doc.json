@@ -39,6 +39,13 @@
         "h-example",
         "ex-lead",
         "ex-code",
+        "h-xml",
+        "xml-lead",
+        "xml-example",
+        "xml-rules-lead",
+        "g-xml-pos",
+        "g-xml-marks",
+        "g-xml-words",
         "h-clip",
         "clip-lead",
         "clip-table",
@@ -1351,6 +1358,318 @@
       "text": [
         {
           "insert": "[scrawl 0:41 · Safari “Settings” · /Users/you/Library/Application Support/scrawl/captures/scrawl-1795011535201-44db-3.scrawl]\nOpen contact-sheet.png and frames/ in that folder before changing anything: the marks and words only make sense on the images, which can show more than the text does.\nCropped to: Safari (full frames in frames-full/)\n- #1 (0:03) “This header is too tall.”\n- #2 (0:12) [clicked] “And this button does nothing.”\n- #3 (0:27) scene changed"
+        }
+      ],
+      "children": []
+    },
+    "h-xml": {
+      "id": "h-xml",
+      "type": "heading",
+      "props": {
+        "level": 3
+      },
+      "text": [
+        {
+          "insert": "XML Paste Experiment"
+        }
+      ],
+      "children": []
+    },
+    "xml-lead": {
+      "id": "xml-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "With the "
+        },
+        {
+          "insert": "xmlPaste",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " experiment on, "
+        },
+        {
+          "insert": "summary_markdown_with",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " returns "
+        },
+        {
+          "insert": "paste_xml::summary_xml",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " instead of the lines above. The XML holds the same facts in nested sections, one "
+        },
+        {
+          "insert": "<moment>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " for each keyframe. "
+        },
+        {
+          "insert": "summary.md",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", the automatic copy and the paste shortcut all get the same text."
+        }
+      ],
+      "children": []
+    },
+    "xml-example": {
+      "id": "xml-example",
+      "type": "code",
+      "props": {
+        "language": "xml"
+      },
+      "text": [
+        {
+          "insert": "<scrawl_capture id=\"scrawl-1795095712207-71a2-2\" duration=\"0:49\">\n    <instructions>\n        Start with contact-sheet.png: it is attached above when the capture was pasted with its\n        image, else it is in the bundle folder. It shows every moment on one image, numbered by\n        the white chip in its corner. Read it before you change anything: the marks and words\n        only make sense on the images. Open a moment's image for full size.\n    </instructions>\n\n    <source app=\"Google Chrome\" window=\"Knowledge System\" cropped_to=\"Google Chrome\"\n            uncropped=\"frames-full/\" />\n    <bundle path=\"/Users/you/Library/Application Support/scrawl/captures/scrawl-1795095712207-71a2-2.scrawl\" />\n\n    <moments count=\"3\">\n        <moment n=\"1\" t=\"0:09\">\n            <image>frames/frame-01.png</image>\n            <action>clicked</action>\n            <said>\n                Option three is the best, where we can see the pieces here.\n            </said>\n        </moment>\n        <moment n=\"2\" t=\"0:18\">\n            <image>frames/frame-02.png</image>\n            <marks>\n                - 0:18 pin 1, with ink drawn from it\n            </marks>\n            <said>\n                This text feels a little big on this page.\n            </said>\n        </moment>\n        <moment n=\"3\" t=\"0:20\">\n            <image>frames/frame-03.png</image>\n            <action>clicked</action>\n        </moment>\n    </moments>\n</scrawl_capture>"
+        }
+      ],
+      "children": []
+    },
+    "xml-rules-lead": {
+      "id": "xml-rules-lead",
+      "type": "paragraph",
+      "props": {},
+      "text": [
+        {
+          "insert": "The XML differs from the line format in what it writes about positions, marks and words:"
+        }
+      ],
+      "children": []
+    },
+    "g-xml-pos": {
+      "id": "g-xml-pos",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Positions",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "xml-pos-1",
+        "xml-pos-2"
+      ]
+    },
+    "xml-pos-1": {
+      "id": "xml-pos-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The text has no coordinates, because a position is in full-capture space and the frames are often cropped."
+        }
+      ],
+      "children": []
+    },
+    "xml-pos-2": {
+      "id": "xml-pos-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "A click's "
+        },
+        {
+          "insert": "<action>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " is "
+        },
+        {
+          "insert": "clicked",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ". With Save app state on, it also names the target, such as "
+        },
+        {
+          "insert": "clicked button “Files”",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": "."
+        }
+      ],
+      "children": []
+    },
+    "g-xml-marks": {
+      "id": "g-xml-marks",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Marks",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "xml-marks-1",
+        "xml-marks-2"
+      ]
+    },
+    "xml-marks-1": {
+      "id": "xml-marks-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "The ink marks that a keyframe draws each get a line in "
+        },
+        {
+          "insert": "<marks>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", also when words were said over them. A flag is the moment's "
+        },
+        {
+          "insert": "<action>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " instead."
+        }
+      ],
+      "children": []
+    },
+    "xml-marks-2": {
+      "id": "xml-marks-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "One ⇧-click can leave a tap, a pin and a partial mark. "
+        },
+        {
+          "insert": "paste_xml::mark_lines",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " shows them as one pin line when the tap or mark touches the pin within 1 second."
+        }
+      ],
+      "children": []
+    },
+    "g-xml-words": {
+      "id": "g-xml-words",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "Words and Events",
+          "attributes": {
+            "bold": true
+          }
+        }
+      ],
+      "children": [
+        "xml-words-1",
+        "xml-words-2"
+      ]
+    },
+    "xml-words-1": {
+      "id": "xml-words-1",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "<said>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds the keyframe's "
+        },
+        {
+          "insert": "said",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " as Keyframes and Images assigns it, with "
+        },
+        {
+          "insert": "&",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": ", "
+        },
+        {
+          "insert": "<",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " and "
+        },
+        {
+          "insert": ">",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " escaped."
+        }
+      ],
+      "children": []
+    },
+    "xml-words-2": {
+      "id": "xml-words-2",
+      "type": "list-item",
+      "props": {},
+      "text": [
+        {
+          "insert": "<events>",
+          "attributes": {
+            "code": true
+          }
+        },
+        {
+          "insert": " holds app events and context changes. With Save app state on, it also holds clicks, keys, drags and window changes."
         }
       ],
       "children": []

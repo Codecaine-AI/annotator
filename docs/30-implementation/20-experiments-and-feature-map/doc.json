@@ -544,7 +544,7 @@
       "props": {},
       "text": [
         {
-          "insert": "The code asks about three experiments, and the feature map lists one more flag with an experiment status. All four are off by default. The rows follow the order of the feature map."
+          "insert": "The code asks about four experiments, and the feature map lists one more flag with an experiment status. All five are off by default. The rows follow the order of the feature map."
         }
       ],
       "children": []
@@ -593,6 +593,49 @@
             ],
             "Windows",
             "Copies the contact sheet and the text together, so one Ctrl+V pastes both",
+            [
+              {
+                "insert": "\"experiments\"",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "Capture Bundle and Paste"
+          ],
+          [
+            [
+              {
+                "insert": "xmlPaste",
+                "attributes": {
+                  "code": true
+                }
+              }
+            ],
+            "All",
+            [
+              {
+                "insert": "Writes the paste and "
+              },
+              {
+                "insert": "summary.md",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " as nested XML, one "
+              },
+              {
+                "insert": "<moment>",
+                "attributes": {
+                  "code": true
+                }
+              },
+              {
+                "insert": " per keyframe"
+              }
+            ],
             [
               {
                 "insert": "\"experiments\"",
@@ -717,7 +760,7 @@
           }
         },
         {
-          "insert": " hold the behavior of each flag. Two flag names do not work like the other three experiments."
+          "insert": " hold the behavior of each flag. Two flag names do not work like the other four experiments."
         }
       ],
       "children": []

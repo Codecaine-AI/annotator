@@ -300,7 +300,7 @@ fn frame_starts(bundle: &ScrawlBundle, words: Option<&[Vec<&WordTiming>]>) -> Ve
 
 /// Everything besides marks that the summary shows inline, in time order, with repeats of one
 /// thing (a shortcut, a click on one control) folded into `×N` and a run of drags into one line.
-fn events(bundle: &ScrawlBundle) -> Vec<(u64, String)> {
+pub(crate) fn events(bundle: &ScrawlBundle) -> Vec<(u64, String)> {
     let settled = settled_events(&bundle.events);
     // On a Mac capture these come from the dev page (`crate::page`), not an app.
     let page_scrubs: Vec<u64> = settled
@@ -526,7 +526,7 @@ fn event_text(event: &InteractionEvent) -> Option<String> {
 
 /// What a mark is: its shape, what it was drawn on when something names that, and its stroke
 /// count when more than one.
-fn mark_text(mark: &Mark) -> String {
+pub(crate) fn mark_text(mark: &Mark) -> String {
     let mut text = match mark.shape {
         Shape::Circle => "circled".to_owned(),
         Shape::Underline => "underlined".to_owned(),
@@ -552,7 +552,7 @@ fn mark_text(mark: &Mark) -> String {
 }
 
 /// A keyframe's own description without its `(x 0.50, y 0.70)` positions.
-fn without_positions(text: &str) -> String {
+pub(crate) fn without_positions(text: &str) -> String {
     let mut out = String::new();
     let mut rest = text;
     while let Some(start) = rest.find(" (x ") {

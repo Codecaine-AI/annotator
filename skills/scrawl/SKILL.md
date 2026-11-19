@@ -1,6 +1,6 @@
 ---
 name: scrawl
-description: Read and dig into Scrawl screen captures, where someone recorded their screen while talking, clicking and drawing red marks on it. Use whenever a message contains a Scrawl capture (a line like `[scrawl 0:12 · App “Window” · /path/to/….scrawl]`, a `.scrawl` bundle path, or a contact-sheet.png from one), when the user says "look at my scrawl" or refers to something they just recorded or drew, or when you need the `scrawl` CLI to zoom into a moment, pull frames, send a capture to a session, or export one as video.
+description: Read and dig into Scrawl screen captures, where someone recorded their screen while talking, clicking and drawing red marks on it. Use whenever a message contains a Scrawl capture (a line like `[scrawl 0:12 · App “Window” · /path/to/….scrawl]` or a `<scrawl_capture>` block, a `.scrawl` bundle path, or a contact-sheet.png from one), when the user says "look at my scrawl" or refers to something they just recorded or drew, or when you need the `scrawl` CLI to zoom into a moment, pull frames, send a capture to a session, or export one as video.
 ---
 
 # Scrawl captures
@@ -25,6 +25,8 @@ Cropped to: the activity in OpenCode (full frames in frames-full/)
 - `⚑` means they flagged the moment on purpose. `⟨Name⟩` means the app reported a new screen. Lines starting `·` are events or values the app logged.
 - Optional lines near the top: `For session:` (where Scrawl sent it), `App shots:` (the command that prints a keyframe's app state, see below), `Screen:` with app context, `Note:`, and `Cropped to:`.
 - Coordinates are fractions of the captured area, from the top left (x 0.51 is just right of centre).
+
+With the `xmlPaste` experiment on, the same facts come as XML: a `<scrawl_capture>` block with `<instructions>`, `<source>` (app, window, crop), `<bundle path=…>`, and `<moments>`. Each `<moment n="3" t="0:10">` holds its `<image>` (the frame file), the `<action>` that cut it, the `<marks>` it draws, any `<events>`, and `<said>` (the words said while it was on screen). The `n` is the number on the image's white chip, and the text has no coordinates.
 
 When you answer, refer to moments the same way, as in "#3 (0:10)", so the person can find them on the contact sheet.
 

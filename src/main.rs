@@ -39,6 +39,7 @@ mod native;
 mod onboarding;
 mod onboarding_window;
 mod page;
+mod paste_xml;
 mod pause;
 mod phone;
 // Lowers the output volume while recording on macOS; elsewhere a no-op.
